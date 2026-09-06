@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env*
+!.env.example
+!.env.test.example
+.runtime/
+.playwright-cli/
+*.bak
+coverage/
+playwright-report/
+test-results/
+output/
+*.log
+!.hallmark/log.json
+!.hallmark/preflight.json

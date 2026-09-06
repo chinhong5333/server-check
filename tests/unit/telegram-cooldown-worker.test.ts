@@ -1,0 +1,104 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppConfig } from "../../src/server/config.js";
+
+const { executeMock, fetchMock } = vi.hoisted(() => ({
+  executeMock: vi.fn(),
+  fetchMock: vi.fn()
+}));
+
+vi.mock("../../src/server/db.js", () => ({
+  getPool: () => ({ execute: executeMock }),
+  withTransaction: vi.fn()
+}));
+
+vi.mock("../../src/server/security/telegram-secrets.js", () => ({
+  decryptPlatformTelegramBotToken: () => "telegram-test-token"
+}));
+
+import { deliverTelegram } from "../../src/server/workers.js";
+
+const config: AppConfig = {
+  nodeEnv: "test",
+  host: "127.0.0.1",
+  port: 3100,
+  publicBaseUrl: new URL("http://127.0.0.1:3100"),
+  database: {
+    host: "127.0.0.1",
+    port: 3306,
+    name: "server_check_test",
+    user: "server_check_test",
+    password: "not-used",
+    connectionLimit: 1
+  },
+  jwt: {
+    issuer: "server-check-test",
+    audience: "server-check-backoffice-test",
+    secret: "a".repeat(48),
+    ttlSeconds: 300
+  },
+  sessionIdleTimeoutSeconds: 1800
+};
+
+const now = 1_788_253_200_000;
+const payload = {
+  project_name: "Project Atlas",
+  server_name: "atlas-web-01",
+  probable_cause: "Heartbeat overdue",
+  severity: "critical"
+};
+
+describe("per-agent Telegram delivery cooldown", () => {
+  beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    vi.stubGlobal("fetch", fetchMock);
+    executeMock.mockReset();
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({ ok: true });
+    executeMock.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM platform_telegram_settings")) {
+        return [[{ telegram_bot_token_encrypted: "encrypted", telegram_chat_id: "-100123" }], []];
+      }
+      if (sql.includes("FROM notification_outbox outbox")) {
+        return [[
+          {
+            id: "1",
+            agent_id: "31",
+            payload_json: payload,
+            attempt_count: 0,
+            telegram_alert_cooldown_seconds: 900,
+            last_sent_at: null
+          },
+          {
+            id: "2",
+            agent_id: "31",
+            payload_json: payload,
+            attempt_count: 0,
+            telegram_alert_cooldown_seconds: 900,
+            last_sent_at: null
+          }
+        ], []];
+      }
+      return [{ affectedRows: 1 }];
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("sends one message and delays the next queued message for the same agent", async () => {
+    await deliverTelegram(config);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const sentUpdate = executeMock.mock.calls.find(([sql]) =>
+      String(sql).includes("SET status = 'sent'")
+    );
+    expect(sentUpdate?.[1]?.[2]).toBe("1");
+
+    const delayedUpdate = executeMock.mock.calls.find(([sql]) =>
+      String(sql).includes("SET next_attempt_at = ?")
+    );
+    expect(delayedUpdate?.[1]).toEqual([now + 900_000, now, "2"]);
+  });
+});

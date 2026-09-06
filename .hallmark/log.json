@@ -1,0 +1,16 @@
+[
+  {
+    "date": "2026-09-04",
+    "macrostructure": "Split Studio",
+    "theme": "Cobalt",
+    "enrichment": "none",
+    "brief": "Server Check internal administrator login"
+  },
+  {
+    "date": "2026-09-01",
+    "macrostructure": "Workbench",
+    "theme": "Cobalt",
+    "enrichment": "none",
+    "brief": "Server Check internal monitoring backoffice"
+  }
+]

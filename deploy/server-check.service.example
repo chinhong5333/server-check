@@ -1,0 +1,23 @@
+[Unit]
+Description=Server Check central monitoring service
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=server-check
+Group=server-check
+WorkingDirectory=/opt/server-check
+EnvironmentFile=/etc/server-check/server-check.env
+ExecStart=/usr/bin/node /opt/server-check/dist/server/server/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/server-check
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
