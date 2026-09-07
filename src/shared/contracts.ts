@@ -260,6 +260,8 @@ export interface AgentSummary {
   ram_available_percent: number | null;
   disk_available_percent: number | null;
   load_5_per_core: number | null;
+  /** Raw five-minute load from the latest heartbeat; null when unavailable. */
+  latest_load_5: number | null;
   health_outcome: "healthy" | "unhealthy" | "disabled" | null;
   health_http_status_code: number | null;
   health_latency_ms: number | null;

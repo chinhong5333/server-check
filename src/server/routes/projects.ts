@@ -54,6 +54,7 @@ interface AgentRow extends RowDataPacket {
   last_ram_available_percent: string | null;
   last_disk_available_percent: string | null;
   last_load_5_per_core: string | null;
+  latest_load_5: string | null;
   last_health_outcome: "healthy" | "unhealthy" | null;
   last_health_http_status_code: number | null;
   last_health_latency_ms: number | null;
@@ -470,6 +471,8 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * GET /api/v1/projects/:project_id/agents
    * Lists monitored agents and their latest diagnostic state for one project.
+   * Includes latest_load_5 as raw five-minute load from the current heartbeat, or null
+   * when unavailable. Existing load_5_per_core and alert thresholds remain normalized.
    * @param {Request<{project_id: string}>} request Authenticated request with canonical params.project_id.
    * @param {import("express").Response<AgentSummary[]>} response Agent summaries ordered by severity.
    * @param {object} response.body.checks Saved Apache, Nginx, and middleware_api selections for each agent.
@@ -487,7 +490,10 @@ export function createProjectsRouter(config: AppConfig): Router {
                 last_health_http_status_code, last_health_latency_ms,
                 ram_available_threshold_percent, disk_available_threshold_percent,
                 load_5_per_core_threshold, heartbeat_interval_seconds,
-                telegram_alert_cooldown_seconds
+                telegram_alert_cooldown_seconds,
+                (SELECT m.load_5 FROM metric_samples m
+                 WHERE m.agent_id = agents.id AND m.received_at = agents.last_heartbeat_at
+                   AND m.is_delete = 0 ORDER BY m.id DESC LIMIT 1) AS latest_load_5
          FROM agents
          WHERE project_id = ? AND is_delete = 0
          ORDER BY FIELD(status, 'critical', 'warning', 'stale', 'new', 'healthy'), server_name ASC`,
@@ -506,6 +512,7 @@ export function createProjectsRouter(config: AppConfig): Router {
         ram_available_percent: numeric(row.last_ram_available_percent),
         disk_available_percent: numeric(row.last_disk_available_percent),
         load_5_per_core: numeric(row.last_load_5_per_core),
+        latest_load_5: row.latest_load_5 == null ? null : Number(row.latest_load_5),
         health_outcome: row.last_health_outcome,
         health_http_status_code: row.last_health_http_status_code,
         health_latency_ms: row.last_health_latency_ms,

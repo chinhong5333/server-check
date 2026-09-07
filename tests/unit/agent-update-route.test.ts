@@ -97,6 +97,28 @@ describe("agent settings update route", () => {
     );
   });
 
+  it.each(["0.76", "0", null])("lists raw latest-heartbeat load without changing per-core values (%s)", async (rawLoad) => {
+    poolExecuteMock.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM projects")) return [[{ id: "21", public_id: "project-1" }], []];
+      if (sql.includes("FROM agents")) return [[{
+        id: "31", public_id: "agent-1", server_name: "Synthetic",
+        latest_load_5: rawLoad, last_load_5_per_core: "0.19",
+        load_5_per_core_threshold: "1.5"
+      }], []];
+      throw new Error("Unexpected query");
+    });
+    const response = await request(createTestApp()).get("/project-1/agents");
+    expect(response.status).toBe(200);
+    expect(response.body[0]).toMatchObject({
+      latest_load_5: rawLoad === null ? null : Number(rawLoad),
+      load_5_per_core: 0.19, load_5_per_core_threshold: 1.5
+    });
+    const sql = poolExecuteMock.mock.calls[1][0];
+    expect(sql).toContain("m.received_at = agents.last_heartbeat_at");
+    expect(sql).toContain("m.is_delete = 0");
+    expect(withTransactionMock).not.toHaveBeenCalled();
+  });
+
   it("updates configuration without rotating credentials or clearing monitoring state", async () => {
     const response = await request(createTestApp())
       .put("/project-1/agents/agent-1")

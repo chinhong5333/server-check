@@ -23,7 +23,7 @@ import { FAST_REFRESH_INTERVAL_MS, useApiResource } from "../hooks/useApiResourc
 import {
   formatCount,
   formatPercent,
-  formatRatio,
+  formatLoadAverage,
   formatRelativeTime,
   utilizationFromAvailable
 } from "../lib/format";
@@ -742,8 +742,8 @@ export function InstallAgentPage() {
                           <MetricValue value={utilizationFromAvailable(agent.disk_available_percent)} format={formatPercent} />
                         </span>
                         <span>
-                          <small>CPU Load</small>
-                          <MetricValue value={agent.load_5_per_core} format={formatRatio} />
+                          <small>Load Average (5 Min)</small>
+                          <MetricValue value={agent.latest_load_5} format={formatLoadAverage} />
                         </span>
                       </div>
                     </td>

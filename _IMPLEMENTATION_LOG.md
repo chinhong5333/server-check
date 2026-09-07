@@ -1,5 +1,19 @@
 # Implementation Log
 
+## Registered Agents Raw Load Alignment
+
+### Date Time
+2026-09-07 06:34:30 PM
+
+### Task
+Correct the Registered Agents CPU Load label and normalized value left behind by the earlier Agent Detail amendment.
+
+### Description
+Updated GET /api/v1/projects/:project_id/agents to return latest_load_5 using the same current-heartbeat metric timestamp match as Agent Detail. The nullable shared contract preserves unavailable readings and zero without falling back to per-core or older telemetry. Existing load_5_per_core output, database schema, stored records, agent scripts, and threshold calculations remain unchanged. Updated the active roster in InstallAgentPage to Load Average (5 Min) and shared raw two-decimal formatter without x. The unused legacy OverviewPage is not routed and was not changed. Applied the existing Hallmark/Frontend UI Engineering/UI UX Pro Max design constraints; no CSS or layout redesign was needed. Added API-mock tests for raw, zero, missing values, normalized-field preservation, and current-heartbeat query constraints. Updated roster expectations with deliberately different raw and per-core fixtures. Explicit Vitest runs of tests/unit/agents-page.test.tsx and tests/unit/agent-update-route.test.ts passed all 20 tests; type checking passed. Synthetic actual-App preview at output/roster-load-preview.html blocks real requests/writes, and desktop plus 375px mobile rendering verified label/value alignment. Restarted the stopped frontend for browser verification. No production or real user data was modified. Full suite and database integration were not run; dedicated local MySQL test configuration remains unavailable.
+
+### Next Steps
+Review and commit only upon explicit approval; deploy frontend and backend together. No migration or agent reinstall is required. Validate on the intended MySQL runtime before production acceptance.
+
 ## Raw Five-Minute Load Display
 
 ### Date Time

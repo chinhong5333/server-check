@@ -65,6 +65,7 @@ const agents: AgentSummary[] = [
     ram_available_percent: 44,
     disk_available_percent: 62,
     load_5_per_core: 0.4,
+    latest_load_5: 0.76,
     health_outcome: "healthy",
     health_http_status_code: 200,
     health_latency_ms: 42,
@@ -86,6 +87,7 @@ const agents: AgentSummary[] = [
     ram_available_percent: null,
     disk_available_percent: null,
     load_5_per_core: null,
+    latest_load_5: null,
     health_outcome: null,
     health_http_status_code: null,
     health_latency_ms: null,
@@ -181,7 +183,10 @@ describe("project-scoped agents page", () => {
     expect(screen.getByText("56.0%")).toBeInTheDocument();
     expect(screen.getAllByText("Storage")).toHaveLength(2);
     expect(screen.getByText("38.0%")).toBeInTheDocument();
-    expect(screen.getAllByText("CPU Load")).toHaveLength(2);
+    expect(screen.getAllByText("Load Average (5 Min)")).toHaveLength(2);
+    expect(screen.getByText("0.76")).toBeInTheDocument();
+    expect(screen.queryByText("0.4x")).not.toBeInTheDocument();
+    expect(screen.queryByText("CPU Load")).not.toBeInTheDocument();
     expect(screen.queryByText("1 project")).not.toBeInTheDocument();
     expect(screen.queryByText("many agents")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Registered Agents" })).toBeInTheDocument();

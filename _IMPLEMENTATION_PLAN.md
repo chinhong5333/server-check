@@ -48,6 +48,8 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- 2026-09-07: Aligned the active Registered Agents roster with Agent Detail: Load Average (5 Min) uses latest_load_5 from the current heartbeat, not load_5_per_core. Added nullable raw load to the project agents response while retaining normalized fields and thresholds. Twenty focused tests and type checking passed; actual-component synthetic desktop/mobile previews verified raw, zero, and missing values. No data migration or alert changes.
+
 - 2026-09-07: Agent Detail now charts raw five-minute load, with latest heartbeat load displayed independently of 30-minute bucket averages. Existing normalized history, alert calculations, stored samples, and agent scripts are unchanged. Threshold wording explicitly says Load Per Core Threshold. Focused unit/API-mock tests, type checking, build, and desktop/mobile synthetic browser verification completed; dedicated MySQL integration remains unavailable.
 
 - Added Select Telegram Chat beside the destination field heading. Its modal always shows the direct first-message guide, uses the saved bot username, provides Refresh List, and lists selectable group/channel names, types, and IDs. Selection fills the field without saving. Added an admin-only, rate-limited, no-store discovery endpoint using the encrypted platform bot; it does not send messages, acknowledge updates, alter subscriptions, or disable webhooks. Eighteen focused tests, TypeScript, production build, and synthetic desktop/mobile/light/dark UI checks passed. Local backend restarted successfully; live Telegram validation was not performed. Changes remain uncommitted.
