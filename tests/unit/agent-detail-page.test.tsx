@@ -174,7 +174,7 @@ describe("agent detail incident history", () => {
     expect(within(telegramLog).getAllByText("01 Sep 2026").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("presents resource history as utilization and CPU load", async () => {
+  it.each([[0.43, "0.43"], [0, "0.00"], [null, "--"]])("presents raw load from the latest heartbeat (%s)", async (latestLoad, expectedLoad) => {
     apiFetchMock.mockImplementation((path: string) => {
       if (path.endsWith("/telegram-deliveries")) return Promise.resolve([]);
       if (path.endsWith("/incidents")) return Promise.resolve([]);
@@ -194,12 +194,13 @@ describe("agent detail incident history", () => {
         from: 1_788_000_000_000,
         to: 1_788_604_800_000,
         bucket_seconds: 1800,
+        latest_load_5: latestLoad,
         points: [
           {
             at: 1_788_252_764_000,
             ram_available_percent: 25,
             disk_available_percent: 40,
-            load_5_per_core: 0.5,
+            load_5: 0.6,
             health_latency_ms: 42,
             health_success_percent: 100
           }
@@ -217,7 +218,7 @@ describe("agent detail incident history", () => {
 
     expect(await screen.findByRole("heading", { level: 2, name: "RAM Utilization" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Storage Utilization" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: "CPU Load" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Load Average (5 Min)" })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 2, name: "RAM Utilization" }).closest("section")?.querySelector(".chart-latest")
     ).toHaveTextContent("Latest Value75.0%");
@@ -225,8 +226,8 @@ describe("agent detail incident history", () => {
       screen.getByRole("heading", { level: 2, name: "Storage Utilization" }).closest("section")?.querySelector(".chart-latest")
     ).toHaveTextContent("Latest Value60.0%");
     expect(
-      screen.getByRole("heading", { level: 2, name: "CPU Load" }).closest("section")?.querySelector(".chart-latest")
-    ).toHaveTextContent("Latest Value0.5x");
+      screen.getByRole("heading", { level: 2, name: "Load Average (5 Min)" }).closest("section")?.querySelector(".chart-latest")
+    ).toHaveTextContent(`Latest Value${expectedLoad}`);
     expect(
       screen.getByRole("heading", { level: 2, name: "Health Latency" }).closest("section")?.querySelector(".chart-latest")
     ).toHaveTextContent("Latest Value42 ms");

@@ -48,6 +48,8 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- 2026-09-07: Agent Detail now charts raw five-minute load, with latest heartbeat load displayed independently of 30-minute bucket averages. Existing normalized history, alert calculations, stored samples, and agent scripts are unchanged. Threshold wording explicitly says Load Per Core Threshold. Focused unit/API-mock tests, type checking, build, and desktop/mobile synthetic browser verification completed; dedicated MySQL integration remains unavailable.
+
 - Initialized Git on main and configured origin as https://github.com/chinhong5333/server-check.git after confirming the remote is empty. Expanded ignore rules to exclude all real .env variants/backups, .runtime agent credentials, browser artifacts, dependencies, build output, and retained local test data. Environment examples remain eligible. Added LF normalization for Windows/WSL/Linux portability. Build passed and candidate-file secret scanning found no configured-secret, long agent-credential, JWT, private-key, or GitHub-token matches. Initial commit/push awaits explicit approval.
 
 - Changed the overdue timer label from Overdue By to the user's exact requested wording, Overdued, and synchronized existing test expectations.

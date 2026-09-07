@@ -112,9 +112,9 @@ export function AgentForm({
                 <span className="field__help">Alerts at or above this storage usage.</span>
               </div>
               <div className="field field--wide">
-                <label htmlFor="agent-cpu-load">CPU Load Threshold</label>
+                <label htmlFor="agent-cpu-load">Load Per Core Threshold</label>
                 <input id="agent-cpu-load" inputMode="decimal" value={cpuLoad} onChange={(event) => setCpuLoad(event.target.value)} required />
-                <span className="field__help">Alerts at or above this 5-minute CPU load.</span>
+                <span className="field__help">Alerts when five-minute load divided by logical CPU count reaches this value.</span>
               </div>
             </div>
           </fieldset>

@@ -1,5 +1,19 @@
 # Implementation Log
 
+## Raw Five-Minute Load Display
+
+### Date Time
+2026-09-07 05:06:10 PM
+
+### Task
+Align Agent Detail load display with the five-minute (middle) load average in top.
+
+### Description
+Added raw load_5 averages to history points without removing or changing load_5_per_core. Added latest_load_5 from the metric sample matching the current heartbeat timestamp, preserving null when that heartbeat has no metrics; the query is independent of the chart range and does not backfill stale readings. Agent Detail now uses Load Average (5 Min), two-decimal raw formatting without the x suffix, and an explicit latest-reading override. Existing chart composition and design tokens were preserved through the required UI skills. AgentForm now labels the unchanged normalized alert setting Load Per Core Threshold and explains the division by logical CPU count. Tests cover different bucket/latest values, null, zero, retained normalized API data, and form wording. Type checking and production build passed (existing chunk-size warning remains). Synthetic actual-component browser preview was inspected at desktop and 375px mobile with no real API/database/Telegram mutations. No schema, stored-data, agent-script, or alert-calculation changes. No full test suite or dedicated MySQL integration was run; configured local MySQL 8 test target remains absent. Existing unrelated changes preserved; nothing committed or pushed.
+
+### Next Steps
+Deploy frontend and backend together after review. Validate the read-only history endpoint against the intended MySQL runtime and compare latest heartbeat data with a time-matched top reading. No migration or agent reinstall is required.
+
 ## Entry 1
 
 ### Date Time

@@ -35,12 +35,14 @@ interface AgentRow extends RowDataPacket {
   last_metrics_at: string | null;
   agent_version: string | null;
   heartbeat_interval_seconds: number;
+  latest_load_5: string | null;
 }
 
 interface MetricBucketRow extends RowDataPacket {
   bucket_at: string;
   ram_available_percent: string | null;
   load_5_per_core: string | null;
+  load_5: string | null;
   health_latency_ms: string | null;
   healthy_ratio: string | null;
 }
@@ -95,6 +97,10 @@ export function createAgentsRouter(config: AppConfig): Router {
   /**
    * GET /api/v1/agents/:agent_id/history
    * Returns current agent status and downsampled monitoring history over a maximum seven-day range.
+   * History points include raw load_5 bucket averages; latest_load_5 is the raw five-minute
+   * load from the current heartbeat, independent of the history range, or null when unavailable.
+   * The existing load_5_per_core field retains its normalized meaning.
+   * @param {object} request.body No request body is accepted by this read-only endpoint.
    * @param {Request<{agent_id: string}, {}, {}, {from: string, to: string, bucket_seconds: string}>} request Authenticated history request.
    * @param {string} request.params.agent_id Public identifier of the active agent.
    * @param {string} request.query.from Inclusive Unix timestamp in milliseconds for the history range start.
@@ -118,7 +124,10 @@ export function createAgentsRouter(config: AppConfig): Router {
         `SELECT a.id, a.public_id, a.server_name, a.health_api_url, a.check_configuration_json,
                 a.last_service_checks_json, a.status, a.probable_cause,
                 a.last_heartbeat_at, a.last_metrics_at, a.agent_version,
-                a.heartbeat_interval_seconds, p.public_id AS project_public_id
+                a.heartbeat_interval_seconds, p.public_id AS project_public_id,
+                (SELECT m.load_5 FROM metric_samples m
+                 WHERE m.agent_id = a.id AND m.received_at = a.last_heartbeat_at AND m.is_delete = 0
+                 ORDER BY m.id DESC LIMIT 1) AS latest_load_5
          FROM agents a
          INNER JOIN projects p ON p.id = a.project_id
          WHERE a.public_id = ? AND a.is_delete = 0 AND p.is_delete = 0
@@ -135,6 +144,7 @@ export function createAgentsRouter(config: AppConfig): Router {
            AVG(CASE WHEN memory_total_bytes > 0
                     THEN memory_available_bytes * 100.0 / memory_total_bytes END) AS ram_available_percent,
            AVG(CASE WHEN cpu_count > 0 THEN load_5 / cpu_count END) AS load_5_per_core,
+           AVG(load_5) AS load_5,
            AVG(health_latency_ms) AS health_latency_ms,
            AVG(CASE WHEN health_outcome = 'healthy' THEN 1 WHEN health_outcome = 'unhealthy' THEN 0 END) AS healthy_ratio
          FROM metric_samples
@@ -178,12 +188,14 @@ export function createAgentsRouter(config: AppConfig): Router {
         from: query.from,
         to: query.to,
         bucket_seconds: query.bucket_seconds,
+        latest_load_5: agent.latest_load_5 == null ? null : Number(agent.latest_load_5),
         points: metricRows.map((row) => ({
           at: Number(row.bucket_at),
           ram_available_percent:
             row.ram_available_percent === null ? null : Number(row.ram_available_percent),
           disk_available_percent: diskByBucket.get(Number(row.bucket_at)) ?? null,
           load_5_per_core: row.load_5_per_core === null ? null : Number(row.load_5_per_core),
+          load_5: row.load_5 == null ? null : Number(row.load_5),
           health_latency_ms: row.health_latency_ms === null ? null : Number(row.health_latency_ms),
           health_success_percent: row.healthy_ratio === null ? null : Number(row.healthy_ratio) * 100
         }))

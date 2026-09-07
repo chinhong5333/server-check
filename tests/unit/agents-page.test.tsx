@@ -246,13 +246,13 @@ describe("project-scoped agents page", () => {
     expect(thresholdsGroup.parentElement).toHaveClass("agent-form-policy-row");
     expect(screen.getByLabelText("RAM Usage Threshold (%)")).toHaveValue("85");
     expect(screen.getByLabelText("Storage Usage Threshold (%)")).toHaveValue("90");
-    expect(screen.getByLabelText("CPU Load Threshold")).toHaveValue("1.5");
+    expect(screen.getByLabelText("Load Per Core Threshold")).toHaveValue("1.5");
     expect(screen.getByLabelText("Heartbeat Interval")).toHaveValue("120");
     expect(screen.getByLabelText("Telegram Send Interval")).toHaveValue("900");
     expect(screen.getByText("Minimum wait after a successful Telegram message.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this RAM usage.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this storage usage.")).toBeInTheDocument();
-    expect(screen.getByText("Alerts at or above this 5-minute CPU load.")).toBeInTheDocument();
+    expect(screen.getByText("Alerts when five-minute load divided by logical CPU count reaches this value.")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Server Name")).toHaveFocus());
     const registrationDialog = screen.getByRole("dialog", { name: "Register Agent" });
     const cancelEvent = new Event("cancel", { bubbles: true, cancelable: true });

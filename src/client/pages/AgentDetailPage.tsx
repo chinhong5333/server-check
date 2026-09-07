@@ -25,7 +25,7 @@ import {
   formatDateTime,
   formatLatency,
   formatPercent,
-  formatRatio,
+  formatLoadAverage,
   utilizationFromAvailable
 } from "../lib/format";
 
@@ -33,7 +33,7 @@ interface HistoryPoint {
   at: number;
   ram_available_percent: number | null;
   disk_available_percent: number | null;
-  load_5_per_core: number | null;
+  load_5: number | null;
   health_latency_ms: number | null;
   health_success_percent: number | null;
   ram_utilization_percent?: number | null;
@@ -59,6 +59,7 @@ interface HistoryResponse {
   to: number;
   bucket_seconds: number;
   points: HistoryPoint[];
+  latest_load_5: number | null;
 }
 
 const tickFormatter = (value: number) =>
@@ -105,15 +106,17 @@ function MetricChart({
   description,
   data,
   dataKey,
-  formatter
+  formatter,
+  latestReading
 }: {
   title: string;
   description: string;
   data: HistoryPoint[];
   dataKey: keyof HistoryPoint;
   formatter: (value: number | null | undefined) => string;
+  latestReading?: number | null;
 }) {
-  const latestValue = latestMetricValue(data, dataKey);
+  const latestValue = latestReading === undefined ? latestMetricValue(data, dataKey) : latestReading;
   return (
     <section className="chart-surface">
       <div className="section-heading">
@@ -321,7 +324,7 @@ export function AgentDetailPage() {
         <div className="chart-grid">
           <MetricChart title="RAM Utilization" description="Used memory reported by the operating system." data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent} />
           <MetricChart title="Storage Utilization" description="Highest used percentage across monitored filesystems." data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent} />
-          <MetricChart title="CPU Load" description="Five-minute load normalized by logical CPU count." data={displayPoints} dataKey="load_5_per_core" formatter={formatRatio} />
+          <MetricChart title="Load Average (5 Min)" description="Raw five-minute load. Latest value is from the latest heartbeat; chart shows 30-minute averages." data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
           <MetricChart title="Health Latency" description="Response time from the server-local health probe." data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
         </div>
       )}

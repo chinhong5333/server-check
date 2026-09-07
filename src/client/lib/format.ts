@@ -28,6 +28,11 @@ export function formatPercent(value: number | null | undefined): string {
   })}%`;
 }
 
+export function formatLoadAverage(value: number | null | undefined): string {
+  if (!valid(value)) return "--";
+  return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function formatRatio(value: number | null | undefined): string {
   if (!valid(value)) return "--";
   const normalized = Object.is(value, -0) ? 0 : value;
