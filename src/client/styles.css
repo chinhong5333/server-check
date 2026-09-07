@@ -1622,6 +1622,48 @@ pre,
   width: 100%;
 }
 
+.telegram-chat-field-heading,
+.telegram-chat-picker__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.telegram-chat-field-heading .button,
+.telegram-chat-picker .button { white-space: nowrap; }
+.agent-dialog.agent-dialog--telegram-chats { width: min(58rem, calc(100% - var(--space-lg))); }
+.telegram-chat-picker__content { padding: var(--space-lg); display: grid; gap: var(--space-md); }
+.telegram-chat-picker > .section-heading {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-raised);
+  background: var(--color-surface-raised);
+}
+.telegram-chat-picker__guide { font-size: var(--text-sm); color: var(--color-ink-2); }
+.telegram-chat-picker__guide code { overflow-wrap: anywhere; }
+.telegram-chat-picker__list { min-width: 0; overflow-x: auto; }
+.telegram-chat-picker__table { width: 100%; border-collapse: collapse; }
+.telegram-chat-picker__table th,
+.telegram-chat-picker__table td { padding: var(--space-sm); text-align: start; border-block-end: var(--rule-thin) solid var(--color-rule); }
+.telegram-chat-picker__table th { color: var(--color-muted); font-size: var(--text-xs); font-weight: 500; }
+.telegram-chat-picker__table td { font-size: var(--text-sm); }
+.telegram-chat-picker__table td:first-child { overflow-wrap: anywhere; }
+.telegram-chat-picker__table td:last-child { text-align: end; }
+.telegram-chat-picker__table code { white-space: nowrap; }
+@media (max-width: 40rem) {
+  .telegram-chat-picker__content { padding: var(--space-md); }
+  .telegram-chat-picker__table thead { display: none; }
+  .telegram-chat-picker__table,
+  .telegram-chat-picker__table tbody,
+  .telegram-chat-picker__table tr { display: block; }
+  .telegram-chat-picker__table tr { padding-block: var(--space-xs); border-block-end: var(--rule-thin) solid var(--color-rule); }
+  .telegram-chat-picker__table td { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; border: 0; }
+  .telegram-chat-picker__table td::before { content: attr(data-label); flex-shrink: 0; color: var(--color-muted); font-size: var(--text-xs); }
+  .telegram-chat-picker__table td:first-child strong { min-width: 0; text-align: end; }
+}
+
 .telegram-action-feedback {
   min-width: 0;
   display: grid;

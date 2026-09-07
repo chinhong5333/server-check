@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { RowDataPacket } from "mysql2/promise";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import {
   updatePlatformTelegramBodySchema,
   type PlatformTelegramSettings
@@ -15,6 +16,7 @@ import {
   encryptPlatformTelegramBotToken
 } from "../security/telegram-secrets.js";
 import { sendTelegramMessage } from "../services/telegram.js";
+import { discoverTelegramChats } from "../services/telegram-chat-discovery.js";
 
 const PLATFORM_SCOPE_KEY = "platform";
 const emptyObjectSchema = z.object({}).strict();
@@ -180,6 +182,34 @@ export function createSettingsRouter(config: AppConfig): Router {
       }
 
       response.status(204).send();
+    })
+  );
+
+  /**
+   * GET /api/v1/settings/telegram/chats
+   * Discovers group/channel names and IDs from the saved platform bot's pending updates.
+   * @param {import("express").Request<{}, {}, Record<string, never>, Record<string, never>>} request Authenticated admin request; body and query must be empty. No token input is accepted.
+   * @param {import("express").Response<import("../../shared/contracts.js").TelegramChatDiscovery>} response Bot username and chat id/name/type only, with Cache-Control: no-store.
+   * @returns {Promise<void>} Returns 200 on discovery, 409 for missing/rejected bot configuration or webhook conflicts, 429 for request limits, or 502 for upstream failures. Does not save a destination, send messages, acknowledge updates, or alter webhooks.
+   */
+  router.get(
+    "/telegram/chats",
+    rateLimit({ windowMs: 60000, limit: 6, keyGenerator: (request) => request.auth!.userInternalId,
+      standardHeaders: "draft-8", legacyHeaders: false,
+      message: { error: { code: "telegram_discovery_rate_limited", message: "Please wait a minute before refreshing the chat list again." } } }),
+    asyncHandler(async (request, response) => {
+      response.setHeader("Cache-Control", "no-store");
+      emptyObjectSchema.parse(request.body ?? {});
+      emptyObjectSchema.parse(request.query);
+      const [rows] = await getPool(config).execute<PlatformTelegramRow[]>(
+        `SELECT id, telegram_bot_token_encrypted, telegram_chat_id, is_delete
+         FROM platform_telegram_settings WHERE scope_key = ? AND is_delete = 0 LIMIT 1`, [PLATFORM_SCOPE_KEY]
+      );
+      if (!rows[0]?.telegram_bot_token_encrypted) {
+        throw new AppError(409, "telegram_bot_not_configured", "Save the Platform Sender Bot Token before selecting a Telegram chat.");
+      }
+      const botToken = decryptPlatformTelegramBotToken(config.jwt.secret, rows[0].telegram_bot_token_encrypted);
+      response.status(200).json(await discoverTelegramChats(botToken));
     })
   );
 

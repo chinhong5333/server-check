@@ -21,24 +21,49 @@ MariaDB is not used as a test substitute for MySQL. The XAMPP installation visib
 
 ## Central installation
 
-1. Create a MySQL database and least-privilege application user.
-2. Copy `.env.example` to `.env` and replace every placeholder.
-3. Install, set up, and start:
+### 1. Select Node.js 24 with nvm
 
-```text
-npm install
+On Linux, install nvm if needed using its [official installation guide](https://github.com/nvm-sh/nvm#installing-and-updating). Open a new shell after installation, then run these commands as the deployment user before installing project dependencies:
+
+```bash
+nvm install 24
+nvm use 24
+node -v
+npm -v
+```
+
+Confirm that `node -v` reports `v24.x.x`. Run `nvm use 24` again in new deployment shells. nvm selects Node for the current shell; other applications can retain their own Node versions.
+
+Node.js 16 is incompatible with this project. `EBADENGINE` warnings and the TypeScript `ERR_UNKNOWN_FILE_EXTENSION` error during installation indicate that an unsupported runtime is being used. Switch to Node 24 and reinstall dependencies; do not rename files inside `node_modules` or bypass engine checks.
+
+### 2. Configure the database and environment
+
+Create a MySQL database and least-privilege application user. Copy `.env.example` to `.env` and replace every placeholder. Do not overwrite an existing deployment's `.env`.
+
+### 3. Install, set up, and start
+
+From the project directory, use the committed lockfile for a reproducible installation:
+
+```bash
+npm ci --include=dev
 npm run setup
 npm run create-admin
 npm start
 ```
 
-`npm install` compiles the server and prebuilt backoffice assets. `npm run setup` verifies the configured database and applies explicit migrations. `npm run create-admin` then prompts for the administrator email and a masked password, hashes the password with scrypt, and inserts an audited administrator record. Administrator credentials are never read from or retained in `.env`. Database mutation never runs from `postinstall`.
+`npm ci --include=dev` installs the locked dependencies and runs `postinstall`, which compiles the server and prebuilt backoffice assets. Build dependencies are required even when `NODE_ENV=production`; do not omit them before building. For an ordinary non-locked installation, `npm install --include=dev` also runs the build. `npm run setup` verifies the configured database and applies explicit migrations. On a fresh deployment, `npm run create-admin` prompts for the administrator email and a masked password, hashes the password with scrypt, and inserts an audited administrator record. Skip administrator creation if the account already exists. Administrator credentials are never read from or retained in `.env`. Database mutation never runs from `postinstall`.
 
-The central process listens on `HOST` and `PORT`. Put it behind HTTPS and a process supervisor before production use. An example systemd unit is available at `deploy/server-check.service.example`.
+The central process listens on `HOST` and `PORT`. `npm start` runs in the foreground. Put it behind HTTPS and a process supervisor before production use. An example systemd unit is available at `deploy/server-check.service.example`.
+
+The supervisor must also use Node 24; it does not automatically inherit an interactive `nvm use` command. `nvm which 24` shows the selected executable. The example systemd unit uses `/usr/bin/node` and `ProtectHome=true`, so a runtime inside a user's nvm home directory is not accessible through that unit as written. Use a service-accessible Node 24 installation outside home directories and set `ExecStart` to its absolute executable path, retaining the service's hardening.
 
 PUBLIC_BASE_URL must be the central monitor address that every monitored server can reach. Do not leave it as 127.0.0.1 when agents run on other servers because loopback points the agent back to itself.
 
 Telegram does not use environment configuration. Open the global **Setting** page and enter the platform Bot Token and Chat ID for the channel or group that receives every project alert. The token is encrypted before MySQL storage, is never returned to the browser, and must be re-entered only when replacing it.
+
+After saving Platform Sender, use **Select Telegram Chat** to discover available group/channel names and IDs. Send `/start@YourBotUsername` in your Telegram group first, then click **Refresh List** in the modal. The guide uses the saved bot's actual username once identified. Selecting a chat fills the Chat ID field; **Save Alert Destination** remains required. Manual Chat ID entry is still available.
+
+Discovery reads at most 100 pending updates, not the bot's complete membership list. It does not acknowledge updates, change update subscriptions, disable webhooks, or send a message. An existing webhook or competing update consumer may prevent discovery; the modal explains the conflict instead of changing the bot integration. See [Telegram's getUpdates contract](https://core.telegram.org/bots/api#getupdates).
 
 ## Agent installation
 
@@ -117,6 +142,8 @@ Create `.env.test` from `.env.test.example` using a dedicated disposable local d
 - Script generation validates URLs, never probes them centrally, applies shell-safe quoting, and never uses `eval`.
 
 ## Main routes
+
+- `GET /api/v1/settings/telegram/chats` — admin-only discovery using the saved bot; empty body/query.
 
 - `GET /api/v1/health/live`
 - `GET /api/v1/health/ready`

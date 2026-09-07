@@ -235,6 +235,17 @@ export interface PlatformTelegramSettings {
   telegram_chat_id: string | null;
 }
 
+export interface TelegramChatOption {
+  id: string;
+  name: string;
+  type: "group" | "supergroup" | "channel";
+}
+
+export interface TelegramChatDiscovery {
+  bot_username: string;
+  chats: TelegramChatOption[];
+}
+
 export interface AgentSummary {
   id: string;
   server_name: string;

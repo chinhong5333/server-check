@@ -1,4 +1,4 @@
-import { CircleAlert, Send } from "lucide-react";
+import { CircleAlert, List, Send } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   telegramBotTokenSchema,
@@ -9,6 +9,7 @@ import {
 import { ApiError, apiFetch } from "../api";
 import { InlineLoader } from "./Feedback";
 import { useToast } from "./ToastProvider";
+import { TelegramChatPicker } from "./TelegramChatPicker";
 
 export function TelegramSettingsForm({
   settings
@@ -26,6 +27,8 @@ export function TelegramSettingsForm({
   const [tokenTouched, setTokenTouched] = useState(false);
   const [chatTouched, setChatTouched] = useState(false);
   const previousSettingsRef = useRef(settings);
+  const [chatPickerOpen, setChatPickerOpen] = useState(false);
+  const chatPickerTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (previousSettingsRef.current === settings) return;
@@ -210,7 +213,14 @@ export function TelegramSettingsForm({
           <fieldset className="form-section telegram-settings-section">
           <legend>Alert Destination</legend>
           <div className="field">
-            <label htmlFor="platform-telegram-chat-id">Telegram Chat ID</label>
+            <div className="telegram-chat-field-heading">
+              <label htmlFor="platform-telegram-chat-id">Telegram Chat ID</label>
+              <button ref={chatPickerTriggerRef} className="button button--secondary" type="button"
+                aria-haspopup="dialog" aria-controls="telegram-chat-picker"
+                disabled={!botConfigured || hasUnsavedSender || saving || testing}
+                title={!botConfigured || hasUnsavedSender ? "Save Platform Sender First" : "Select Telegram Chat"}
+                onClick={() => setChatPickerOpen(true)}><List aria-hidden="true" />Select Telegram Chat</button>
+            </div>
             <div className="telegram-control-row telegram-control-row--destination">
               <div className="telegram-control-feedback">
                 <input
@@ -257,6 +267,13 @@ export function TelegramSettingsForm({
           </fieldset>
         </form>
       </div>
+      <TelegramChatPicker open={chatPickerOpen} onClose={() => setChatPickerOpen(false)} restoreFocusTo={chatPickerTriggerRef.current}
+        onSelect={(chat) => {
+          setTelegramChatId(chat.id);
+          setChatTouched(true);
+          setMessage(null);
+          setChatPickerOpen(false);
+        }} />
     </section>
   );
 }

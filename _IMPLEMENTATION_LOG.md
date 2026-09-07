@@ -2955,3 +2955,58 @@ The earlier Apache Last Report row request was checked against AgentHealthChecks
 ### Next Steps
 
 - After explicit approval, commit the reviewed initial snapshot with message Initial Server Check implementation and push main to origin without force.
+
+## Entry 118
+
+### Date Time
+
+2026-09-07 12:21:07 PM
+
+### Task
+
+Add nvm and Node 24 steps to the README installation guide.
+
+### Description
+
+Updated the central installation instructions to first install nvm using its official guide when needed, run nvm install 24 and nvm use 24, and verify node/npm versions before installing dependencies. Added the observed Node 16 engine/TypeScript failure explanation and instructed operators to select the supported runtime instead of renaming dependency files or bypassing engine checks.
+
+Documented npm ci --include=dev for reproducible installation from the committed lockfile, with npm install --include=dev as the ordinary-install alternative. Explained that the postinstall build needs development dependencies even with NODE_ENV=production. Retained setup/admin/start commands, clarified fresh-deployment administrator creation, and protected existing .env files from overwrite.
+
+Checked the provided systemd unit and documented that interactive nvm selection does not configure the service runtime. The sample uses /usr/bin/node and ProtectHome=true; operators must select a service-accessible Node 24 executable outside home directories rather than blindly pointing it at /root/.nvm. No system service or production environment was changed.
+
+Verified guidance against the official nvm and npm-ci documentation and the project manifest/service template. git diff --check passed. No tests or builds were rerun for this documentation-only change. Changes remain uncommitted; no push performed.
+
+### Next Steps
+
+- Commit/push only on a new explicit user instruction.
+
+## Entry 119
+
+### Date Time
+
+2026-09-07 04:32:31 PM
+
+### Task
+
+Implement Telegram chat discovery and selection with a direct first-message guide.
+
+### Description
+
+Implemented the agreed Select Telegram Chat button and native modal in Telegram Settings. The guide is displayed directly, without a Chat Missing heading: send /start@YourBotUsername in the group first, then use Refresh List. Once discovery identifies the saved bot, its real username replaces the placeholder. The modal lists Chat Name, Type, Chat ID, and Select. Selecting a row fills Telegram Chat ID, closes the modal, restores focus to its trigger, and leaves Save Alert Destination as a separate explicit action. Pending sender edits or an unsaved sender block discovery. Existing Send Test Message behavior and its disabled-reason guidance remain intact.
+
+Added TelegramChatDiscovery and TelegramChatOption response types and GET /api/v1/settings/telegram/chats. The route requires the existing authenticated admin middleware, accepts no body/query/token inputs, reads and decrypts the saved platform token server-side, uses Cache-Control:no-store, and limits discovery to six requests per minute per administrator. It never changes the saved destination or performs message sends. No database migration was needed.
+
+Added the Telegram discovery service using fixed api.telegram.org endpoints, bounded requests, and redirect rejection. It reads getMe and getWebhookInfo, refuses to poll when a webhook is active, then obtains up to 100 pending getUpdates records with timeout=0. It deliberately supplies neither offset nor allowed_updates, preserving pending updates and existing subscription settings. It never calls setWebhook/deleteWebhook/sendMessage. Group and channel identities are deduplicated, migrated groups use their new IDs, private chats are excluded, and bot-left/kicked membership updates remove unavailable entries. Response IDs are validated as safe integers and serialized as strings. Message contents, webhook URLs, and bot tokens are never returned. Upstream/token/conflict/rate-limit/network errors have controlled messages; raw fetch errors containing token-bearing URLs are not propagated.
+
+Applied the existing three UI skill guides and Cobalt token system. Kept the existing save/test action row, placed discovery beside the Chat ID heading, used responsive table-to-card rows, and made the modal close header sticky while scrolling. During visual review, corrected a missing shared data-surface class that initially left the modal background transparent. Used the project's existing visually-hidden utility for table accessibility. Loading, empty, refresh, conflict/error, selection, cancellation, and focus-return paths are implemented. Requests are aborted/ignored on close or replacement to prevent late responses from changing a closed modal.
+
+Focused verification ran tests/unit/telegram-chat-discovery.test.ts, telegram-chat-picker.test.tsx, telegram-chat-route.test.ts, platform-settings-page.test.tsx, and platform-telegram-test-route.test.ts: all 18 tests passed. Initial test issues were a mistaken AppError.status versus statusCode assertion, sharing one consumed Response between concurrent fetch mocks, and a beforeEach callback returning the mock function (which Vitest invoked during cleanup); corrected these test harness issues. Coverage includes identity filtering/deduplication/migration, webhook preservation, no update acknowledgement, token-error sanitization, admin authorization, saved-token-only discovery, no save-on-select, empty refresh, error handling, and disabled discovery with unsaved sender changes.
+
+Frontend/backend TypeScript and the production build passed. Rebuilt client assets after the final modal-surface/header styling correction. The existing Vite large-chunk advisory remains. git diff --check passed. The full suite and database-integrated tests were not run.
+
+Created an ignored synthetic preview at output/telegram-chat-picker-preview.html that renders the real form/modal and intercepts its discovery request with synthetic chat fixtures while blocking all other requests. Verified the desktop list, 375px mobile rows, actual field fill/focus restoration without saving, and dark-mode webhook-conflict presentation. Restored the viewport and closed the preview tab. No real bot token, Telegram chat, message, webhook, or saved destination was changed or contacted during verification. Restarted the local backend with the new route and confirmed readiness HTTP 200. README now documents discovery and its limitations, preserving the earlier uncommitted nvm installation-guide changes. No commit or push performed.
+
+### Next Steps
+
+- After deployment, validate with the user's saved platform bot and a fresh group command. Telegram cannot return a complete membership list; existing webhook/consumer integrations may require manual Chat ID entry.
+- Commit and push only with new explicit user approval.
