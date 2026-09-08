@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import { sortProjectsBodySchema } from "../../shared/contracts.js";
 import { Router, type Request } from "express";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import {
@@ -163,7 +165,7 @@ export function createProjectsRouter(config: AppConfig): Router {
          LEFT JOIN agents a ON a.project_id = p.id
          WHERE p.is_delete = 0
          GROUP BY p.id
-         ORDER BY p.name ASC`
+         ORDER BY p.sort_order ASC, p.name ASC, p.id ASC`
       );
 
       const projects: ProjectSummary[] = rows.map((row) => ({
@@ -179,6 +181,39 @@ export function createProjectsRouter(config: AppConfig): Router {
       response.status(200).json(projects);
     })
   );
+
+  /**
+   * PUT /api/v1/projects/order
+   * Saves a global project order atomically, rejecting stale project snapshots.
+   * @param {Request} request Admin request with empty query.
+   * @param {string[]} request.body.ordered_ids Unique active project UUIDs in the desired order, maximum 2000.
+   * @param {string[]} request.body.expected_ids All active project UUIDs in their originally displayed order.
+   * @param {import("express").Response} response Empty 204 response; 409 if the project list changed.
+   * @returns {Promise<void>} Persists order and audit together; requires admin role and CSRF.
+   */
+  router.put("/order", requireRole("admin"), requireCsrf, asyncHandler(async (request, response) => {
+    const body = sortProjectsBodySchema.parse(request.body);
+    z.object({}).strict().parse(request.query);
+    await withTransaction(config, async (connection) => {
+      const [rows] = await connection.execute<RowDataPacket[]>(
+        "SELECT id, public_id FROM projects WHERE is_delete = 0 ORDER BY sort_order, name, id FOR UPDATE"
+      );
+      if (rows.length !== body.expected_ids.length || rows.some((row, index) => row.public_id !== body.expected_ids[index])) {
+        throw new AppError(409, "project_order_changed", "The project list changed. Cancel sorting, refresh, and try again.");
+      }
+      const now = Date.now();
+      const byId = new Map(rows.map((row) => [row.public_id, row.id]));
+      for (const [index, publicId] of body.ordered_ids.entries()) {
+        await connection.execute("UPDATE projects SET sort_order = ?, updated_at = ? WHERE id = ?", [index + 1, now, byId.get(publicId)]);
+      }
+      await connection.execute(
+        `INSERT INTO audit_events (user_id, action, entity_type, metadata_json, created_at, updated_at, is_delete)
+         VALUES (?, 'project.reorder', 'project', ?, ?, ?, 0)`,
+        [request.auth!.userInternalId, JSON.stringify({ ordered_ids: body.ordered_ids }), now, now]
+      );
+    });
+    response.sendStatus(204);
+  }));
 
   /**
    * POST /api/v1/projects

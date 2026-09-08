@@ -1,66 +1,20 @@
-import { ArrowRight, CircleCheck, CircleDashed, CircleX, FolderKanban, FolderPlus, X } from "lucide-react";
+import { ListFilter, FolderPlus, X } from "lucide-react";
 import { useRef, useState, type MouseEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { type ProjectSummary } from "../../shared/contracts";
 import { EmptyState, ErrorState, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
 import { formatCount } from "../lib/format";
 import { useProjects } from "../projects/ProjectProvider";
 import { CreateProjectForm } from "./CreateProjectPage";
+import { ProjectSortMode } from "../components/ProjectSortMode";
+import { ProjectCard } from "../components/ProjectCard";
+import { useAuth } from "../auth/AuthProvider";
 
-function agentCountFor(project: ProjectSummary): number {
-  return (
-    project.healthy_agents +
-    project.new_agents +
-    project.warning_agents +
-    project.critical_agents +
-    project.stale_agents
-  );
-}
-
-type ProjectHealthState = "healthy" | "failure" | "pending" | "empty";
-
-function projectHealthFor(project: ProjectSummary): {
-  state: ProjectHealthState;
-  label: string;
-  description: string;
-  Icon: typeof CircleCheck;
-} {
-  const totalAgents = agentCountFor(project);
-  const failedAgents = project.warning_agents + project.critical_agents + project.stale_agents;
-  if (failedAgents > 0) {
-    return {
-      state: "failure",
-      label: "Error",
-      description: `${formatCount(failedAgents)} ${failedAgents === 1 ? "agent needs" : "agents need"} attention.`,
-      Icon: CircleX
-    };
-  }
-  if (project.new_agents > 0) {
-    return {
-      state: "pending",
-      label: "Awaiting Data",
-      description: `${formatCount(project.new_agents)} ${project.new_agents === 1 ? "agent is" : "agents are"} awaiting a first report.`,
-      Icon: CircleDashed
-    };
-  }
-  if (totalAgents === 0) {
-    return {
-      state: "empty",
-      label: "No Agents",
-      description: "Register an agent to begin monitoring.",
-      Icon: CircleDashed
-    };
-  }
-  return {
-    state: "healthy",
-    label: "Healthy",
-    description: "All registered agents are healthy.",
-    Icon: CircleCheck
-  };
-}
 
 export function ProjectsPage() {
+  const { user } = useAuth();
+  const [sortSnapshot, setSortSnapshot] = useState<ProjectSummary[] | null>(null);
   const { projects, status, error, reloadProjects } = useProjects();
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
@@ -99,6 +53,7 @@ export function ProjectsPage() {
           aria-haspopup="dialog"
           aria-controls="create-project-dialog"
           onClick={openCreateDialog}
+          disabled={sortSnapshot !== null}
         >
           <FolderPlus aria-hidden="true" />
           Create Project
@@ -161,46 +116,18 @@ export function ProjectsPage() {
             <div>
               <h2 id="all-projects-title">All Projects</h2>
             </div>
-            <span className="numeric section-count">
+            <div className="project-sort__actions"><span className="numeric section-count">
               Total {formatCount(projects.length)} {projects.length === 1 ? "Project" : "Projects"}
             </span>
+            {user?.role === "admin" && !sortSnapshot && projects.length > 1 && <button type="button" className="button button--secondary"
+              onClick={() => setSortSnapshot([...projects])}><ListFilter aria-hidden="true" />Sort</button>}</div>
           </div>
+          {sortSnapshot ? <ProjectSortMode projects={sortSnapshot} onClose={() => setSortSnapshot(null)}
+            onSaved={() => { reloadProjects(); setSortSnapshot(null); }} /> :
           <ul className="project-card-grid">
-            {projects.map((project) => {
-              const agentCount = agentCountFor(project);
-              const health = projectHealthFor(project);
-              const HealthIcon = health.Icon;
-              return (
-                <li key={project.id}>
-                  <article className={`project-card project-card--${health.state}`} aria-labelledby={`project-card-${project.id}`}>
-                    <div className="project-card__header">
-                      <div className="project-card__identity">
-                        <FolderKanban aria-hidden="true" />
-                        <h3 id={`project-card-${project.id}`} title={project.name}>{project.name}</h3>
-                      </div>
-                      <span className={`project-health project-health--${health.state}`}>
-                        <HealthIcon aria-hidden="true" />
-                        {health.label}
-                      </span>
-                    </div>
-                    <div className="project-card__body">
-                      <div className="project-card__agent-count" aria-label={`Total Agents: ${agentCount}`}>
-                        <span>Total Agents</span>
-                        <strong className="numeric">{formatCount(agentCount)}</strong>
-                      </div>
-                      <p>{health.description}</p>
-                    </div>
-                    <div className="project-card__actions">
-                      <Link className="button button--secondary" to={`/projects/${encodeURIComponent(project.id)}`}>
-                        Manage
-                        <ArrowRight aria-hidden="true" />
-                      </Link>
-                    </div>
-                  </article>
-                </li>
-              );
-            })}
+            {projects.map((project) => <li key={project.id}><ProjectCard project={project} /></li>)}
           </ul>
+          }
         </section>
       )}
     </div>

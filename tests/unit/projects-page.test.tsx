@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectSummary } from "../../src/shared/contracts";
+vi.mock("../../src/client/auth/AuthProvider", () => ({ useAuth: () => ({ user: { role: "admin" } }) }));
 
 const { apiFetchMock, projectFixture, healthyProjectFixture, reloadProjectsMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),

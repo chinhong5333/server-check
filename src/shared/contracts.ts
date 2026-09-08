@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+export const sortProjectsBodySchema = z.object({
+  ordered_ids: z.array(z.string().uuid()).min(1).max(2000),
+  expected_ids: z.array(z.string().uuid()).min(1).max(2000)
+}).strict().refine((value) => new Set(value.ordered_ids).size === value.ordered_ids.length &&
+  new Set(value.expected_ids).size === value.expected_ids.length &&
+  value.ordered_ids.length === value.expected_ids.length &&
+  value.ordered_ids.every((id) => value.expected_ids.includes(id)), "Project IDs must be unique and contain the same projects.");
+
 export const roleSchema = z.enum(["admin", "operator"]);
 export type InternalRole = z.infer<typeof roleSchema>;
 
