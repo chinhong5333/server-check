@@ -137,7 +137,7 @@ describe("project-scoped agents page", () => {
     expect(screen.queryByRole("navigation", { name: "Global" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Projects", exact: true })).not.toBeInTheDocument();
     const projectNavigation = screen.getByRole("navigation", { name: "Project workspace for Project Atlas" });
-    const settingsLink = screen.getByRole("link", { name: "Setting" });
+    const settingsLink = screen.getByRole("link", { name: "Settings" });
     const currentProjectLabel = screen.getByText("Current Project");
     const overviewLink = within(projectNavigation).getByRole("link", { name: "Overview" });
     const projectSelector = screen.getByRole("link", {
@@ -154,7 +154,7 @@ describe("project-scoped agents page", () => {
     expect(projectSelector).toHaveAttribute("href", "/projects");
     expect(projectSelector).toHaveAttribute("title", "Switch Project");
     const accountLink = screen.getByRole("link", { name: "Account Settings: operator@example.com" });
-    expect(accountLink).toHaveAttribute("href", "/account");
+    expect(accountLink).toHaveAttribute("href", "/settings/password");
     expect(accountLink).toHaveTextContent("operator@example.com");
     expect(screen.queryByRole("link", { name: "Account Settings", exact: true })).not.toBeInTheDocument();
     expect(settingsLink).toHaveClass("icon-button");

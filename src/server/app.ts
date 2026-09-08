@@ -13,6 +13,7 @@ import { createAuthRouter } from "./routes/auth.js";
 import { createHeartbeatRouter } from "./routes/heartbeat.js";
 import { createProjectsRouter } from "./routes/projects.js";
 import { createSettingsRouter } from "./routes/settings.js";
+import { createAdminsRouter } from "./routes/admins.js";
 
 export function createApp(config: AppConfig) {
   const app = express();
@@ -71,6 +72,7 @@ export function createApp(config: AppConfig) {
   app.use("/api/v1/projects", createProjectsRouter(config));
   app.use("/api/v1/agents", createAgentsRouter(config));
   app.use("/api/v1/settings", createSettingsRouter(config));
+  app.use("/api/v1/admins", createAdminsRouter(config));
 
   app.use("/api", (_request, _response, next) => {
     next(new AppError(404, "route_not_found", "The requested API route does not exist."));

@@ -10,6 +10,8 @@ import { PlatformSettingsPage } from "./pages/PlatformSettingsPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { ProjectProvider } from "./projects/ProjectProvider";
 import { AccountPage } from "./pages/AccountPage";
+import { AdminManagementPage } from "./pages/AdminManagementPage";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 const AgentDetailPage = lazy(async () => {
   const module = await import("./pages/AgentDetailPage");
@@ -54,7 +56,7 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { failed: bool
 }
 
 function ProtectedApplication() {
-  const { status } = useAuth();
+  const { status, user } = useAuth();
   if (status === "loading") return <main className="standalone-feedback"><PageSkeleton rows={5} /></main>;
   if (status === "anonymous") return <Navigate to="/login" replace />;
 
@@ -62,9 +64,12 @@ function ProtectedApplication() {
     <ProjectProvider>
       <AppShell>
         <Routes>
-          <Route path="/account" element={<AccountPage />} />
+          <Route path="/account" element={<Navigate to="/settings/password" replace />} />
+          <Route path="/settings/password" element={<AccountPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/settings" element={<PlatformSettingsPage />} />
+          <Route path="/settings" element={<Navigate to={user?.role === "admin" ? "/settings/telegram" : "/settings/password"} replace />} />
+          <Route path="/settings/telegram" element={user?.role === "admin" ? <PlatformSettingsPage /> : <Navigate to="/settings/password" replace />} />
+          <Route path="/settings/admins" element={user?.role === "admin" ? <AdminManagementPage /> : <Navigate to="/settings/password" replace />} />
           <Route path="/projects/new" element={<CreateProjectPage />} />
           <Route path="/projects/:projectId" element={<InstallAgentPage />} />
           <Route path="/projects/:projectId/agents" element={<ProjectOverviewRedirect />} />
@@ -100,6 +105,7 @@ function ProtectedApplication() {
 export function App() {
   return (
     <AppErrorBoundary>
+      <ScrollToTop />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/*" element={<ProtectedApplication />} />

@@ -1,5 +1,56 @@
 # Server Check
 
+## Admin Controls
+
+The sidebar gear opens the Settings workspace. Its individual pages are Telegram Management (`/settings/telegram`), Teams (`/settings/admins`), and Change Password (`/settings/password`). Teams displays member email, full-access role, and joined date; Add Admin opens the creation modal. The first two pages require admin access; signed-in operators can access only Change Password. `/settings` redirects to the first permitted settings page, and the old `/account` URL redirects to Change Password. Each page includes Back To Projects.
+
+- **Agent Detail → Telegram Delivery Log → Clear Pending Messages:** two confirmation steps cancel pending Telegram items for that agent only. Records remain visible as Cancelled; future alerts and other agents are unaffected. Messages already being sent may still arrive. The worker locks/rechecks a queued row before sending, so cancellation cannot be overwritten by a stale queue selection. Delivery is still at-least-once: an upstream timeout or a process/database failure after Telegram accepted a message can result in an uncertain delivery. Cancelled logs expire after 90 days under the retention policy.
+- **All Projects → Sort Projects:** drag the list or use its move buttons, then Save Order. Cancel discards the draft. The saved order is global for all users, up to 2000 projects. A stale list is rejected with a conflict; cancel and refresh before retrying. Existing projects initially retain alphabetical order; newly created projects appear ahead of manually ordered projects until the next save.
+- **Settings → Admin Management:** existing admins can list and create full-access admins. Creation requires the acting admin's current password and a new 15–128 character password with confirmation. Email addresses are unique and normalized to lowercase. Passwords are stored using the existing scrypt hashing mechanism and never returned in API responses or audit metadata. Share initial credentials securely; the new admin can change their password through Settings → Change Password. Creation is limited to five requests per admin per 15 minutes. No restricted/sub-admin role management is included.
+
+These actions are enforced as admin-only on the backend; writes also require CSRF protection and create audit records. New API contracts are `GET/POST /api/v1/admins`, `PUT /api/v1/projects/order` (`ordered_ids`, `expected_ids`), and `POST /api/v1/agents/:agent_id/telegram-deliveries/cancel-pending` (`confirm: true`). Admin creation accepts only `email`, `password`, and `current_password`; callers cannot select a role. All new endpoints reject extra query/body inputs as documented in their route JSDoc.
+
+Before deploying, back up the database, stop the backend, rebuild, apply pending migrations with `npm run migrate` (including `008_project_order.sql`), and restart the backend. Do not run the new project-list API against the old schema. If the retention amendment is also pending, review its irreversible retention policy and index migration before restarting. No agent-script reinstall is needed.
+
+The focused real-database test requires an **empty, dedicated local MySQL 8+ test schema**, with `.env.test` configured; it refuses existing project/admin records:
+
+```bash
+node --env-file=.env.test node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/admin-controls.test.ts
+```
+
+This test verifies persistence and scope using synthetic fixtures and an injected test identity, not the live sign-in flow. Test authentication/CSRF enforcement separately through the focused unit tests and perform site acceptance before production use. Never run it against development or production data.
+
+## Database Retention And Capacity
+
+The backend runs cleanup on startup and every ten minutes. Retention is based on server timestamps:
+
+| Records | Retention |
+| --- | --- |
+| Heartbeats and metrics, including linked filesystem/service samples | 7 days |
+| Sent Telegram deliveries | 30 days after sending |
+| Failed or cancelled Telegram deliveries | 90 days after their last update |
+| Resolved incidents | 90 days after resolution, and only after all linked deliveries are removed |
+| Audit events | 180 days |
+| Open incidents and pending deliveries | Preserved; operator action may be required |
+
+Cleanup uses 500-row autocommitted batches, cycling between categories, with up to 100 rounds and a 30-second scheduling budget. An in-progress database statement may finish after the budget; it is not forcibly cancelled. Row-lock waits are limited to two seconds on the dedicated cleanup connection and restored afterward. A database-scoped advisory lock prevents concurrent cleanup across backend instances connected to the same MySQL server. No automatic OPTIMIZE, TRUNCATE, or deletion of recent data is performed.
+
+Structured backend logs under `worker: history-retention` record deleted parent-row counts (cascaded child deletions are not included), duration, remaining expired-record timestamps, estimated database allocation, and oldest pending delivery. Warnings flag any remaining eligible backlog, estimated allocation of at least 1 GiB (an advisory threshold, not a quota), and pending deliveries older than seven days. Errors record partial progress; successful batches stay committed and the next run retries remaining work. Monitor these logs for failures or an absent completion heartbeat across two cleanup intervals; these warnings are not Telegram messages.
+
+### Deploying The Retention Amendment
+
+Back up the production database before enabling the new retention policy. Stop the backend, build the updated source, run `npm run migrate` to apply `007_retention_indexes.sql`, then restart the backend. Index creation on large existing tables requires a maintenance window and temporary disk headroom. If migration fails partway, do not blindly rerun or edit a recorded migration: inspect the existing indexes and resolve the partial application first. Verify cleanup completion and backlog warnings after restart. Expired records are permanently deleted; recovery requires your backup.
+
+For guarded integration validation, configure `.env.test` for a dedicated local MySQL 8+ instance, then run only:
+
+```bash
+node --env-file=.env.test node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts tests/integration/retention.test.ts
+```
+
+Never point that test at development, shared, or production data. It exercises real cleanup and cascading foreign keys in the disposable test database.
+
+Retention limits record age, not total disk usage. Capacity still depends on agent count, report frequency, filesystems, and protected unresolved records. InnoDB generally reuses deleted space internally rather than shrinking its files automatically. Track free space on the actual MySQL data volume separately (for example, warn below 20% free, critical below 10%); database allocation estimates do not include MySQL binary logs, backups, or PM2/application logs. Configure their rotation/expiry separately with the database/backup operator, respecting replication and recovery requirements. Investigate persistent backlog or rising allocation rather than deleting protected or recent data to meet an arbitrary size cap. Any physical table rebuild requires a planned maintenance window, backup, and enough free disk space.
+
 Server Check is an internal, multi-project server-monitoring service. A generated one-file Linux agent probes a server-local health API, collects host metrics, and reports to a central Node.js API. The central service retains seven days of raw history, evaluates agent-specific thresholds, records incidents, sends Telegram notifications, and serves a React/TypeScript backoffice.
 
 ## Current verification status

@@ -1,5 +1,171 @@
 # Implementation Log
 
+## Stepped Sort Icon
+
+### Date Time
+2026-09-08 05:15:32 PM
+
+### Task
+Replace the Sort up/down-arrow icon with a ladder-like stepped horizontal-line icon.
+
+### Description
+Changed ProjectsPage from Lucide ArrowUpDown to ListFilter, retaining shared button styling, the Sort label, and aria-hidden decorative semantics. Sorting behaviour is unchanged. Explicit tests/unit/projects-page.test.tsx passed five tests. Full suite not run. No backend or data changes; not committed or pushed.
+
+### Next Steps
+Deploy rebuilt frontend assets when approved.
+
+## Sort Button Label And Icon
+
+### Date Time
+2026-09-08 05:12:03 PM
+
+### Task
+Change Sort Projects to an icon followed by Sort.
+
+### Description
+Updated the trigger in ProjectsPage to use the shared Lucide ArrowUpDown icon before Sort. The icon is aria-hidden, leaving Sort as the accessible name. Existing button styles, card dragging, Save Order, and Cancel behaviour are unchanged. Explicit tests/unit/projects-page.test.tsx passed five tests. No full suite, backend, or database changes. Not committed or pushed.
+
+### Next Steps
+Deploy rebuilt frontend assets when approved.
+
+## Sorting Within The Existing Project Card Grid
+
+### Date Time
+2026-09-08 05:09:00 PM
+
+### Task
+Correct the interpretation of project sort mode: retain card view and drag cards to reorder before saving.
+
+### Description
+Extracted the existing project card markup and health/count presentation into ProjectCard so normal browsing and sorting use the same visual component. Removed the separate bordered list presentation from ProjectSortMode. Sort mode now renders project-card-grid with the complete project cards, replaces only their Manage action with a drag hint and Earlier/Later move controls, and places Save Order/Cancel above the grid. Added dragged-card opacity and target outline feedback. Kept native drag/drop, live movement announcements, keyboard/touch alternatives, frozen draft, conflict errors, cancellation, and save-only persistence. Removed obsolete sorting-list CSS. API and schema contracts are unchanged.
+
+Explicit tests/unit/projects-page.test.tsx and tests/unit/admin-controls-ui.test.tsx passed 13 cases, including retained card/article/grid/count content, drag/drop, move, save/cancel, and existing card states. Typecheck passed. Synthetic real-App browser verification showed desktop cards staying in the same grid, native drag moving the second card first, mobile card layout, and Save Order returning to normal Manage cards in saved order. No real project order was changed. Viewport restored. Existing UI skill constraints preserved the product's cards rather than introducing a new list design. Full suite not run; no commit/push.
+
+### Next Steps
+Deploy rebuilt frontend assets when approved. No new migration is required for this correction.
+
+## Telegram Wording And Add Admin Icon
+
+### Date Time
+2026-09-08 03:56:00 PM
+
+### Task
+Rename Telegram Management to Telegram and align Add Admin with the project's icon-button convention.
+
+### Description
+Changed the visible sidebar label and Telegram page H1 to Telegram, preserving its canonical route and permissions. Added the existing Lucide UserPlus icon before Add Admin, using the shared button styling and aria-hidden so the accessible name remains Add Admin. Updated navigation and page test expectations. Explicit settings-navigation.test.tsx, platform-settings-page.test.tsx, and admin-controls-ui.test.tsx tests passed all 13 cases. Verified the actual component preview on desktop and at 375px mobile; label, icon spacing, and count/button alignment are intact. Reset viewport afterward. No real data mutation or full suite run. Existing work preserved, not committed or pushed.
+
+### Next Steps
+Deploy rebuilt frontend assets when approved. No migration required.
+
+## Teams List And Add Admin Modal
+
+### Date Time
+2026-09-08 03:13:00 PM
+
+### Task
+Rename Admin Management to Teams, improve the admin list, and move Add Admin into a button-triggered modal.
+
+### Description
+Updated the visible Settings sidebar label and page heading to Teams while preserving /settings/admins and its permissions. Replaced the plain email bullets with the Team Members table, decorative identity icons, member count, Full Access Admin role labels, and Joined timestamps from the existing created_at response. Rows stack on mobile and long emails wrap. Fixed a shared first-column width rule discovered in browser review by giving the Teams desktop table explicit 55/25/20 percent columns. Existing tokens and layout identity were preserved using the required UI skill guidance; no backend or schema change was needed.
+
+Moved the existing creation form into the shared native ModalDialog, opened by Add Admin beside the count. The list remains the main page content. The modal retains email/password confirmation/current-password verification and disabled in-flight controls, starts focus on email, and includes Cancel and close controls. Cancelling clears entered values and restores trigger focus; success closes the dialog, clears sensitive state, refreshes members, and leaves a success message outside the modal. Backend security and full-access semantics are unchanged.
+
+Explicit tests/unit/admin-controls-ui.test.tsx and tests/unit/settings-navigation.test.tsx passed 11 tests, covering table headers/count/roles, modal-only fields, no write on cancel, cleared values, focus restoration, successful creation, and Teams navigation/permissions. Typecheck and client build passed; existing Vite size advisory remains. Synthetic real-App browser verification checked desktop and 375px mobile list/modal, long email layout, aligned password inputs, and cancellation without real account creation. Viewport reset afterward. Full suite not run. All prior changes preserved, not committed or pushed.
+
+### Next Steps
+Review Teams in the local Settings section. Deploy rebuilt frontend assets when approved; no new migration required. Commit/push only on explicit request.
+
+## Settings Workspace And Separate Feature Pages
+
+### Date Time
+2026-09-08 02:33:00 PM
+
+### Task
+Make the gear open a Settings section with separate Telegram Management, Admin Management, and Change Password sidebar destinations.
+
+### Description
+AppShell detects /settings and descendant paths and replaces project navigation with the Settings navigation group. Links use the existing icon/active-state styling and mobile navigation closure. Gear wording is Settings and remains active across settings descendants. Added canonical /settings/telegram, /settings/admins, and /settings/password routes, with admin-only frontend guards for the first two; underlying backend authorization is unchanged. /settings redirects to the first permitted settings feature and /account redirects to /settings/password. The email/account shortcut now goes directly to the password page. Telegram page title is Telegram Management; AccountPage contains only Change Password, with AdminManagement extracted onto AdminManagementPage. Existing forms, data behaviour, Back To Projects links, and global scroll reset remain intact. No CSS redesign, backend changes, or database migration was required.
+
+Applied the established required UI skills to preserve the sidebar and forms. Added tests/unit/settings-navigation.test.tsx exercising gear entry, active links, distinct forms per route, legacy account redirect, and operator restrictions without protected API calls. Updated existing wording/link expectations. Explicit tests/unit/settings-navigation.test.tsx, platform-settings-page.test.tsx, account-page.test.tsx, and agents-page.test.tsx passed all 18 tests; typecheck and client build passed, with the existing Vite size advisory. Full suite was not run. Browser verification used the existing isolated sample-data real-App preview with a synthetic Telegram settings response; desktop gear/three destinations and mobile menu selection/closure were verified. Temporary viewport restored; no real settings, credentials, or accounts changed. README navigation guidance updated. All prior uncommitted work preserved; no commit or push.
+
+### Next Steps
+Review the new Settings section locally and deploy rebuilt frontend assets when ready. Commit/push only with explicit approval.
+
+## Local Migration And Latest Progress Preview
+
+### Date Time
+2026-09-08 12:23:00 PM
+
+### Task
+Apply pending local migrations without backup and preview the latest work, as explicitly requested.
+
+### Description
+The user explicitly declined a backup and authorized migration. Rebuilt the server and ran npm run migrate against the existing configured local XAMPP database; it completed successfully with migrations current, applying pending retention indexes and project ordering. Started npm run dev:server (process 25480, tool session 99965). Verified http://127.0.0.1:3000/health/ready and http://127.0.0.1:5173 both returned HTTP 200. The initial retention worker completed in 67 ms with zero records deleted across every category, no expired eligible backlog, and estimated allocation 1064960 bytes. No backup was created and no retained records were removed by this run. The database is the existing MariaDB development runtime, not a dedicated MySQL integration target; production/MySQL acceptance remains pending.
+
+Opened the live localhost Projects route; the existing browser session required sign-in, so left the login tab for the user. Also opened the existing isolated real-component preview with sample data and activated Sort Projects, explicitly identifying it as a preview that does not change real accounts/messages. No admin account creation, real reordering, or manual pending-message cancellation was performed. No commit or push.
+
+### Next Steps
+User can sign in to the live app to review the migrated features. Run guarded dedicated local MySQL 8 integration before production acceptance. Commit/push only when explicitly requested.
+
+## Agent Telegram Cancellation, Project Order, And Full-Access Admin Creation
+
+### Date Time
+2026-09-08 12:13:00 PM
+
+### Task
+Implement the user's clarified major amendment: clear pending Telegram for an agent (not a project), draggable saved project order, and adding normal full-access admins.
+
+### Description
+Added Clear Pending Messages to the agent's Telegram Delivery Log for admins. The native modal asks twice, identifies the agent, explains preserved logs/future alerts/other-agent isolation, and warns that an in-flight message may arrive. The confirmed POST accepts only confirm:true and an empty query, validates the active agent/project, atomically updates only that agent's pending Telegram rows to cancelled, and writes an audit count. Sent/failed/other-agent rows are untouched. The status contract/log renderer includes Cancelled and Cancelled By Admin. Worker sending now acquires a transaction row lock and rechecks pending/due state after initial selection; this prevents stale selected rows from overriding cancellation or sending twice due to the same pending row in competing workers. Network requests retain their existing ten-second timeout. External delivery still cannot be made exactly-once across database/process failures; README documents this limitation. Cancelled deliveries join the 90-day updated_at retention policy using the existing status/update index.
+
+Added All Projects Sort Projects mode for admins, preserving normal project cards outside sorting. The mode snapshots projects, supports native drag/drop and accessible Up/Down buttons, announces moved positions, and only persists on Save Order. Cancel discards the draft; errors retain it. Server PUT /projects/order validates two canonical unique UUID arrays (ordered_ids/expected_ids, maximum 2000 each), locks the active project list, rejects stale ordering/membership with 409, and writes sequence numbers plus an audit in one transaction. Migration 008 adds projects.sort_order and its active/order/name index; list API now uses that order with name/id tie breakers. Initial default-zero rows preserve alphabetical ordering; new projects default ahead of previously numbered projects. Global saved order applies to all viewers, not only the acting admin.
+
+Added Account Settings Admin Management with a safe current-admin list and Add Admin form. New admins receive full admin access, with no caller-selectable role or restricted sub-admin functionality. POST /admins requires admin authentication, CSRF, current-password verification under actor row lock, a normalized unique email, and a 15–128 character password; it hashes with the existing scrypt implementation and audits only public identity/email/role. A per-admin five-per-fifteen-minute limiter bounds account creation/reauthentication attempts. Duplicate email returns a controlled 409. Frontend requires matching password confirmation, clears sensitive fields on success, and explains secure credential sharing. GET /admins exposes only id/email/created_at to admins and uses no-store. No real admin account was created during verification.
+
+Applied Hallmark, Frontend UI Engineering, and UI UX Pro Max constraints to the existing Cobalt design. Search guidance confirmed move-button alternatives for dragging. Synthetic real-App preview at output/admin-controls-preview.html blocks all real calls and real account creation, with in-memory sorting/cancellation responses only. Verified desktop native drag, move buttons, Save Order changing displayed sequence, mobile form and modal, both confirmation steps, and cancelled rows. Visual review caught and fixed stretched/misaligned password fields, crowded Telegram headings, and responsive sort action grouping. Restored temporary browser viewport. No production or retained local records were mutated, and no new migration was executed.
+
+Explicit targeted tests: tests/unit/admin-controls-routes.test.ts, admin-controls-ui.test.tsx, telegram-cooldown-worker.test.ts, retention.test.ts, projects-page.test.tsx, agent-detail-page.test.tsx, and account-page.test.tsx; all 37 tests passed. They cover real role/CSRF middleware with injected identities, invalid passwords/duplicates, strict sorting/conflict contracts, agent-scoped cancellation, no request before the second confirmation, cancellation-safe worker recheck, drag/move/save/cancel/error flows, and existing account/roster behaviour. Type checking and production build passed; existing Vite bundle-size advisory remains. Added guarded tests/integration/admin-controls.test.ts for real MySQL persistence/hashing and agent-scope cancellation with disposable fixtures, explicitly refusing a nonempty dedicated test target. It was not run because .env.test and a dedicated local MySQL 8 target are absent. No full suite run. Existing uncommitted scroll and retention amendments were preserved; no commit/push.
+
+### Next Steps
+Configure empty dedicated local MySQL 8+ test settings, run the guarded integration file, and perform deployment/site acceptance. Back up, stop backend, build, apply pending 007/008 migrations, then restart; review the pending retention policy before activation. Securely create actual admins through the UI only when the user chooses to grant access. Commit and push only with explicit approval.
+
+## Bounded Database Retention And Capacity Reporting
+
+### Date Time
+2026-09-08 11:31:41 AM
+
+### Task
+Improve automatic cleanup for one-minute agent reporting and limit accumulation of completed monitoring logs.
+
+### Description
+Read the existing retention implementation, heartbeat ingestion, foreign keys, migration runner, and local database test guard. Verified MySQL primary documentation for limited single-table deletion, advisory-lock lifetime, and InnoDB space reclamation. No graph tool is available, so discovery used the known worker/schema paths. Confirmed no live backend watcher before editing automatic deletion logic, avoiding accidental cleanup on local retained user data. No real database mutation, migration, or cleanup run was performed.
+
+Extracted retention into services/retention.ts and scheduled it on startup and every ten minutes. Each autocommitted DELETE removes at most 500 parent rows in timestamp/id order; round-robin iteration gives each policy a turn before repeating. Scheduling stops after 30 seconds or 100 rounds; an already executing query can finish beyond that budget. Seven-day heartbeat and metric history remains unchanged, with existing foreign keys cascading metric deletion to filesystem/service samples. Sent Telegram records expire 30 days after sent_at; failed records expire 90 days after updated_at. Resolved incidents expire 90 days after resolved_at only when no delivery row remains, preserving pending and recent delivery dependencies. Open incidents and pending deliveries are never selected. Audit events expire after 180 days. Soft-delete flags do not bypass age/dependency safeguards.
+
+Cleanup uses one dedicated pooled connection and a hashed, database-scoped GET_LOCK with zero wait to avoid overlapping cleanup instances. Null lock results are errors, not misleading contention skips. Session innodb_lock_wait_timeout is temporarily two seconds and restored; advisory lock release is verified. Connections with cleanup-release failure are destroyed instead of returning lock/session state to the pool. Failures log partial deleted counts and propagate; completed batches stay committed for incremental retry. Added migration 007_retention_indexes.sql for global telemetry timestamp scans, outbox status/sent/update/pending-age scans, resolved incident age, and audit age. Existing schema/data contracts otherwise remain unchanged.
+
+Added structured history-retention completion logs for deleted counts, duration, oldest eligible timestamps, remaining backlog, estimated schema data/index allocation, and oldest pending timestamp. Warnings report expired backlog, allocation at or above 1 GiB, and pending deliveries older than seven days; these are operator logs, not automatic Telegram notifications or a hard disk quota. Protected records remain preserved even under storage pressure. README documents policies, backup/stop/build/migrate/restart deployment, index-build headroom and partial migration recovery, permanent deletion and backup recovery, guarded MySQL test invocation, log monitoring, and separate disk/binlog/backup/application-log rotation obligations. InnoDB file shrinking is not performed automatically.
+
+Explicit tests/unit/retention.test.ts and tests/unit/telegram-cooldown-worker.test.ts passed nine tests. Coverage includes age cutoffs, deletion ordering/protection, multi-batch fairness, contention skips, lock errors, time-budget cutoff, backlog/capacity/pending warnings, database-error cleanup, and destroying unreleasable sessions. Type checking and server build passed; diff check passed. Added tests/integration/retention.test.ts with local-host/test-name/version guards and synthetic fixtures for expired/current heartbeats, cascading samples, old sent/failed deliveries, protected pending/open/recent-linked incidents, and audit expiry. It cleans only its synthetic fixture project afterward. It was not run: `.env.test` is absent and no dedicated local MySQL 8 test target is configured. Mocks do not constitute real MySQL acceptance. Full suite was not run. Existing uncommitted scroll-to-top work preserved; no commit or push.
+
+### Next Steps
+Configure dedicated local MySQL 8+ and `.env.test` and run the focused retention integration test before production acceptance. Review the approved irreversible retention policy and take a production backup, apply indexes during a maintenance window, then restart and inspect completion/backlog logs. Configure actual database-volume free-space and log-rotation monitoring. Commit/push only on explicit approval.
+
+## Page Navigation Scroll Reset
+
+### Date Time
+2026-09-07 07:12:10 PM
+
+### Task
+Start every page at the top when navigating through the platform.
+
+### Description
+Added ScrollToTop at the App root, outside individual routes and lazy page boundaries. It resets document scrolling instantly on location-key changes, including repeated route clicks and history navigation, without responding to background refreshes or ordinary rerenders. Explicit hash anchors are preserved for Skip To Content accessibility. Browser automatic scroll restoration is disabled while mounted and restored on cleanup. Existing UI design and motion constraints were preserved; no CSS, backend, or database changes. Explicit tests/unit/scroll-to-top.test.tsx and tests/unit/app-route-redirect.test.tsx passed all five tests; type checking passed. Actual-App synthetic browser preview verified settled scroll reset at desktop and 375px mobile; mobile scrollY changed from 952 to 0 after Overview navigation. No real API writes were made. The stopped frontend was started for verification, and temporary viewport overrides were reset. Full suite was not run.
+
+### Next Steps
+Commit and push only upon explicit approval. Deploy rebuilt frontend assets to apply the behaviour in production.
+
 ## Registered Agents Raw Load Alignment
 
 ### Date Time

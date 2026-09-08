@@ -2653,12 +2653,29 @@ button.back-link {
     padding-inline: var(--space-2xl);
   }
 }
+.section-heading > .project-sort__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+.admin-list { border-bottom: var(--rule-thin) solid var(--color-rule); overflow-wrap: anywhere; }
+.admin-management > .teams-list { padding: 0; }
+.teams-heading { flex-wrap: wrap; }
+.teams-heading > div:first-child { flex: 1 1 18rem; }
+.teams-actions, .section-heading > .teams-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+.teams-table .team-member-identity { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.team-member-identity strong { min-width: 0; overflow-wrap: anywhere; }
+.team-member-avatar { display: grid; place-items: center; flex: 0 0 2.5rem; height: 2.5rem; border-radius: var(--radius-md); background: var(--color-paper-2); color: var(--color-accent); }
+.team-member-avatar svg { width: 1.1rem; height: 1.1rem; }
+.team-member-role { color: var(--color-muted); font-size: var(--text-sm); white-space: nowrap; }
+@media (min-width: 60rem) {
+  .teams-table { table-layout: fixed; }
+  .teams-table th:first-child { width: 55%; }
+  .teams-table th:nth-child(2) { width: 25%; }
+  .teams-table th:nth-child(3) { width: 20%; }
+}
+.admin-management .field { align-content: start; }
 .telegram-delivery-state--cancelled { color: var(--color-muted); border-color: var(--color-rule); }
 .telegram-log-heading { flex-wrap: wrap; }
 .telegram-log-heading > div:first-child { flex: 1 1 18rem; }
 .section-heading > .telegram-log-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); min-width: 0; }
 .telegram-log-actions > p { flex-basis: 100%; }
-.section-heading > .project-sort__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
 .project-collection > .section-heading, .project-sort > .section-heading { flex-wrap: wrap; }
 .project-collection > .section-heading > div:first-child { flex: 1 1 10rem; }
 .project-sort > .section-heading > div:first-child { flex: 1 1 18rem; }

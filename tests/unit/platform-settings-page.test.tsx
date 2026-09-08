@@ -41,7 +41,7 @@ describe("platform Setting page", () => {
       </ToastProvider>
     );
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Setting" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Telegram" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Telegram Alerts" })).toBeInTheDocument();
     const senderGroup = screen.getByRole("group", { name: "Platform Sender" });
     const destinationGroup = screen.getByRole("group", { name: "Alert Destination" });

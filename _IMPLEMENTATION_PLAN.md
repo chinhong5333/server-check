@@ -48,6 +48,26 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- 2026-09-08: Replaced the Sort button's up/down arrows with the stepped horizontal-line ListFilter icon per user preference; label and sorting behaviour are unchanged. Five focused project-page tests passed.
+
+- 2026-09-08: Shortened the project sort trigger to Sort with a decorative ArrowUpDown icon; sorting behaviour is unchanged. Five focused project-page tests passed.
+
+- 2026-09-08: Corrected project sorting to remain in the existing card grid. Browsing and sorting now share ProjectCard; sort mode preserves card identity, health, count, and description, adds drag feedback and Earlier/Later alternatives, and retains explicit Save Order/Cancel. Thirteen focused tests, typecheck, and synthetic desktop/mobile native-drag/save verification passed. No API/schema changes.
+
+- 2026-09-08: Shortened the Settings sidebar/page title to Telegram and added the standard leading UserPlus icon to Add Admin. Thirteen focused UI/navigation tests and desktop/mobile rendering checks passed; no behavior or API changes.
+
+- 2026-09-08: Renamed visible Admin Management navigation/page to Teams. Replaced the email bullet list with responsive Team Members rows (Email Address, Role, Joined) and count. Add Admin now opens a focused modal; cancel/success clear sensitive values and return focus. Eleven focused UI/navigation tests, type checking, build, and desktop/mobile synthetic verification passed. No backend/schema changes or real account writes.
+
+- 2026-09-08: Settings gear now enters a dedicated sidebar workspace with Telegram Management, Admin Management, and Change Password on independent routes. Preserved existing forms/permissions, added admin-only route guards, legacy redirects, and account shortcut to password page. Eighteen focused tests, type checking, client build, and synthetic desktop/mobile navigation checks passed. Frontend-only change; no migration.
+
+- 2026-09-08: At the user's explicit direction, applied pending 007/008 migrations to the existing local XAMPP database without backup and started the latest backend. Backend readiness and frontend returned HTTP 200. Initial cleanup completed in 67 ms with zero deletions and no expired backlog. This is local MariaDB runtime operation, not the still-pending dedicated MySQL 8 integration test. Opened live login and a clearly identified sample-data interactive preview.
+
+- 2026-09-08: Implemented agent-scoped Clear Pending Messages with two-step confirmation and retained Cancelled logs, admin-only global project Sort Projects mode with drag/move controls and Save/Cancel, and Account Settings full-access admin creation with current-password verification. Added project-order migration 008, admin/CSRF enforcement, transactional audits, stale-order conflicts, and worker row locking/rechecking against cancellation races. Thirty-seven focused tests, type checking, and build passed; synthetic browser verification covered desktop/mobile, native dragging, saving, and cancellation. Guarded MySQL integration added but not run because `.env.test`/dedicated MySQL target is absent; no real accounts, orders, messages, or migrations changed. Existing scroll/retention work remains uncommitted.
+
+- 2026-09-08: Replaced single-batch hourly retention with ten-minute, 500-row round-robin cleanup, a 30-second scheduling budget, 100-round cap, dedicated-connection advisory locking, and short row-lock waits. Retains raw history seven days, sent deliveries 30 days, failed deliveries/resolved incidents 90 days, and audit records 180 days; pending deliveries/open incidents are protected. Added retention indexes and structured backlog/allocation warnings. Nine focused unit tests, type checking, and server build passed. Guarded real-MySQL retention test added but not executed because `.env.test`/dedicated local MySQL configuration is absent. No migration or deletion was run against existing data; deploy only after backup, index migration, and MySQL validation. This controls retention, not an absolute disk quota.
+
+- 2026-09-07: Added shared route-entry scroll reset across all pages, including repeated route navigation and back/forward. Background refreshes do not reset scroll; explicit hash anchors remain intact. Five focused navigation tests and type checking passed, with desktop/mobile browser checks of the actual App using synthetic fixtures.
+
 - 2026-09-07: Aligned the active Registered Agents roster with Agent Detail: Load Average (5 Min) uses latest_load_5 from the current heartbeat, not load_5_per_core. Added nullable raw load to the project agents response while retaining normalized fields and thresholds. Twenty focused tests and type checking passed; actual-component synthetic desktop/mobile previews verified raw, zero, and missing values. No data migration or alert changes.
 
 - 2026-09-07: Agent Detail now charts raw five-minute load, with latest heartbeat load displayed independently of 30-minute bucket averages. Existing normalized history, alert calculations, stored samples, and agent scripts are unchanged. Threshold wording explicitly says Load Per Core Threshold. Focused unit/API-mock tests, type checking, build, and desktop/mobile synthetic browser verification completed; dedicated MySQL integration remains unavailable.

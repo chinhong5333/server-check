@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export const createAdminBodySchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  password: z.string().min(15).max(128),
+  current_password: z.string().min(1).max(1024)
+}).strict();
+
 export const sortProjectsBodySchema = z.object({
   ordered_ids: z.array(z.string().uuid()).min(1).max(2000),
   expected_ids: z.array(z.string().uuid()).min(1).max(2000)

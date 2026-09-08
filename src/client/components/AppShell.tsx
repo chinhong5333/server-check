@@ -1,5 +1,8 @@
 import {
   Activity,
+  BellRing,
+  KeyRound,
+  Users,
   ArrowLeftRight,
   LogOut,
   Menu,
@@ -10,7 +13,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useProjects } from "../projects/ProjectProvider";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -24,6 +27,8 @@ import { ThemeToggle } from "./ThemeToggle";
  * Reduced motion: all content is immediately visible.
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const inSettings = pathname === "/settings" || pathname.startsWith("/settings/");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -104,7 +109,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         ) : null}
 
-        {projectBase && selectedProject ? (
+        {inSettings ? (
+          <nav className="sidebar__nav" aria-label="Settings Navigation">
+            <span className="sidebar__section-label">Settings</span>
+            {[
+              ...(user?.role === "admin" ? [
+                { to: "/settings/telegram", label: "Telegram", icon: BellRing },
+                { to: "/settings/admins", label: "Teams", icon: Users }
+              ] : []),
+              { to: "/settings/password", label: "Change Password", icon: KeyRound }
+            ].map(({ to, label, icon: Icon }) => <NavLink key={to} to={to}
+              className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
+              onClick={() => setMenuOpen(false)}><Icon aria-hidden="true" /><span>{label}</span></NavLink>)}
+          </nav>
+        ) : projectBase && selectedProject ? (
           <nav className="sidebar__nav sidebar__nav--project" aria-label={`Project workspace for ${selectedProject.name}`}>
           {projectBase ? <span className="sidebar__section-label">Project Workspace</span> : null}
           {projectBase ? [
@@ -131,8 +149,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <NavLink
                 to="/settings"
                 className={({ isActive }) => `icon-button sidebar__settings${isActive ? " sidebar__settings--active" : ""}`}
-                title="Setting"
-                aria-label="Setting"
+                title="Settings"
+                aria-label="Settings"
                 onClick={() => setMenuOpen(false)}
               >
                 <Settings aria-hidden="true" />
@@ -142,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="sidebar__footer">
             <NavLink
               className={({ isActive }) => `sidebar__account${isActive ? " sidebar__account--active" : ""}`}
-              to="/account"
+              to="/settings/password"
               title="Account Settings"
               aria-label={`Account Settings: ${user?.email ?? "Account"}`}
               onClick={() => setMenuOpen(false)}

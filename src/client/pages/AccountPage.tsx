@@ -45,7 +45,7 @@ export function AccountPage() {
     <div className="page-stack">
       <div className="settings-page-intro">
       <Link className="back-link" to="/projects"><ArrowLeft aria-hidden="true" /> Back To Projects</Link>
-      <header className="page-header"><div><h1>Account Settings</h1><p>{user?.email}</p></div></header>
+      <header className="page-header"><div><h1>Change Password</h1><p>{user?.email}</p></div></header>
       </div>
       <section className="form-surface account-password" aria-labelledby="change-password-title">
         <div className="section-heading"><div><h2 id="change-password-title">Change Password</h2>

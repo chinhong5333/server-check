@@ -21,7 +21,7 @@ export function PlatformSettingsPage() {
       <header className="page-header">
         <div>
           <p className="page-context">Platform</p>
-          <h1>Setting</h1>
+          <h1>Telegram</h1>
           <p>Configure the shared alert destination used for incidents from every project.</p>
         </div>
         <BellRing aria-hidden="true" />
