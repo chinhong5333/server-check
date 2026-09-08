@@ -6,6 +6,7 @@ import { getPool, withTransaction } from "./db.js";
 import { decryptPlatformTelegramBotToken } from "./security/telegram-secrets.js";
 import { heartbeatDeadline, isHeartbeatOverdue } from "./services/heartbeat-deadline.js";
 import { sendTelegramMessage } from "./services/telegram.js";
+import { purgeExpiredHistory, RETENTION_INTERVAL_MS } from "./services/retention.js";
 
 interface StaleAgentRow extends RowDataPacket {
   id: string;
@@ -106,18 +107,6 @@ async function scanMissedHeartbeats(config: AppConfig): Promise<void> {
   }
 }
 
-async function purgeExpiredHistory(config: AppConfig): Promise<void> {
-  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  await getPool(config).execute(
-    "DELETE FROM heartbeat_events WHERE received_at < ? ORDER BY id LIMIT 10000",
-    [cutoff]
-  );
-  await getPool(config).execute(
-    "DELETE FROM metric_samples WHERE received_at < ? ORDER BY id LIMIT 5000",
-    [cutoff]
-  );
-}
-
 function telegramText(payload: Record<string, unknown>): string {
   const severity = String(payload.severity ?? "recovery").toUpperCase();
   const serverName = String(payload.server_name ?? "Unknown server");
@@ -136,6 +125,7 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
   );
   const settings = settingsRows[0];
   if (!settings?.telegram_bot_token_encrypted || !settings.telegram_chat_id) return;
+  const chatId = settings.telegram_chat_id;
   const botToken = decryptPlatformTelegramBotToken(
     config.jwt.secret,
     settings.telegram_bot_token_encrypted
@@ -180,24 +170,34 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
       typeof row.payload_json === "string"
         ? (JSON.parse(row.payload_json) as Record<string, unknown>)
         : row.payload_json;
+    await withTransaction(config, async (connection) => {
+    // Lock and recheck after queue selection so cancellation and competing workers cannot reuse a stale row.
+    const [pendingRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT attempt_count FROM notification_outbox
+       WHERE id = ? AND status = 'pending' AND is_delete = 0 AND next_attempt_at <= ? FOR UPDATE`, [row.id, now]
+    );
+    if (!pendingRows[0]) return;
+    let sendError: unknown;
     try {
       await sendTelegramMessage({
         botToken,
-        chatId: settings.telegram_chat_id,
+        chatId,
         text: telegramText(payload)
       });
-      await getPool(config).execute(
+    } catch (error) { sendError = error; }
+    if (!sendError) {
+      await connection.execute(
         `UPDATE notification_outbox
          SET status = 'sent', sent_at = ?, updated_at = ?, last_error = NULL
          WHERE id = ?`,
         [now, now, row.id]
       );
       lastSentByAgent.set(row.agent_id, now);
-    } catch (error) {
-      const attempts = Number(row.attempt_count) + 1;
+    } else {
+      const attempts = Number(pendingRows[0].attempt_count) + 1;
       const failed = attempts >= 10;
       const nextAttempt = now + Math.min(60 * 60 * 1000, 2 ** attempts * 1000);
-      await getPool(config).execute(
+      await connection.execute(
         `UPDATE notification_outbox
          SET status = ?, attempt_count = ?, next_attempt_at = ?, last_error = ?, updated_at = ?
          WHERE id = ?`,
@@ -205,12 +205,13 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
           failed ? "failed" : "pending",
           attempts,
           nextAttempt,
-          (error instanceof Error ? error.message : String(error)).slice(0, 500),
+          (sendError instanceof Error ? sendError.message : String(sendError)).slice(0, 500),
           now,
           row.id
         ]
       );
     }
+    });
   }
 }
 
@@ -235,7 +236,7 @@ export function startWorkers(config: AppConfig, logger: Logger): () => void {
   const timers = [
     recurringTask("heartbeat-expiry", 5_000, logger, () => scanMissedHeartbeats(config)),
     recurringTask("telegram-outbox", 10_000, logger, () => deliverTelegram(config)),
-    recurringTask("history-retention", 60 * 60 * 1000, logger, () => purgeExpiredHistory(config))
+    recurringTask("history-retention", RETENTION_INTERVAL_MS, logger, () => purgeExpiredHistory(config, logger))
   ];
   return () => timers.forEach((timer) => clearInterval(timer));
 }

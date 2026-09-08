@@ -1,26 +1,32 @@
 import type { TelegramDeliverySummary } from "../../shared/contracts";
 import { formatCount, formatIdentifierLabel } from "../lib/format";
 import { DateTimeStamp } from "./DateTimeStamp";
+import { CancelPendingTelegram } from "./CancelPendingTelegram";
 
 function DeliveryTime({ delivery }: { delivery: TelegramDeliverySummary }) {
   if (delivery.sent_at !== null) return <DateTimeStamp value={delivery.sent_at} label="Delivered" />;
   if (delivery.status === "failed") return <span className="date-time-stamp__label">No More Retries</span>;
+  if (delivery.status === "cancelled") return <span className="date-time-stamp__label">Cancelled By Admin</span>;
   return <DateTimeStamp value={delivery.next_attempt_at} label="Next Attempt" />;
 }
 
 export function AgentTelegramDeliveryLog({
-  deliveries
+  deliveries,
+  cancellation
 }: {
   deliveries: TelegramDeliverySummary[];
+  cancellation?: { agentId: string; agentName: string; onCancelled: () => void };
 }) {
   return (
     <section className="data-surface" aria-labelledby="agent-telegram-log-title">
-      <div className="section-heading">
+      <div className="section-heading telegram-log-heading">
         <div>
           <h2 id="agent-telegram-log-title">Telegram Delivery Log</h2>
           <p>Queued alerts, successful deliveries, and stopped retries for this agent.</p>
         </div>
-        <span className="numeric section-count">Total {formatCount(deliveries.length)}</span>
+        <div className="telegram-log-actions"><span className="numeric section-count">Total {formatCount(deliveries.length)}</span>
+        {cancellation && <CancelPendingTelegram {...cancellation} />}
+        </div>
       </div>
 
       {deliveries.length === 0 ? (

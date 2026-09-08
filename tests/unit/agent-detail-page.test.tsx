@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../../src/client/auth/AuthProvider", () => ({ useAuth: () => ({ user: { role: "admin" } }) }));
 
 const { apiFetchMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn()

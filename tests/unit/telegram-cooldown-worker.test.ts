@@ -8,7 +8,7 @@ const { executeMock, fetchMock } = vi.hoisted(() => ({
 
 vi.mock("../../src/server/db.js", () => ({
   getPool: () => ({ execute: executeMock }),
-  withTransaction: vi.fn()
+  withTransaction: async (_config: unknown, operation: (connection: unknown) => Promise<unknown>) => operation({ execute: executeMock })
 }));
 
 vi.mock("../../src/server/security/telegram-secrets.js", () => ({
@@ -55,6 +55,7 @@ describe("per-agent Telegram delivery cooldown", () => {
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({ ok: true });
     executeMock.mockImplementation(async (sql: string) => {
+      if (sql.includes("FOR UPDATE")) return [[{ attempt_count: 0 }]];
       if (sql.includes("FROM platform_telegram_settings")) {
         return [[{ telegram_bot_token_encrypted: "encrypted", telegram_chat_id: "-100123" }], []];
       }
@@ -100,5 +101,12 @@ describe("per-agent Telegram delivery cooldown", () => {
       String(sql).includes("SET next_attempt_at = ?")
     );
     expect(delayedUpdate?.[1]).toEqual([now + 900_000, now, "2"]);
+  });
+  it("does not send a row cancelled after initial queue selection", async () => {
+    const original = executeMock.getMockImplementation()!;
+    executeMock.mockImplementation(async (sql: string) => sql.includes("FOR UPDATE") ? [[], []] : original(sql));
+    await deliverTelegram(config);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(executeMock.mock.calls.some(([sql]) => String(sql).includes("SET status = 'sent'"))).toBe(false);
   });
 });

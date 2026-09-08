@@ -2653,3 +2653,8 @@ button.back-link {
     padding-inline: var(--space-2xl);
   }
 }
+.telegram-delivery-state--cancelled { color: var(--color-muted); border-color: var(--color-rule); }
+.telegram-log-heading { flex-wrap: wrap; }
+.telegram-log-heading > div:first-child { flex: 1 1 18rem; }
+.section-heading > .telegram-log-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); min-width: 0; }
+.telegram-log-actions > p { flex-basis: 100%; }

@@ -13,6 +13,7 @@ import { Link, useParams } from "react-router-dom";
 import { DEFAULT_AGENT_CHECKS, type AgentChecks, type AgentHealthSnapshot, type AgentIncidentLog, type TelegramDeliverySummary } from "../../shared/contracts";
 import { AgentHealthChecks } from "../components/AgentHealthChecks";
 import { apiFetch } from "../api";
+import { useAuth } from "../auth/AuthProvider";
 import { AgentIncidentHistory } from "../components/AgentIncidentHistory";
 import { AgentHeartbeatSummary } from "../components/AgentHeartbeatSummary";
 import { AgentTelegramDeliveryLog } from "../components/AgentTelegramDeliveryLog";
@@ -161,6 +162,7 @@ function MetricChart({
 }
 
 export function AgentDetailPage() {
+  const { user } = useAuth();
   const { agentId, projectId } = useParams<{ agentId: string; projectId: string }>();
   const [activeHistoryTab, setActiveHistoryTab] = useState<HistoryTabId>("incidents");
   const [serverStateHelpOpen, setServerStateHelpOpen] = useState(false);
@@ -378,7 +380,8 @@ export function AgentDetailPage() {
             {telegramDeliveries.status === "error" ? (
               <ErrorState title="Couldn't Load Telegram Delivery Log" message={telegramDeliveries.error?.message ?? "Try again."} onRetry={telegramDeliveries.reload} />
             ) : null}
-            {telegramDeliveries.status === "success" ? <AgentTelegramDeliveryLog deliveries={telegramDeliveries.data ?? []} /> : null}
+            {telegramDeliveries.status === "success" ? <AgentTelegramDeliveryLog deliveries={telegramDeliveries.data ?? []}
+              cancellation={user?.role === "admin" ? { agentId: resource.data.agent.id, agentName: resource.data.agent.server_name, onCancelled: telegramDeliveries.reload } : undefined} /> : null}
           </div>
         )}
       </section>

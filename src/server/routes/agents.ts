@@ -9,9 +9,10 @@ import type {
   TelegramDeliverySummary
 } from "../../shared/contracts.js";
 import type { AppConfig } from "../config.js";
-import { getPool } from "../db.js";
+import { getPool, withTransaction, type ResultSetHeader } from "../db.js";
 import { AppError, asyncHandler } from "../errors.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, requireRole } from "../middleware/auth.js";
+import { requireCsrf } from "../middleware/csrf.js";
 
 const historyQuerySchema = z
   .object({
@@ -71,7 +72,7 @@ interface TelegramDeliveryRow extends RowDataPacket {
   event_type: "opened" | "resolved";
   incident_type: string;
   probable_cause: string;
-  status: "pending" | "sent" | "failed";
+  status: "pending" | "sent" | "failed" | "cancelled";
   attempt_count: number;
   next_attempt_at: string;
   sent_at: string | null;
@@ -306,5 +307,41 @@ export function createAgentsRouter(config: AppConfig): Router {
     })
   );
 
+  /**
+   * POST /api/v1/agents/:agent_id/telegram-deliveries/cancel-pending
+   * Cancels pending Telegram deliveries for exactly one active agent and retains their log records.
+   * @param {Request} request Admin and CSRF authenticated request; query must be empty.
+   * @param {string} request.params.agent_id Active agent public UUID.
+   * @param {true} request.body.confirm Must be explicitly true after the UI's second confirmation.
+   * @param {import("express").Response} response 200 with cancelled_count; in-flight sends may complete first.
+   * @returns {Promise<void>} Atomically cancels queued rows and records an audit event; future alerts are unaffected.
+   */
+  router.post("/:agent_id/telegram-deliveries/cancel-pending", requireRole("admin"), requireCsrf,
+    asyncHandler(async (request, response) => {
+      z.object({ confirm: z.literal(true) }).strict().parse(request.body);
+      emptyQuerySchema.parse(request.query);
+      const cancelledCount = await withTransaction(config, async (connection) => {
+        const [agents] = await connection.execute<RowDataPacket[]>(
+          `SELECT a.id, a.project_id FROM agents a INNER JOIN projects p ON p.id = a.project_id
+           WHERE a.public_id = ? AND a.is_delete = 0 AND p.is_delete = 0 LIMIT 1`, [request.params.agent_id]
+        );
+        if (!agents[0]) throw new AppError(404, "agent_not_found", "The selected agent does not exist.");
+        const now = Date.now();
+        const [result] = await connection.execute<ResultSetHeader>(
+          `UPDATE notification_outbox o INNER JOIN incidents i ON i.id = o.incident_id
+           SET o.status = 'cancelled', o.last_error = NULL, o.updated_at = ?
+           WHERE i.agent_id = ? AND o.channel = 'telegram' AND o.status = 'pending'
+             AND o.is_delete = 0 AND o.created_at <= ?`, [now, agents[0].id, now]
+        );
+        await connection.execute(
+          `INSERT INTO audit_events (user_id, project_id, action, entity_type, entity_id, metadata_json, created_at, updated_at, is_delete)
+           VALUES (?, ?, 'telegram.cancel_pending', 'agent', ?, ?, ?, ?, 0)`,
+          [request.auth!.userInternalId, agents[0].project_id, request.params.agent_id,
+            JSON.stringify({ cancelled_count: result.affectedRows }), now, now]
+        );
+        return result.affectedRows;
+      });
+      response.json({ cancelled_count: cancelledCount });
+    }));
   return router;
 }

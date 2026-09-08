@@ -304,7 +304,7 @@ export interface TelegramDeliverySummary {
   event_type: "opened" | "resolved";
   incident_type: string;
   probable_cause: string;
-  status: "pending" | "sent" | "failed";
+  status: "pending" | "sent" | "failed" | "cancelled";
   attempt_count: number;
   queued_at: number;
   next_attempt_at: number;
