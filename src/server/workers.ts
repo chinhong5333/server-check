@@ -1,11 +1,12 @@
-import { randomUUID } from "node:crypto";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { RowDataPacket } from "mysql2/promise";
 import type { Logger } from "pino";
 import type { AppConfig } from "./config.js";
 import { getPool, withTransaction } from "./db.js";
 import { decryptPlatformTelegramBotToken } from "./security/telegram-secrets.js";
 import { heartbeatDeadline, isHeartbeatOverdue } from "./services/heartbeat-deadline.js";
 import { sendTelegramMessage } from "./services/telegram.js";
+import { lockAgentAlerts } from "./services/alert-queue.js";
+import { recordAgentCondition, resolveAgentCondition } from "./services/incidents.js";
 import { purgeExpiredHistory, RETENTION_INTERVAL_MS } from "./services/retention.js";
 
 interface StaleAgentRow extends RowDataPacket {
@@ -17,16 +18,11 @@ interface StaleAgentRow extends RowDataPacket {
   last_heartbeat_at: string | null;
   created_at: string;
   heartbeat_interval_seconds: number;
-  incident_id: string | null;
 }
 
 interface OutboxRow extends RowDataPacket {
   id: string;
   agent_id: string;
-  payload_json: Record<string, unknown> | string;
-  attempt_count: number;
-  telegram_alert_cooldown_seconds: number;
-  last_sent_at: string | null;
 }
 
 interface PlatformTelegramRow extends RowDataPacket {
@@ -34,85 +30,52 @@ interface PlatformTelegramRow extends RowDataPacket {
   telegram_chat_id: string | null;
 }
 
-async function scanMissedHeartbeats(config: AppConfig): Promise<void> {
+export async function scanMissedHeartbeats(config: AppConfig): Promise<void> {
   const now = Date.now();
   const [rows] = await getPool(config).query<StaleAgentRow[]>(
     `SELECT a.id, a.public_id, a.project_id, a.server_name, a.last_heartbeat_at, a.created_at,
-            p.name AS project_name, a.heartbeat_interval_seconds,
-            i.id AS incident_id
-     FROM agents a
-     INNER JOIN projects p ON p.id = a.project_id
-     LEFT JOIN incidents i ON i.agent_id = a.id AND i.incident_type = 'heartbeat_missed'
-       AND i.status = 'open' AND i.is_delete = 0
+            p.name AS project_name, a.heartbeat_interval_seconds
+     FROM agents a INNER JOIN projects p ON p.id = a.project_id
      WHERE a.is_delete = 0 AND p.is_delete = 0`
   );
-
   for (const agent of rows) {
-    const baseline = agent.last_heartbeat_at ? Number(agent.last_heartbeat_at) : Number(agent.created_at);
-    const intervalSeconds = Number(agent.heartbeat_interval_seconds);
-    const dueAt = heartbeatDeadline(baseline, intervalSeconds);
-    if (!isHeartbeatOverdue(now, baseline, intervalSeconds)) continue;
-
+    const baseline = Number(agent.last_heartbeat_at ?? agent.created_at);
+    if (agent.last_heartbeat_at !== null && !isHeartbeatOverdue(now, baseline, Number(agent.heartbeat_interval_seconds))) continue;
     await withTransaction(config, async (connection) => {
+      const current = await lockAgentAlerts(connection, agent.id);
+      if (!current) return;
+      const currentBaseline = Number(current.last_heartbeat_at ?? current.created_at);
+      const overdue = isHeartbeatOverdue(now, currentBaseline, Number(current.heartbeat_interval_seconds));
+      const identity = { agentInternalId: agent.id, agentPublicId: agent.public_id, serverName: agent.server_name,
+        projectInternalId: agent.project_id, projectName: agent.project_name };
+      if (!overdue) {
+        if (current.last_heartbeat_at === null) await recordAgentCondition(connection, identity, {
+          type: "awaiting_first_heartbeat", severity: "warning",
+          probableCause: "Awaiting the agent's first heartbeat", details: {}
+        }, now);
+        return;
+      }
+      await resolveAgentCondition(connection, identity, "awaiting_first_heartbeat", now, false);
       await connection.execute(
-        `UPDATE agents
-         SET status = 'critical', probable_cause = 'Heartbeat overdue', updated_at = ?
-         WHERE id = ?`,
-        [now, agent.id]
+        "UPDATE agents SET status = 'critical', probable_cause = 'Heartbeat overdue', updated_at = ? WHERE id = ?", [now, agent.id]
       );
-      if (agent.incident_id) return;
-
-      const incidentPublicId = randomUUID();
-      const [result] = await connection.execute<ResultSetHeader>(
-        `INSERT INTO incidents
-          (public_id, project_id, agent_id, incident_type, severity, status,
-           probable_cause, details_json, opened_at, resolved_at, last_notification_at,
-           created_at, updated_at, is_delete)
-         VALUES (?, ?, ?, 'heartbeat_missed', 'critical', 'open', 'Heartbeat overdue', ?, ?, NULL, NULL, ?, ?, 0)`,
-        [
-          incidentPublicId,
-          agent.project_id,
-          agent.id,
-          JSON.stringify({ last_heartbeat_at: agent.last_heartbeat_at ? baseline : null, due_at: dueAt }),
-          now,
-          now,
-          now
-        ]
-      );
-      await connection.execute(
-        `INSERT INTO notification_outbox
-          (project_id, incident_id, channel, event_type, destination, payload_json,
-           status, attempt_count, next_attempt_at, sent_at, last_error,
-           created_at, updated_at, is_delete)
-         VALUES (?, ?, 'telegram', 'opened', NULL, ?, 'pending', 0, ?, NULL, NULL, ?, ?, 0)`,
-        [
-          agent.project_id,
-          result.insertId,
-          JSON.stringify({
-            incident_id: incidentPublicId,
-            project_name: agent.project_name,
-            agent_id: agent.public_id,
-            server_name: agent.server_name,
-            probable_cause: "Heartbeat overdue",
-            severity: "critical",
-            opened_at: now,
-            details: { last_heartbeat_at: agent.last_heartbeat_at ? baseline : null }
-          }),
-          now,
-          now,
-          now
-        ]
-      );
+      await recordAgentCondition(connection, identity, { type: "heartbeat_missed", severity: "critical",
+        probableCause: "Heartbeat overdue", details: {
+          last_heartbeat_at: current.last_heartbeat_at === null ? null : Number(current.last_heartbeat_at),
+          due_at: heartbeatDeadline(currentBaseline, Number(current.heartbeat_interval_seconds))
+        } }, now);
     });
   }
 }
-
-function telegramText(payload: Record<string, unknown>): string {
+export function telegramText(payload: Record<string, unknown>): string {
   const severity = String(payload.severity ?? "recovery").toUpperCase();
   const serverName = String(payload.server_name ?? "Unknown server");
   const cause = String(payload.probable_cause ?? "Monitoring state changed");
   const projectName = String(payload.project_name ?? "Unknown project");
-  return `[${severity}] ${serverName}\nProject: ${projectName}\nProbable cause: ${cause}`.slice(0, 4096);
+  const details = (payload.details ?? {}) as Record<string, unknown>;
+  const diagnostics = [details.http_status_code == null ? null : `HTTP ${details.http_status_code}`,
+    details.error_code, details.validation_error].filter(Boolean).join(" · ");
+  return `[${severity}] ${serverName}\nProject: ${projectName}\nProbable cause: ${cause}${diagnostics ? `\nDetails: ${diagnostics}` : ""}`.slice(0, 4096);
 }
 
 export async function deliverTelegram(config: AppConfig): Promise<void> {
@@ -132,14 +95,7 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
   );
 
   const [rows] = await getPool(config).execute<OutboxRow[]>(
-    `SELECT outbox.id, incident.agent_id, outbox.payload_json, outbox.attempt_count,
-            agent.telegram_alert_cooldown_seconds,
-            (SELECT MAX(previous.sent_at)
-             FROM notification_outbox previous
-             INNER JOIN incidents previous_incident ON previous_incident.id = previous.incident_id
-             WHERE previous_incident.agent_id = incident.agent_id
-               AND previous.channel = 'telegram' AND previous.status = 'sent'
-               AND previous.is_delete = 0) AS last_sent_at
+    `SELECT outbox.id, incident.agent_id
      FROM notification_outbox outbox
      INNER JOIN incidents incident ON incident.id = outbox.incident_id
      INNER JOIN agents agent ON agent.id = incident.agent_id
@@ -151,52 +107,55 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
     [now]
   );
 
-  const lastSentByAgent = new Map<string, number>();
   for (const row of rows) {
-    const recordedLastSent = row.last_sent_at === null ? null : Number(row.last_sent_at);
-    const lastSentAt = lastSentByAgent.get(row.agent_id) ?? recordedLastSent;
-    const cooldownMilliseconds = Number(row.telegram_alert_cooldown_seconds) * 1000;
-    if (lastSentAt !== null && now < lastSentAt + cooldownMilliseconds) {
-      const nextAttemptAt = lastSentAt + cooldownMilliseconds;
-      await getPool(config).execute(
-        `UPDATE notification_outbox
-         SET next_attempt_at = ?, updated_at = ?
-         WHERE id = ? AND status = 'pending' AND is_delete = 0`,
-        [nextAttemptAt, now, row.id]
-      );
-      continue;
-    }
-    const payload =
-      typeof row.payload_json === "string"
-        ? (JSON.parse(row.payload_json) as Record<string, unknown>)
-        : row.payload_json;
     await withTransaction(config, async (connection) => {
-    // Lock and recheck after queue selection so cancellation and competing workers cannot reuse a stale row.
-    const [pendingRows] = await connection.execute<RowDataPacket[]>(
-      `SELECT attempt_count FROM notification_outbox
-       WHERE id = ? AND status = 'pending' AND is_delete = 0 AND next_attempt_at <= ? FOR UPDATE`, [row.id, now]
-    );
-    if (!pendingRows[0]) return;
-    let sendError: unknown;
-    try {
-      await sendTelegramMessage({
-        botToken,
-        chatId,
-        text: telegramText(payload)
+      const currentAgent = await lockAgentAlerts(connection, row.agent_id);
+      if (!currentAgent) return;
+      const [sentRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT MAX(o.sent_at) AS last_sent_at FROM notification_outbox o
+         INNER JOIN incidents i ON i.id = o.incident_id
+         WHERE i.agent_id = ? AND o.channel = 'telegram' AND o.status = 'sent' AND o.is_delete = 0`, [row.agent_id]
+      );
+      const sentAt = sentRows[0]?.last_sent_at;
+      const deliveryNow = Date.now();
+      if (sentAt != null && deliveryNow < Number(sentAt) + Number(currentAgent.telegram_alert_cooldown_seconds) * 1000) {
+        await connection.execute("UPDATE notification_outbox SET next_attempt_at = ?, updated_at = ? WHERE id = ? AND status = 'pending' AND is_delete = 0",
+          [Number(sentAt) + Number(currentAgent.telegram_alert_cooldown_seconds) * 1000, deliveryNow, row.id]);
+        return;
+      }
+      // Lock and recheck after queue selection so cancellation and competing workers cannot reuse a stale row.
+      const [pendingRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT o.attempt_count, o.payload_json, o.event_type, i.status AS incident_status FROM notification_outbox o
+         INNER JOIN incidents i ON i.id = o.incident_id
+         WHERE o.id = ? AND o.status = 'pending' AND o.is_delete = 0 AND i.is_delete = 0 AND o.next_attempt_at <= ? FOR UPDATE`, [row.id, deliveryNow]
+      );
+      if (!pendingRows[0]) return;
+      if (pendingRows[0].event_type === "opened" && pendingRows[0].incident_status !== "open") {
+        await connection.execute("UPDATE notification_outbox SET status = 'cancelled', updated_at = ? WHERE id = ?", [deliveryNow, row.id]);
+        return;
+      }
+      const payload = typeof pendingRows[0].payload_json === "string" ? JSON.parse(pendingRows[0].payload_json) : pendingRows[0].payload_json;
+      let sendError: unknown;
+      try {
+        await sendTelegramMessage({
+          botToken,
+          chatId,
+          text: telegramText(payload)
       });
     } catch (error) { sendError = error; }
     if (!sendError) {
+      const completedAt = Date.now();
       await connection.execute(
         `UPDATE notification_outbox
          SET status = 'sent', sent_at = ?, updated_at = ?, last_error = NULL
          WHERE id = ?`,
-        [now, now, row.id]
+        [completedAt, completedAt, row.id]
       );
-      lastSentByAgent.set(row.agent_id, now);
     } else {
+      const failedAt = Date.now();
       const attempts = Number(pendingRows[0].attempt_count) + 1;
       const failed = attempts >= 10;
-      const nextAttempt = now + Math.min(60 * 60 * 1000, 2 ** attempts * 1000);
+      const nextAttempt = failedAt + Math.min(60 * 60 * 1000, 2 ** attempts * 1000);
       await connection.execute(
         `UPDATE notification_outbox
          SET status = ?, attempt_count = ?, next_attempt_at = ?, last_error = ?, updated_at = ?
@@ -206,7 +165,7 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
           attempts,
           nextAttempt,
           (sendError instanceof Error ? sendError.message : String(sendError)).slice(0, 500),
-          now,
+          failedAt,
           row.id
         ]
       );
@@ -221,12 +180,15 @@ function recurringTask(
   logger: Logger,
   task: () => Promise<void>
 ): NodeJS.Timeout {
+  let running = false;
   const run = async () => {
+    if (running) return;
+    running = true;
     try {
       await task();
     } catch (error) {
       logger.error({ err: error, worker: name }, "Background worker failed");
-    }
+    } finally { running = false; }
   };
   void run();
   return setInterval(run, intervalMs);

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { TelemetryPayload } from "../../shared/contracts.js";
+import { queueTelegramNotification, cancelIncidentAlerts } from "./alert-queue.js";
 
 interface AgentPolicy {
   agentInternalId: string;
@@ -19,7 +20,7 @@ interface OpenIncidentRow extends RowDataPacket {
   incident_type: string;
 }
 
-interface Condition {
+export interface Condition {
   type: string;
   severity: "warning" | "critical";
   probableCause: string;
@@ -137,22 +138,57 @@ function conditionsForPayload(
   return conditions;
 }
 
-async function queueNotification(
-  connection: PoolConnection,
-  projectInternalId: string,
-  incidentInternalId: string | number,
-  eventType: "opened" | "resolved",
-  payload: Record<string, unknown>,
-  now: number
-): Promise<void> {
-  await connection.execute(
-    `INSERT INTO notification_outbox
-      (project_id, incident_id, channel, event_type, destination, payload_json,
-       status, attempt_count, next_attempt_at, sent_at, last_error,
-       created_at, updated_at, is_delete)
-     VALUES (?, ?, 'telegram', ?, NULL, ?, 'pending', 0, ?, NULL, NULL, ?, ?, 0)`,
-    [projectInternalId, incidentInternalId, eventType, JSON.stringify(payload), now, now, now]
+const queueNotification = queueTelegramNotification;
+
+export type AgentIdentity = Pick<AgentPolicy, "agentInternalId" | "agentPublicId" | "serverName" | "projectInternalId" | "projectName">;
+
+/** Opens/updates an observed condition and queues one pending alert; caller holds the agent lock. */
+export async function recordAgentCondition(connection: PoolConnection, policy: AgentIdentity, condition: Condition, now: number): Promise<void> {
+  const [rows] = await connection.execute<OpenIncidentRow[]>(
+    "SELECT id, public_id, incident_type FROM incidents WHERE agent_id = ? AND incident_type = ? AND status = 'open' AND is_delete = 0 FOR UPDATE",
+    [policy.agentInternalId, condition.type]
   );
+  let incidentId: string | number;
+  let publicId: string;
+  if (rows[0]) {
+    incidentId = rows[0].id; publicId = rows[0].public_id;
+    await connection.execute("UPDATE incidents SET severity = ?, probable_cause = ?, details_json = ?, updated_at = ? WHERE id = ?",
+      [condition.severity, condition.probableCause, JSON.stringify(condition.details), now, incidentId]);
+  } else {
+    publicId = randomUUID();
+    const [result] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO incidents (public_id, project_id, agent_id, incident_type, severity, status,
+       probable_cause, details_json, opened_at, resolved_at, last_notification_at, created_at, updated_at, is_delete)
+       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, NULL, NULL, ?, ?, 0)`,
+      [publicId, policy.projectInternalId, policy.agentInternalId, condition.type, condition.severity,
+        condition.probableCause, JSON.stringify(condition.details), now, now, now]
+    );
+    incidentId = result.insertId;
+  }
+  await queueNotification(connection, policy.projectInternalId, incidentId, "opened", {
+    incident_id: publicId, incident_type: condition.type, project_name: policy.projectName, agent_id: policy.agentPublicId,
+    server_name: policy.serverName, probable_cause: condition.probableCause, severity: condition.severity,
+    observed_at: now, details: condition.details
+  }, now);
+}
+
+/** Resolves a specific condition under the agent lock, optionally collecting its recovery. */
+export async function resolveAgentCondition(
+  connection: PoolConnection,
+  policy: AgentIdentity, type: string, now: number, notifyRecovery = true
+): Promise<void> {
+  const [rows] = await connection.execute<OpenIncidentRow[]>(
+    "SELECT id, public_id, incident_type FROM incidents WHERE agent_id = ? AND incident_type = ? AND status = 'open' AND is_delete = 0 FOR UPDATE",
+    [policy.agentInternalId, type]
+  );
+  for (const incident of rows) {
+    await connection.execute("UPDATE incidents SET status = 'resolved', resolved_at = ?, updated_at = ? WHERE id = ?", [now, now, incident.id]);
+    await cancelIncidentAlerts(connection, incident.id, now);
+    if (notifyRecovery) await queueNotification(connection, policy.projectInternalId, incident.id, "resolved", {
+      incident_id: incident.public_id, incident_type: type, project_name: policy.projectName, agent_id: policy.agentPublicId,
+      server_name: policy.serverName, probable_cause: `${type.replaceAll("_", " ")} recovered`, resolved_at: now
+    }, now);
+  }
 }
 
 export async function evaluateTelemetryIncidents(
@@ -182,46 +218,8 @@ export async function evaluateTelemetryIncidents(
   const activeTypes = new Set(conditions.map((condition) => condition.type));
 
   for (const condition of conditions) {
-    if (openByType.has(condition.type)) continue;
-    const publicId = randomUUID();
-    const [result] = await connection.execute<ResultSetHeader>(
-      `INSERT INTO incidents
-        (public_id, project_id, agent_id, incident_type, severity, status,
-         probable_cause, details_json, opened_at, resolved_at, last_notification_at,
-         created_at, updated_at, is_delete)
-       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, NULL, NULL, ?, ?, 0)`,
-      [
-        publicId,
-        policy.projectInternalId,
-        policy.agentInternalId,
-        condition.type,
-        condition.severity,
-        condition.probableCause,
-        JSON.stringify(condition.details),
-        now,
-        now,
-        now
-      ]
-    );
-    await queueNotification(
-      connection,
-      policy.projectInternalId,
-      result.insertId,
-      "opened",
-      {
-        incident_id: publicId,
-        project_name: policy.projectName,
-        agent_id: policy.agentPublicId,
-        server_name: policy.serverName,
-        probable_cause: condition.probableCause,
-        severity: condition.severity,
-        opened_at: now,
-        details: condition.details
-      },
-      now
-    );
+    await recordAgentCondition(connection, policy, condition, now);
   }
-
   for (const incident of openRows) {
     if (incident.incident_type === "heartbeat_missed" || activeTypes.has(incident.incident_type)) {
       continue;
@@ -239,9 +237,11 @@ export async function evaluateTelemetryIncidents(
       "resolved",
       {
         incident_id: incident.public_id,
+        incident_type: incident.incident_type,
         project_name: policy.projectName,
         agent_id: policy.agentPublicId,
         server_name: policy.serverName,
+        probable_cause: `${incident.incident_type.replaceAll("_", " ")} recovered`,
         resolved_at: now
       },
       now
@@ -268,34 +268,6 @@ export async function resolveHeartbeatIncident(
   >,
   now: number
 ): Promise<void> {
-  const [rows] = await connection.execute<OpenIncidentRow[]>(
-    `SELECT id, public_id, incident_type
-     FROM incidents
-     WHERE agent_id = ? AND incident_type = 'heartbeat_missed'
-       AND status = 'open' AND is_delete = 0
-     LIMIT 1`,
-    [policy.agentInternalId]
-  );
-  const incident = rows[0];
-  if (!incident) return;
-
-  await connection.execute(
-    "UPDATE incidents SET status = 'resolved', resolved_at = ?, updated_at = ? WHERE id = ?",
-    [now, now, incident.id]
-  );
-  await queueNotification(
-    connection,
-    policy.projectInternalId,
-    incident.id,
-    "resolved",
-    {
-      incident_id: incident.public_id,
-      project_name: policy.projectName,
-      agent_id: policy.agentPublicId,
-      server_name: policy.serverName,
-      probable_cause: "Heartbeat delivery recovered",
-      resolved_at: now
-    },
-    now
-  );
+  await resolveAgentCondition(connection, policy, "heartbeat_missed", now);
+  await resolveAgentCondition(connection, policy, "awaiting_first_heartbeat", now);
 }

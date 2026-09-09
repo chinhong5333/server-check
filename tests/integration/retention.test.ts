@@ -3,7 +3,9 @@ import pino from "pino";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { assertSafeTestDatabase, loadConfig, type AppConfig } from "../../src/server/config.js";
-import { closePool, getPool } from "../../src/server/db.js";
+import { closePool, getPool, withTransaction } from "../../src/server/db.js";
+import { lockAgentAlerts } from "../../src/server/services/alert-queue.js";
+import { recordAgentCondition, resolveAgentCondition } from "../../src/server/services/incidents.js";
 import { runMigrations } from "../../src/server/migrations.js";
 import { purgeExpiredHistory } from "../../src/server/services/retention.js";
 
@@ -92,4 +94,21 @@ it("retains current/protected data and purges expired parents plus cascading sam
     ["incidents", recentDeliveryIncident], ["notification_outbox", pending], ["notification_outbox", recent]] as const) {
     expect(await exists(table, id)).toBe(true);
   }
+});
+
+it("deduplicates concurrent collection and requeues only after pending delivery ends",async()=>{
+  const identity={agentInternalId:String(agentId),agentPublicId:"synthetic-agent",serverName:"Synthetic",projectInternalId:String(projectId),projectName:"Synthetic"};
+  const condition={type:"synthetic_recurrence",severity:"warning" as const,probableCause:"Synthetic persistent error",details:{}};
+  const collect=()=>withTransaction(config,async connection=>{
+    await lockAgentAlerts(connection,String(agentId));await recordAgentCondition(connection,identity,condition,Date.now());
+  });
+  await Promise.all([collect(),collect(),collect(),collect()]);
+  const read=async()=>{
+    const [rows]=await getPool(config).execute<RowDataPacket[]>(`SELECT o.status, o.event_type FROM notification_outbox o INNER JOIN incidents i ON i.id=o.incident_id WHERE i.agent_id=? AND i.incident_type='synthetic_recurrence' ORDER BY o.id`,[agentId]);return rows;
+  };
+  expect(await read()).toHaveLength(1);
+  await getPool(config).execute(`UPDATE notification_outbox o INNER JOIN incidents i ON i.id=o.incident_id SET o.status='sent',o.sent_at=? WHERE i.agent_id=? AND i.incident_type='synthetic_recurrence'`,[Date.now(),agentId]);
+  await collect();expect((await read()).map(row=>row.status)).toEqual(["sent","pending"]);
+  await withTransaction(config,async connection=>{await lockAgentAlerts(connection,String(agentId));await resolveAgentCondition(connection,identity,"synthetic_recurrence",Date.now());});
+  expect((await read()).map(row=>[row.event_type,row.status])).toEqual([["opened","sent"],["opened","cancelled"],["resolved","pending"]]);
 });

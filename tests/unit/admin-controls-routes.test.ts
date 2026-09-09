@@ -35,6 +35,7 @@ beforeEach(() => {
     if (sql.startsWith("SELECT password_hash")) return [[{ password_hash: "acting-hash" }]];
     if (sql.startsWith("SELECT id, public_id FROM projects")) return [[{ id: "11", public_id: first }, { id: "12", public_id: second }]];
     if (sql.startsWith("SELECT a.id, a.project_id")) return [[{ id: "31", project_id: "11" }]];
+    if (sql.includes("FROM agents") && sql.includes("FOR UPDATE")) return [[{ id: "31" }]];
     return [{ affectedRows: 2 }];
   });
 });

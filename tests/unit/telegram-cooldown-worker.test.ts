@@ -54,8 +54,12 @@ describe("per-agent Telegram delivery cooldown", () => {
     executeMock.mockReset();
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({ ok: true });
+    let lastSentAt: number | null = null;
     executeMock.mockImplementation(async (sql: string) => {
-      if (sql.includes("FOR UPDATE")) return [[{ attempt_count: 0 }]];
+      if (sql.includes("FROM agents") && sql.includes("FOR UPDATE")) return [[{ id: "31", telegram_alert_cooldown_seconds: 900 }]];
+      if (sql.includes("MAX(o.sent_at)")) return [[{ last_sent_at: lastSentAt }]];
+      if (sql.includes("FOR UPDATE")) return [[{ attempt_count: 0, payload_json: payload, event_type: "opened", incident_status: "open" }]];
+      if (sql.includes("SET status = 'sent'")) lastSentAt = now;
       if (sql.includes("FROM platform_telegram_settings")) {
         return [[{ telegram_bot_token_encrypted: "encrypted", telegram_chat_id: "-100123" }], []];
       }
@@ -104,9 +108,21 @@ describe("per-agent Telegram delivery cooldown", () => {
   });
   it("does not send a row cancelled after initial queue selection", async () => {
     const original = executeMock.getMockImplementation()!;
-    executeMock.mockImplementation(async (sql: string) => sql.includes("FOR UPDATE") ? [[], []] : original(sql));
+    executeMock.mockImplementation(async (sql: string) => sql.includes("FROM notification_outbox") && sql.includes("FOR UPDATE") ? [[], []] : original(sql));
     await deliverTelegram(config);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(executeMock.mock.calls.some(([sql]) => String(sql).includes("SET status = 'sent'"))).toBe(false);
+  });
+  it("rechecks the latest send interval after obtaining the agent lock",async()=>{
+    const original=executeMock.getMockImplementation()!;
+    executeMock.mockImplementation(async(sql:string)=>sql.includes("MAX(o.sent_at)")?[[{last_sent_at:now}]]:original(sql));
+    await deliverTelegram(config);expect(fetchMock).not.toHaveBeenCalled();
+    expect(executeMock.mock.calls.some(([sql])=>String(sql).includes("SET next_attempt_at = ?"))).toBe(true);
+  });
+  it("does not send a legacy pending error whose incident already recovered",async()=>{
+    const original=executeMock.getMockImplementation()!;
+    executeMock.mockImplementation(async(sql:string)=>sql.includes("SELECT o.attempt_count")?[[{attempt_count:0,payload_json:payload,event_type:"opened",incident_status:"resolved"}]]:original(sql));
+    await deliverTelegram(config);expect(fetchMock).not.toHaveBeenCalled();
+    expect(executeMock.mock.calls.some(([sql])=>String(sql).includes("SET status = 'cancelled'"))).toBe(true);
   });
 });

@@ -1,11 +1,12 @@
 import { Router, raw, type Request } from "express";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { telemetryPayloadSchema } from "../../shared/contracts.js";
 import type { AppConfig } from "../config.js";
 import { getPool, withTransaction } from "../db.js";
 import { AppError, asyncHandler } from "../errors.js";
 import { safeEqualHex, sha256 } from "../security/crypto.js";
-import { evaluateTelemetryIncidents, resolveHeartbeatIncident } from "../services/incidents.js";
+import { evaluateTelemetryIncidents, recordAgentCondition, resolveHeartbeatIncident } from "../services/incidents.js";
+import { lockAgentAlerts } from "../services/alert-queue.js";
 import { matchesConfiguredChecks, readAgentChecks } from "../services/check-configuration.js";
 
 interface AgentPolicyRow extends RowDataPacket {
@@ -57,6 +58,20 @@ async function authenticateAgent(config: AppConfig, request: Request): Promise<A
   return agent;
 }
 
+/**
+ * Runs heartbeat collection under the same agent lock used by queue delivery and cancellation.
+ * @param {AppConfig} config Database configuration.
+ * @param {AgentPolicyRow} agent Authenticated agent.
+ * @param {(connection: PoolConnection) => Promise<T>} operation Atomic heartbeat operation.
+ * @returns {Promise<T>} The operation result; rejects if the agent was removed.
+ */
+async function withAgentTransaction<T>(config: AppConfig, agent: AgentPolicyRow, operation: (connection: PoolConnection) => Promise<T>): Promise<T> {
+  return withTransaction(config, async (connection) => {
+    if (!await lockAgentAlerts(connection, agent.id)) throw new AppError(404, "agent_not_found", "The agent is no longer active.");
+    return operation(connection);
+  });
+}
+
 export function createHeartbeatRouter(config: AppConfig): Router {
   const router = Router();
 
@@ -74,12 +89,14 @@ export function createHeartbeatRouter(config: AppConfig): Router {
     raw({ type: () => true, limit: "128kb" }),
     asyncHandler(async (request, response) => {
       const agent = await authenticateAgent(config, request);
+      const identity = { agentInternalId: agent.id, agentPublicId: agent.public_id, serverName: agent.server_name,
+        projectInternalId: agent.project_id, projectName: agent.project_name };
       const now = Date.now();
       const rawBody = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
       const hasPayload = rawBody.length > 0;
 
       if (!hasPayload) {
-        await withTransaction(config, async (connection) => {
+        await withAgentTransaction(config, agent, async (connection) => {
           await connection.execute(
             `INSERT INTO heartbeat_events
               (project_id, agent_id, received_at, has_payload, telemetry_valid,
@@ -98,6 +115,8 @@ export function createHeartbeatRouter(config: AppConfig): Router {
             },
             now
           );
+          await recordAgentCondition(connection, identity, { type: "telemetry_missing", severity: "warning",
+            probableCause: "Agent online; telemetry not included", details: {} }, now);
           await connection.execute(
             `UPDATE agents
              SET last_heartbeat_at = ?, status = 'stale',
@@ -124,7 +143,7 @@ export function createHeartbeatRouter(config: AppConfig): Router {
           .map((issue) => `${issue.path.join(".") || "body"}: ${issue.message}`)
           .join("; ")
           .slice(0, 500) : "Reported health checks do not match the latest generated script configuration.";
-        await withTransaction(config, async (connection) => {
+        await withAgentTransaction(config, agent, async (connection) => {
           await connection.execute(
             `INSERT INTO heartbeat_events
               (project_id, agent_id, received_at, has_payload, telemetry_valid,
@@ -143,6 +162,8 @@ export function createHeartbeatRouter(config: AppConfig): Router {
             },
             now
           );
+          await recordAgentCondition(connection, identity, { type: "telemetry_invalid", severity: "warning",
+            probableCause: "Agent online; telemetry payload invalid", details: { validation_error: validationError } }, now);
           await connection.execute(
             `UPDATE agents
              SET last_heartbeat_at = ?, last_validation_error = ?, status = 'stale',
@@ -164,7 +185,7 @@ export function createHeartbeatRouter(config: AppConfig): Router {
       }
 
       const payload = parsed.data;
-      const result = await withTransaction(config, async (connection) => {
+      const result = await withAgentTransaction(config, agent, async (connection) => {
         await connection.execute(
           `INSERT INTO heartbeat_events
             (project_id, agent_id, received_at, has_payload, telemetry_valid,

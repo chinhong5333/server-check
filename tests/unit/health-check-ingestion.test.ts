@@ -5,10 +5,11 @@ import { sha256 } from "../../src/server/security/crypto";
 import type { AppConfig } from "../../src/server/config";
 const { poolExecute, execute, transact } = vi.hoisted(() => ({ poolExecute: vi.fn(), execute: vi.fn(), transact: vi.fn() }));
 vi.mock("../../src/server/db", () => ({ getPool: () => ({ execute: poolExecute }), withTransaction: transact }));
-vi.mock("../../src/server/services/incidents", () => ({ resolveHeartbeatIncident: vi.fn(),
+vi.mock("../../src/server/services/incidents", () => ({ resolveHeartbeatIncident: vi.fn(), recordAgentCondition: vi.fn(),
   evaluateTelemetryIncidents: vi.fn(async () => ({ status: "healthy", probableCause: null, ramAvailablePercent: 80, diskAvailablePercent: null, load5PerCore: 0 })) }));
 import { createHeartbeatRouter } from "../../src/server/routes/heartbeat";
 import { errorHandler } from "../../src/server/errors";
+import { recordAgentCondition } from "../../src/server/services/incidents";
 const id = "2eaac131-76e2-4d36-b1f4-54ddf5a17a6f";
 const credential = `ag_${id}.synthetic-secret`;
 const body = {
@@ -28,9 +29,11 @@ function app(checks: unknown) {
 }
 describe("Health result persistence", () => {
   beforeEach(() => {
+    vi.mocked(recordAgentCondition).mockClear();
     execute.mockReset(); poolExecute.mockReset(); transact.mockReset();
     execute.mockImplementation(async (sql: string, values: unknown[]) => {
       expect(sql.match(/\?/g)?.length ?? 0).toBe(values.length);
+      if (sql.includes("FROM agents") && sql.includes("FOR UPDATE")) return [[{ id: "1" }]];
       return sql.trim().startsWith("SELECT") ? [[]] : [{ insertId: 4, affectedRows: 1 }];
     });
     transact.mockImplementation(async (_config, operation) => operation({ execute }));
@@ -58,5 +61,16 @@ describe("Health result persistence", () => {
       .post("/").set("authorization", `Bearer ${credential}`).send({ ...body, service_checks: { apache: body.service_checks.apache } });
     expect(response.status).toBe(422); expect(response.body.telemetry_accepted).toBe(false);
     expect(execute.mock.calls.some(([sql]) => sql.includes("INSERT INTO metric_samples"))).toBe(false);
+    expect(recordAgentCondition).toHaveBeenCalledWith(expect.anything(),expect.anything(),expect.objectContaining({type:"telemetry_invalid"}),expect.any(Number));
+  });
+  it("collects missing telemetry as a warning while accepting liveness",async()=>{
+    const response=await request(app(null)).post("/").set("authorization",`Bearer ${credential}`).send();
+    expect(response.status).toBe(202);
+    expect(recordAgentCondition).toHaveBeenCalledWith(expect.anything(),expect.anything(),expect.objectContaining({type:"telemetry_missing",severity:"warning"}),expect.any(Number));
+  });
+  it("collects malformed JSON as invalid telemetry without rejecting liveness",async()=>{
+    const response=await request(app(null)).post("/").set("authorization",`Bearer ${credential}`).set("content-type","application/json").send("{invalid");
+    expect(response.status).toBe(422);expect(response.body.heartbeat_accepted).toBe(true);
+    expect(recordAgentCondition).toHaveBeenCalledWith(expect.anything(),expect.anything(),expect.objectContaining({type:"telemetry_invalid"}),expect.any(Number));
   });
 });

@@ -13,6 +13,7 @@ import { getPool, withTransaction, type ResultSetHeader } from "../db.js";
 import { AppError, asyncHandler } from "../errors.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { lockAgentAlerts } from "../services/alert-queue.js";
 
 const historyQuerySchema = z
   .object({
@@ -326,6 +327,7 @@ export function createAgentsRouter(config: AppConfig): Router {
            WHERE a.public_id = ? AND a.is_delete = 0 AND p.is_delete = 0 LIMIT 1`, [request.params.agent_id]
         );
         if (!agents[0]) throw new AppError(404, "agent_not_found", "The selected agent does not exist.");
+        if (!await lockAgentAlerts(connection, String(agents[0].id))) throw new AppError(404, "agent_not_found", "The selected agent does not exist.");
         const now = Date.now();
         const [result] = await connection.execute<ResultSetHeader>(
           `UPDATE notification_outbox o INNER JOIN incidents i ON i.id = o.incident_id
