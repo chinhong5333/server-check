@@ -37,7 +37,11 @@ export function createApp(config: AppConfig) {
       crossOriginEmbedderPolicy: false
     })
   );
-  app.use(pinoHttp({ logger }));
+  app.use(pinoHttp({
+    logger,
+    // Keep failed-server-request diagnostics without logging every dashboard poll or heartbeat.
+    customLogLevel: (_request, response, error) => error || response.statusCode >= 500 ? "error" : "silent"
+  }));
   app.use(cookieParser());
 
   /**

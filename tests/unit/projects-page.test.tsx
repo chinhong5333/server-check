@@ -72,6 +72,7 @@ describe("Projects collection flow", () => {
     );
 
     expect(screen.getByRole("heading", { level: 1, name: "Projects" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Projects" }).closest(".projects-page")).not.toBeNull();
     expect(screen.getByText("Project Atlas")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "Project Atlas" })).toHaveAttribute(
       "title",

@@ -48,6 +48,10 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- Enhanced project-card responsiveness using a 21rem minimum fluid grid and per-card container queries. Narrow cards stack status/body content while wider cards use side-by-side layouts; names remain single-line ellipsized. Scoped compact mobile spacing and 44px sorting/Manage touch targets. Verified browsing/sorting at 320, 375, 414, 768, 1024, 1440, 1920, and 2560px, plus light/dark screenshots; 13 targeted tests and client build passed.
+
+- Suppressed routine HTTP access logs (including successful polling/heartbeat requests) while retaining HTTP 5xx/error logs and application/worker diagnostics. Applies to direct Node/PM2 and npm start without shell redirection.
+
 - Final heartbeat wording follow-up: removed the two explanatory lines and divider from the detail summary at the user's request; retained the clear labels, countdown, and creation/edit helper text. All six heartbeat-summary tests passed. Pending work grouped into three requested feature-batch commits for publishing; no production migration performed.
 
 - Clarified missing-heartbeat timeout wording in the agent detail summary and shared creation/edit form: Alert If No Heartbeat For, Last Heartbeat Received, and Time Until Marked Overdue. Added explicit queue-versus-delivery explanations; no timing, API, schema, or cron changes. Focused UI tests pass; browser visual verification is blocked by the browser runtime startup failure.

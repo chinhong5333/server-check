@@ -1,7 +1,13 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../../src/server/app.js";
 import type { AppConfig } from "../../src/server/config.js";
+
+const logOutput = vi.hoisted(() => vi.fn());
+vi.mock("../../src/server/logger.js", async () => {
+  const { default: pino } = await import("pino");
+  return { createLogger: () => pino({ level: "info" }, { write: logOutput }) };
+});
 
 const config: AppConfig = {
   nodeEnv: "test",
@@ -27,6 +33,15 @@ const config: AppConfig = {
 
 describe("central API shell", () => {
   const { app } = createApp(config);
+
+  it("silences routine request logs while retaining server failure diagnostics", async () => {
+    const instance = createApp({ ...config, nodeEnv: "production" });
+    logOutput.mockClear();
+      await request(instance.app).get("/api/v1/health/live");
+      expect(logOutput).not.toHaveBeenCalled();
+      instance.logger.error("Diagnostic logging remains enabled");
+      expect(logOutput).toHaveBeenCalledWith(expect.stringContaining("Diagnostic logging remains enabled"));
+  });
 
   it("serves process liveness without a database mutation", async () => {
     const response = await request(app).get("/api/v1/health/live");

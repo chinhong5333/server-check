@@ -1,5 +1,23 @@
 # Implementation Log
 
+## Date Time — 2026-09-10 12:03:14 AM
+### Task
+Responsive Project Card Collection
+### Description
+Preserved the existing Cobalt palette, typography, status badges, card actions, and sorting flow. Added a projects-page scope class. Changed the grid minimum from 20rem to 21rem and introduced inline-size containers on list items. Headers and card bodies use stacked narrow-card defaults, switching to horizontal layouts at a 24rem card width independently of the viewport/sidebar. Kept one-line ellipsis and full-name title attributes. Added scoped compact mobile gaps, wrapping sort controls, and 44px minimum touch targets. Initial 22rem grid minimum left one overly wide card at 1024px; browser measurement led to adjusting it to 21rem so that width supports two cards.
+
+Built-in browser tool failed to start with OS error 3. Used the Playwright CLI fallback with the existing synthetic preview, not real project records. Measured no document horizontal overflow and no clipped sort controls at 320/375/414/768/1024/1440/1920/2560px; verified each move button measured 44x44px and the synthetic Move Later action changed order, then cancelled without saving. Captured light and dark desktop/mobile screenshots under output/playwright. The only preview console error was a missing favicon. Ran explicit tests/unit/projects-page.test.tsx and tests/unit/admin-controls-ui.test.tsx: 13 tests passed. npm run build:client passed with the existing large-chunk warning. git diff --check passed. No full suite, database tests, real-data mutations, commits, or pushes. Preserved pending HTTP logging changes from the prior task.
+### Next Steps
+Review the responsive UI in the running frontend. Changes remain uncommitted pending explicit permission.
+
+## Date Time — 2026-09-09 11:51:00 PM
+### Task
+Suppress Routine HTTP Access Logging
+### Description
+User clarified the unwanted output is Pino HTTP request-completion JSON. Added customLogLevel to silence ordinary responses while preserving error/5xx diagnostics and existing application/worker logging. No shell redirection, package-script changes, database changes, or logging of new data. Applies to npm start and direct PM2 entry-point execution after rebuilding. Added a focused runtime middleware test using a captured Pino stream; the initial stdout spy was unsuitable because Pino writes directly to its destination, so it was replaced with an injected test logger stream.
+### Next Steps
+Deploy by rebuilding and restarting the backend. Leave changes uncommitted pending authorization.
+
 ## Date Time — 2026-09-09 11:20:00 PM
 ### Task
 Finalize Heartbeat Copy and Publish Feature Batches

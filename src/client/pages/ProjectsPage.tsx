@@ -41,7 +41,7 @@ export function ProjectsPage() {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack projects-page">
       <header className="page-header">
         <div>
           <h1>Projects</h1>
