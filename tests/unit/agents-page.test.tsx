@@ -5,7 +5,8 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentSummary, ProjectSummary } from "../../src/shared/contracts";
 
-const { apiFetchMock, projectFixture } = vi.hoisted(() => ({
+const { apiFetchMock, projectFixture, authFixture } = vi.hoisted(() => ({
+  authFixture: { role: "admin" },
   apiFetchMock: vi.fn(),
   projectFixture: {
     id: "project-1",
@@ -39,7 +40,7 @@ vi.mock("../../src/client/projects/ProjectProvider", () => ({
 
 vi.mock("../../src/client/auth/AuthProvider", () => ({
   useAuth: () => ({
-    user: { id: "user-1", email: "operator@example.com", role: "admin" },
+    user: { id: "user-1", email: "operator@example.com", role: authFixture.role },
     logout: vi.fn()
   })
 }));
@@ -107,10 +108,10 @@ const replacementInstallation = {
   credential_shown_once: true as const
 };
 
-function renderAgentsPage() {
+function renderAgentsPage(path = "/projects/project-1/agents") {
   return render(
     <ToastProvider>
-      <MemoryRouter initialEntries={["/projects/project-1/agents"]}>
+      <MemoryRouter initialEntries={[path]}>
         <InstallAgentPage />
       </MemoryRouter>
     </ToastProvider>
@@ -120,6 +121,7 @@ function renderAgentsPage() {
 describe("project-scoped agents page", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    authFixture.role = "admin";
   });
 
   afterEach(() => {
@@ -252,7 +254,7 @@ describe("project-scoped agents page", () => {
     expect(screen.getByLabelText("RAM Usage Threshold (%)")).toHaveValue("85");
     expect(screen.getByLabelText("Storage Usage Threshold (%)")).toHaveValue("90");
     expect(screen.getByLabelText("Load Per Core Threshold")).toHaveValue("1.5");
-    expect(screen.getByLabelText("Heartbeat Interval")).toHaveValue("120");
+    expect(screen.getByLabelText("Alert If No Heartbeat For")).toHaveValue("120");
     expect(screen.getByLabelText("Telegram Send Interval")).toHaveValue("900");
     expect(screen.getByText("Minimum wait after a successful Telegram message.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this RAM usage.")).toBeInTheDocument();
@@ -430,6 +432,32 @@ describe("project-scoped agents page", () => {
     await waitFor(() => expect(screen.getByLabelText("Server Name")).toHaveFocus());
     fireEvent.click(screen.getByRole("button", { name: "Close Edit Form" }));
     await waitFor(() => expect(editButton).toHaveFocus());
+  });
+
+  it("opens the requested agent rotation setup without rotating automatically", async () => {
+    apiFetchMock.mockResolvedValue(agents);
+    renderAgentsPage("/projects/project-1?rotate_agent=agent-1");
+    expect(await screen.findByRole("dialog", { name: "Rotate Access Secret For atlas-web-01?" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Middleware API URL")).toHaveValue("https://atlas.example.com/api/health");
+    expect(apiFetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Close Access Secret Rotation" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("rejects a rotation shortcut for an agent outside the selected project", async () => {
+    apiFetchMock.mockResolvedValue(agents);
+    renderAgentsPage("/projects/project-1?rotate_agent=missing-agent");
+    expect(await screen.findByText("The selected agent is no longer available in this project.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  });
+
+  it("does not open rotation shortcuts for non-admin users", async () => {
+    authFixture.role = "operator"; apiFetchMock.mockResolvedValue(agents);
+    renderAgentsPage("/projects/project-1?rotate_agent=agent-1");
+    await screen.findByRole("heading", { name: "Registered Agents" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(apiFetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
 
   it("rotates an agent secret only through explicit confirmation", async () => {

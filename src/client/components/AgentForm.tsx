@@ -57,7 +57,7 @@ export function AgentForm({
       telegram_alert_cooldown_seconds: Number(telegramCooldown)
     });
     if (!validation.success) {
-      const message = "Check the server details, utilization thresholds, heartbeat interval, and Telegram send interval.";
+      const message = "Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram send interval.";
       setValidationError(message);
       showToast({ tone: "error", message });
       return;
@@ -124,13 +124,13 @@ export function AgentForm({
               <legend>Heartbeat</legend>
               <div className="form-section__grid">
                 <div className="field">
-                <label htmlFor="agent-heartbeat-interval">Heartbeat Interval</label>
-                  <select id="agent-heartbeat-interval" value={heartbeatInterval} onChange={(event) => setHeartbeatInterval(event.target.value)} required>
+                <label htmlFor="agent-heartbeat-interval">Alert If No Heartbeat For</label>
+                  <select id="agent-heartbeat-interval" aria-describedby="agent-heartbeat-help" value={heartbeatInterval} onChange={(event) => setHeartbeatInterval(event.target.value)} required>
                     {[1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60].map((minutes) => (
                       <option value={minutes * 60} key={minutes}>{minutes} min</option>
                     ))}
                   </select>
-                  <span className="field__help">Alerts when no report arrives within this interval.</span>
+                  <span id="agent-heartbeat-help" className="field__help">If no heartbeat is received within this time, the agent is marked overdue and an alert is queued. This does not delay health-check alerts. Telegram delivery follows its own sending interval.</span>
                 </div>
               </div>
             </fieldset>

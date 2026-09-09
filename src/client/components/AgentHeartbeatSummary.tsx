@@ -26,7 +26,7 @@ export function heartbeatSummary(agent: SummaryAgent, now: number) {
   const overdue = deadline !== null && now >= deadline;
   const status = overdue ? "critical" : received === null && agent.status === "healthy" ? "new" : agent.status;
   const qualifier = overdue ? "Heartbeat Overdue" : received === null
-    ? "No Heartbeat Received" : status === "healthy" ? "Within Heartbeat Interval"
+    ? "No Heartbeat Received" : status === "healthy" ? "Receiving Heartbeats"
     : status === "stale" ? "Telemetry Is Stale" : "Requires Attention";
   const cause = status === "new" ? null : agentStateCause(overdue ? agent.status : status, agent.probable_cause);
   return { received, deadline, overdue, status, qualifier,
@@ -68,17 +68,17 @@ export function AgentHeartbeatSummary({ agent, help }: { agent: SummaryAgent; he
       <div className="agent-heartbeat-summary__body">
         <div>
           <dl className="agent-heartbeat-summary__facts">
-            <div><dt>Last Heartbeat</dt><dd>{summary.elapsed}</dd></div>
-            <div><dt>Expected Every</dt><dd>{heartbeatDuration(agent.heartbeat_interval_seconds * 1000)}</dd></div>
+            <div><dt>Last Heartbeat Received</dt><dd>{summary.elapsed}</dd></div>
+            <div><dt>Alert If No Heartbeat For</dt><dd>{heartbeatDuration(agent.heartbeat_interval_seconds * 1000)}</dd></div>
           </dl>
           <p className="agent-heartbeat-summary__received">Last Received: {summary.received === null ? "Never" : (
             <time dateTime={new Date(summary.received).toISOString()}>{formatDateTime(summary.received)}</time>
           )}</p>
         </div>
         <div className={`agent-heartbeat-summary__deadline${summary.overdue ? " agent-heartbeat-summary__overdue" : ""}`}
-          title={summary.deadline === null ? undefined : `Heartbeat Due: ${formatDateTime(summary.deadline)}`}>
+          title={summary.deadline === null ? undefined : `Marked Overdue At: ${formatDateTime(summary.deadline)}`}>
           <Clock3 aria-hidden="true" />
-          <div><span>{summary.deadline === null ? "Waiting For First Heartbeat" : summary.overdue ? "Overdued" : "Next Heartbeat Due In"}</span>
+          <div><span>{summary.deadline === null ? "Waiting For First Heartbeat" : summary.overdue ? "Overdued" : "Time Until Marked Overdue"}</span>
             {summary.timing !== null ? <strong role="timer" aria-live="off">{summary.timing}</strong> : null}</div>
         </div>
       </div>

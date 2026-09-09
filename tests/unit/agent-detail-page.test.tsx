@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../src/client/auth/AuthProvider", () => ({ useAuth: () => ({ user: { role: "admin" } }) }));
+vi.mock("../../src/client/hooks/useMediaQuery", () => ({ useMediaQuery: () => false }));
 
 const { apiFetchMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn()
@@ -82,6 +83,22 @@ describe("agent detail incident history", () => {
 
   afterEach(cleanup);
 
+  it("hides URL actions when no middleware URL is configured", async () => {
+    const original = apiFetchMock.getMockImplementation()!;
+    apiFetchMock.mockImplementation(async (path: string) => {
+      const data = await original(path);
+      return path.includes("/history?") ? { ...data, agent: { ...data.agent, health_api_url: null } } : data;
+    });
+    render(<MemoryRouter initialEntries={["/projects/project-1/agents/agent-1"]}><Routes>
+      <Route path="/projects/:projectId/agents/:agentId" element={<AgentDetailPage />} />
+    </Routes></MemoryRouter>);
+    const heading = await screen.findByRole("heading", { name: "Latest Script Configuration" });
+    const section = heading.closest("section")!;
+    expect(section).toHaveTextContent("Not Monitored");
+    expect(within(section).queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
+    expect(within(section).queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("shows incidents on the agent page even when metric history is empty", async () => {
     render(
       <MemoryRouter initialEntries={["/projects/project-1/agents/agent-1"]}>
@@ -98,12 +115,14 @@ describe("agent detail incident history", () => {
       "href",
       "/projects/project-1"
     );
+    expect(screen.getByRole("button", { name: "Rotate Secret" })).toHaveAttribute("aria-haspopup", "dialog");
+    expect(screen.queryByRole("link", { name: "Rotate Secret" })).not.toBeInTheDocument();
     const statusSummary = screen.getByLabelText("Agent Status Summary");
     expect(within(statusSummary).getByText("Critical")).toBeInTheDocument();
     expect(within(statusSummary).getByText("Heartbeat Overdue")).toBeInTheDocument();
     expect(within(statusSummary).getByText("Overdued")).toBeInTheDocument();
-    expect(within(statusSummary).getByText("Last Heartbeat")).toBeInTheDocument();
-    expect(within(statusSummary).getByText("Expected Every")).toBeInTheDocument();
+    expect(within(statusSummary).getByText("Last Heartbeat Received")).toBeInTheDocument();
+    expect(within(statusSummary).getByText("Alert If No Heartbeat For")).toBeInTheDocument();
     expect(within(statusSummary).queryByText("Heartbeat Interval")).not.toBeInTheDocument();
     const exactLastUpdated = statusSummary.querySelector("time");
     expect(exactLastUpdated).toHaveAttribute("dateTime", new Date(1_788_252_764_000).toISOString());
@@ -118,6 +137,21 @@ describe("agent detail incident history", () => {
     }).closest("section");
     expect(scriptConfiguration).toHaveTextContent("Middleware API URL");
     expect(scriptConfiguration).toHaveTextContent("https://atlas.example.com/health");
+    const testUrl = within(scriptConfiguration!).getByRole("link", { name: "Test Middleware API URL In A New Tab" });
+    expect(testUrl).toHaveAttribute("href", "https://atlas.example.com/health");
+    expect(testUrl).toHaveAttribute("target", "_blank");
+    expect(testUrl).toHaveAttribute("rel", "noopener noreferrer");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const previousClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      fireEvent.click(within(scriptConfiguration!).getByRole("button", { name: "Copy", exact: true }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://atlas.example.com/health"));
+      expect(await within(scriptConfiguration!).findByRole("button", { name: "Copied" })).toBeInTheDocument();
+    } finally {
+      if (previousClipboard) Object.defineProperty(navigator, "clipboard", previousClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
     const stateHelpTrigger = within(statusSummary).getByRole("button", {
       name: "View Server State Definitions"
     });
@@ -196,6 +230,10 @@ describe("agent detail incident history", () => {
         to: 1_788_604_800_000,
         bucket_seconds: 1800,
         latest_load_5: latestLoad,
+        latest_resources: {
+          ram: { used_bytes: 4140000000, total_bytes: 8000000000, utilization_percent: 51.75 },
+          storage: { used_bytes: 40000000000, total_bytes: 100000000000, utilization_percent: 40, mount_point: "/data" }
+        },
         points: [
           {
             at: 1_788_252_764_000,
@@ -222,10 +260,12 @@ describe("agent detail incident history", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Load Average (5 Min)" })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 2, name: "RAM Utilization" }).closest("section")?.querySelector(".chart-latest")
-    ).toHaveTextContent("Latest Value75.0%");
+    ).toHaveTextContent("Latest Value51.75%");
+    expect(screen.getByRole("heading", { name: "RAM Utilization" }).closest("section")).toHaveTextContent("Used / Total4.14 GB / 8.00 GB");
     expect(
       screen.getByRole("heading", { level: 2, name: "Storage Utilization" }).closest("section")?.querySelector(".chart-latest")
-    ).toHaveTextContent("Latest Value60.0%");
+    ).toHaveTextContent("Latest Value40.0%");
+    expect(screen.getByRole("heading", { name: "Storage Utilization" }).closest("section")).toHaveTextContent("Used / Total40.00 GB / 100.00 GB");
     expect(
       screen.getByRole("heading", { level: 2, name: "Load Average (5 Min)" }).closest("section")?.querySelector(".chart-latest")
     ).toHaveTextContent(`Latest Value${expectedLoad}`);

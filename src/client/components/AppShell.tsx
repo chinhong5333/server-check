@@ -18,6 +18,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { useProjects } from "../projects/ProjectProvider";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { ThemeToggle } from "./ThemeToggle";
+import { SidebarClock } from "./SidebarClock";
 
 /**
  * Mount storyboard
@@ -156,6 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Settings aria-hidden="true" />
               </NavLink>
             ) : null}
+            <SidebarClock />
           </div>
           <div className="sidebar__footer">
             <NavLink

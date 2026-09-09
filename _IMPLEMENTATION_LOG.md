@@ -1,5 +1,159 @@
 # Implementation Log
 
+## Date Time — 2026-09-09 11:20:00 PM
+### Task
+Finalize Heartbeat Copy and Publish Feature Batches
+### Description
+Removed the two explanatory paragraphs and their dedicated divider styles from AgentHeartbeatSummary as requested, retaining all newly clarified labels and form helper copy. Updated the regression to assert those paragraphs are absent; all six focused heartbeat-summary tests passed. User explicitly requested committing all pending work in three-feature batches and pushing. Grouped changes into Telegram recurrence/queue/delivery reliability; agent controls/resource capacities/endpoint actions; and sidebar clock/mobile delivery layout/heartbeat naming. Existing earlier focused tests and runtime checks are documented above; full-suite and production database validation were not run. Browser visual verification for the latest wording remains blocked by the tool runtime startup failure.
+### Next Steps
+Push the three commits and verify remote alignment. Production rollout requires build, migration 009, and backend restart. Do not run production migrations from this workspace.
+
+## Date Time — 2026-09-09 11:08:18 PM
+### Task
+Clarify Missing-Heartbeat Timeout Labels
+### Description
+Updated AgentHeartbeatSummary labels to Last Heartbeat Received, Alert If No Heartbeat For, and Time Until Marked Overdue, including the deadline tooltip. Replaced the healthy qualifier with Receiving Heartbeats while preserving existing critical/stale status reporting, version/help controls, overdue wording, and timer behavior. Added a compact explanatory footer distinguishing incident queuing from Telegram sending. Updated the shared AgentForm used for creation and both edit entry points, with associated accessible helper copy stating that the timeout does not delay health-check alerts. Updated the healthy-status help description and focused test expectations. Existing unrelated uncommitted changes were preserved. Four targeted test files passed (27 tests before the additional explicit ten-minute explanation regression). Browser verification was attempted but the computer-use Node runtime could not start (OS error 3); no rendered visual pass is claimed. No production access, database writes, service startup, backend timing changes, or Git commits.
+### Next Steps
+Run the added explanation regression; visually verify desktop/mobile once the browser runtime is available. Leave changes uncommitted for review.
+
+## Compact Mobile Telegram Delivery Log
+
+### Date Time
+2026-09-09 04:27:00 PM
+
+### Task
+Apply UI/UX Pro Max to revise the excessively tall mobile Telegram Delivery Log shown by the user.
+
+### Description
+Used the named UI/UX Pro Max skill and targeted mobile table guidance, alongside the established Hallmark/Frontend UI Engineering design intent. Kept the existing surfaces, colors, type hierarchy, and Clear Pending Messages workflow. Added a mobile-only semantic ordered list below the existing table breakpoint, avoiding duplicated hidden content. Each entry groups Alert/Recovery with attempt count and delivery badge, then shows incident title/cause and any full-width error. Queued At and Delivered/Next Attempt timing share a two-column footer. Terminal Failed/Cancelled states retain their original meaning without inventing a next attempt. Header padding/gaps are more compact on mobile. Desktop continues to render the existing table.
+
+Added mobile state/content assertions to tests/unit/agent-telegram-delivery-log.test.tsx and explicitly mocked the desktop media state in the existing Agent Detail test. The initial run exposed that jsdom lacks matchMedia in that test environment; fixed the test fixture rather than changing production behavior. Explicit agent-telegram-delivery-log.test.tsx, agent-detail-page.test.tsx, and admin-controls-ui.test.tsx passed 18 tests. Typecheck and frontend build passed. Browser verification at 475px and 375px showed both sample records fitting comfortably, compared with the prior field-by-field vertical layout. A 320px geometry check confirmed the list content remains within its width, and 1280px confirmed the desktop table is retained. Viewport restored. Used only synthetic preview data; no Telegram messages or saved data changed. Full suite not run. Not committed or pushed.
+
+### Next Steps
+Review the mobile log locally and deploy rebuilt frontend assets when approved. No API or migration changes required.
+
+## Middleware URL Button Overflow Fix
+
+### Date Time
+2026-09-09 04:14:00 PM
+
+### Task
+Keep Copy/Test buttons inside Latest Script Configuration at the reported narrow viewport.
+
+### Description
+The old two-column section persisted above its 30rem breakpoint, leaving insufficient width for the nonwrapping action row. Added a 40rem single-column breakpoint, preserved the horizontal divider for the stacked layout, enabled action wrapping, and bounded action/button widths. No button behaviour changed. Verified actual browser button rectangles stayed within the section at 375, 500, and 1024px. Visually compared the corrected 500px layout to the user's screenshot; Copy/Test now sit neatly beneath the URL inside the card. Reset viewport after verification. No real data or endpoint calls. CSS-only amendment; unit/full test suites were not rerun.
+
+### Next Steps
+Deploy rebuilt frontend when approved. Not committed or pushed.
+
+## Resource Capacity Display And In-Page Secret Rotation
+
+### Date Time
+2026-09-09 04:11:00 PM
+
+### Task
+Show RAM/storage used/total capacity on their graph sections and keep Rotate Secret entirely within Agent Detail.
+
+### Description
+Added shared CapacitySnapshot/AgentLatestResources response types. The history route now joins the metric sample matching the latest heartbeat once and selects the highest-utilization filesystem from that exact sample. It returns nullable used_bytes, total_bytes, utilization_percent, and storage mount_point without changing stored telemetry. Used equals total minus available, matching the existing utilization calculation; storage is one represented filesystem, not a sum across mounts. Invalid, absent, zero-total, or unsafe-integer byte pairs return no capacity instead of fabricated values. The existing latest raw load and historical bucket data remain compatible.
+
+Updated RAM/storage Latest Value to the same raw capacity sample so percentages and byte values cannot disagree because of chart-bucket averaging. Added a compact Used / Total line with decimal GB (1 GB = 1000000000 bytes) at two decimal places, e.g. 4.14 GB / 8.00 GB. Chart headers use a small grid to keep percentage at top right and capacity on a full-width secondary row. Visual review corrected an initial wrap arrangement that placed latest values awkwardly on mobile. Existing area charts and alert thresholds remain unchanged.
+
+Replaced the Agent Detail rotation navigation link with RotateAgentSecretButton, an in-page confirmation/result flow using the existing rotation API and shared check selectors/copy controls. Rotation only occurs after explicit confirmation. The returned script stays in component memory, with Copy Script, Download Script, filename, crontab display/copy, and installation guidance. No parent reload occurs while the one-time script is displayed. Closing the result requires two confirmation steps; then state is cleared and Agent Detail reloads without navigation. A beforeunload warning protects in-flight/result state against ordinary reload/close, subject to browser support. Request failures preserve setup and warn about retrying if the response was lost. Old project-page rotation remains available separately; Agent Detail no longer uses its redirect shortcut.
+
+Explicit tests/unit/agent-load-history.test.ts, agent-detail-page.test.tsx, and rotate-agent-secret-button.test.tsx passed 17 tests. Coverage includes exact capacity pairs, matching raw percentages, correct latest-sample/worst-filesystem query, null/invalid/zero boundaries, in-page rotation path stability, no automatic rotation, guarded close, and retry after request error. Updated an older route test mock to retain requireRole after previous API additions. Typecheck and full production build passed; existing Vite advisory remains. Dedicated MySQL integration was not run because the isolated test configuration remains unavailable. No new migration or stored-data rewrite is required for these two features.
+
+Browser verification used the isolated real-App preview with explicitly synthetic capacity values and a fake rotation response containing no credential. Confirmed the result opens over Agent Detail and closes back to the same page, plus desktop/mobile capacity layout. No real secret was rotated and no real database write test was run. Temporary viewport reset. Full test suite not run. Prior pending work preserved; not committed or pushed.
+
+### Next Steps
+Deploy frontend and backend together for the new history fields, after normal review and pending migration requirements from other features. Validate the history SQL on dedicated MySQL before production acceptance. Real rotation still requires installing the replacement script. Commit/push only on explicit approval.
+
+## Agent Detail Rotate Secret Shortcut
+
+### Date Time
+2026-09-09 03:45:00 PM
+
+### Task
+Add Rotate Secret on Agent Detail with the existing guarded replacement-script workflow.
+
+### Description
+Added an admin-only key-icon Rotate Secret action next to Manage. The shortcut navigates directly to the existing project rotation setup with the canonical rotate_agent public identifier; it never performs rotation on navigation. InstallAgentPage fetches current settings for the selected project independently of cached roster data, verifies the target belongs to that project, preloads its checks/URL, and opens the existing confirmation. The request query is consumed with replace navigation so background polling cannot reopen the modal. Aborted/failed lookups and non-admin requests do not rotate anything. Existing Rotate And Generate Script confirmation, one-time replacement-script presentation, download/copy, and exit warnings remain unchanged. Added fallback focus restoration when entered from the shortcut rather than a roster button.
+
+Explicit tests/unit/agents-page.test.tsx and agent-detail-page.test.tsx passed 19 tests. New coverage checks correct shortcut URL, prefilling without POST, unknown/cross-project target rejection, and non-admin handling. Typecheck passed. Synthetic real-App browser checks verified desktop/mobile action alignment, opening the correct confirmation, and closing without rotation. Did not invoke the final rotation action or change any actual credential/script. Viewport restored. Full suite not run. Existing pending changes preserved; no commit/push.
+
+### Next Steps
+Deploy rebuilt frontend when approved. Users must install the generated replacement script after confirming a rotation; the old credential is revoked immediately. No new migration is required for this shortcut.
+
+## Sidebar Clock Icon
+
+### Date Time
+2026-09-09 03:34:43 PM
+
+### Task
+Add a clock icon beside the live sidebar time.
+
+### Description
+Added the existing Lucide Clock3 icon with aria-hidden and compact inline-flex alignment/spacing. Time format, one-second updates, and sidebar placement remain unchanged. Explicit tests/unit/sidebar-clock.test.tsx passed two tests. No backend or data changes; full suite not run. Not committed or pushed.
+
+### Next Steps
+Deploy rebuilt frontend assets when approved.
+
+## Agent Detail Manage Button And Sidebar Clock
+
+### Date Time
+2026-09-09 03:20:00 PM
+
+### Task
+Add Manage on Agent Detail to edit agent settings and show a realtime h:m:s clock in the sidebar settings row.
+
+### Description
+Added ManageAgentButton beside the Agent Detail heading for admins. It fetches the selected agent's current settings from the existing project agents endpoint on opening, reuses AgentForm and the existing agent-form dialog layout, and saves only canonical editable values through the existing PUT endpoint. Loading failures offer retry, save failures preserve the form, close aborts pending loading, and saved values trigger an Agent Detail reload. Fresh opens clear old form/loading state to avoid displaying stale settings. Existing authentication/CSRF enforcement and access-secret behaviour are unchanged.
+
+Added SidebarClock alongside ThemeToggle and Settings using compact monospace/tabular styling. It displays browser-local 24-hour HH:MM:SS, reads the actual current time every second rather than incrementing a counter, resynchronizes on focus/visibility changes, and clears timers/listeners on unmount. The clock is isolated so ticking does not rerender the surrounding sidebar; aria-live is off to avoid constant screen-reader announcements. Existing UI skill guidance and shared form/theme components were preserved.
+
+Explicit tests/unit/manage-agent-button.test.tsx, sidebar-clock.test.tsx, agent-detail-page.test.tsx, and agents-page.test.tsx passed 21 tests. New cases verify selected-agent load/save contracts, aborted close with no write, retry/save-error handling, midnight rollover, focus resynchronization, and timer cleanup. Typecheck and client build passed; existing Vite size advisory remains. A test originally checked dialog closure before its effect settled; corrected it to await closure. Actual-component synthetic browser preview verified desktop Manage placement, edit modal, a sample name save reflected in the heading, mobile Manage/form layout, and clock alignment/ticking in desktop/mobile sidebar rows. All preview writes were intercepted in memory; no real agent settings changed. Viewport reset. Full suite not run. Existing pending work preserved; no commit/push.
+
+### Next Steps
+Review locally and deploy rebuilt frontend assets when approved. No migration or agent reinstall required for these additions.
+
+## Recurring Non-Healthy Telegram Collection And Pending Deduplication
+
+### Date Time
+2026-09-09 01:02:50 PM
+
+### Task
+Implement the user's confirmed policy: collect every observed non-healthy condition, send according to the configured interval, avoid duplicate pending errors, and continue requeuing after delivery until recovery.
+
+### Description
+Introduced services/alert-queue.ts with stable SHA-256 alert identity, pending lookup/refresh, and reusable incident-alert cancellation. Identity excludes volatile readings/timestamps/latency and includes condition/cause plus HTTP status/error code, service, mount point, and validation reason. Migration 009 adds nullable alert_key and an incident/channel/event/status/deletion/key lookup index. Legacy pending rows with null identity are adopted on the next observation. Identical pending messages refresh details only; their retry count, queue age, and next-attempt time are preserved. No duplicate pending item is inserted under the shared agent transaction lock. Sent, exhausted-failure, and manually cancelled items are terminal for that row, but later observations may enqueue another ongoing-error reminder.
+
+Refactored incident evaluation to update and requeue existing conditions rather than returning early when their incident already exists. All active resource/service/middleware conditions are collected independently, not only the primary agent status. Added telemetry_missing and telemetry_invalid incidents to authenticated empty/invalid payload branches, while preserving accepted liveness and existing HTTP responses. Valid telemetry resolves those incidents; invalid telemetry does not falsely resolve older resource/service outages. The heartbeat evaluator now rechecks the agent under lock, collects recurring missed-heartbeat observations, and records Awaiting Data before the first deadline. Awaiting-first-heartbeat is silently superseded when overdue, avoiding a false recovery. Accepted heartbeats resolve missed/awaiting incidents. Recovery cancels pending opened/reminder rows, preserves their records, and collects recovery. Telegram message text includes stable HTTP/error/validation diagnostics so distinct errors are distinguishable.
+
+Added one agent row-lock protocol shared by heartbeat collection, timer evaluation, cancellation, and sending. Delivery rereads the latest pending payload and incident state after locking, cancels legacy obsolete errors for already-resolved incidents, and rechecks the current agent interval against the last successful send. Sent timestamps and retry backoff use actual completion/failure time instead of initial batch time. Added a per-task running guard to avoid overlapping interval callbacks in one process. Removed redundant cached cooldown-query data. Existing send timeout/backoff and at-least-once uncertainty remain documented. Locking may make an arriving heartbeat briefly wait for an in-flight send, bounded by its existing network timeout. No real Telegram calls were made.
+
+Changed delivery timing wording from Cancelled By Admin to neutral Cancelled because recoveries now cancel queued records automatically. Added focused tests for that label. Existing URL Copy/Test UI amendment remains untouched. Dedicated local backend watcher check found none before editing, so no new alert code or migration was activated against local/production data. `.env.test` is absent; added concurrent real-MySQL collection/delivery-state/recovery assertions to the guarded retention integration test but did not run database-dependent tests or migrations.
+
+Explicit unit files run: alert-recurrence.test.ts, heartbeat-alert-scan.test.ts, health-check-ingestion.test.ts, optional-health-checks.test.ts, telegram-cooldown-worker.test.ts, admin-controls-routes.test.ts, and agent-telegram-delivery-log.test.tsx. All 41 tests passed. Coverage includes repeated pending refresh, requeue after sent/cancelled/failed, distinct HTTP errors, all active threshold/service conditions, invalid/missing telemetry, separate agents, legacy identities, recovery cancellation, initial awaiting state, heartbeat-arrival race, cancellation race, and authoritative send-interval recheck. Typecheck and full production build passed; existing Vite chunk advisory remains. Full test suite was not run. README documents collection versus delivery, identity fields, recovery/manual-cancellation semantics, rollout ordering, and the remaining MySQL acceptance gate. No commit/push.
+
+### Next Steps
+Configure a dedicated local MySQL 8 test target and run the guarded concurrency/integration file before production acceptance. Back up production, stop all workers, build, apply migration 009, and restart. No agent reinstall required. Commit/push only on explicit approval.
+
+## Middleware URL Copy And Test Actions
+
+### Date Time
+2026-09-09 12:27:00 PM
+
+### Task
+Add Copy and Test buttons beside the Middleware API URL in Latest Script Configuration.
+
+### Description
+Reused CopyButton with existing copied/error feedback and added an external-link styled Test action with target=_blank and rel=noopener noreferrer. Its accessible name announces a new tab. Both actions are rendered only for a configured URL; Not Monitored remains action-free. Kept the read-only code presentation and existing design tokens, adding a wrapping flex row so actions sit beside the URL on wide layouts and beneath it on mobile. No backend request or health probe is issued automatically; Test performs ordinary browser navigation when clicked.
+
+Added focused assertions for exact clipboard content, feedback, new-tab destination/protection, and missing-URL behavior in tests/unit/agent-detail-page.test.tsx. All five tests passed and typecheck passed. An initial test run took approximately 65 seconds due to setup/import/environment overhead; a subsequent run completed in approximately six seconds. Started the stopped frontend for visual verification. Inspected desktop and 375px mobile using a synthetic middleware.example.test URL in the isolated real-App preview; did not call the user's production health endpoint or change any real data. Reset viewport afterward. Full suite not run. No commit or push.
+
+### Next Steps
+Deploy rebuilt frontend assets when approved; no migration or agent reinstall required.
+
 ## Stepped Sort Icon
 
 ### Date Time

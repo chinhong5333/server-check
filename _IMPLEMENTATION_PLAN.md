@@ -48,6 +48,26 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- Final heartbeat wording follow-up: removed the two explanatory lines and divider from the detail summary at the user's request; retained the clear labels, countdown, and creation/edit helper text. All six heartbeat-summary tests passed. Pending work grouped into three requested feature-batch commits for publishing; no production migration performed.
+
+- Clarified missing-heartbeat timeout wording in the agent detail summary and shared creation/edit form: Alert If No Heartbeat For, Last Heartbeat Received, and Time Until Marked Overdue. Added explicit queue-versus-delivery explanations; no timing, API, schema, or cron changes. Focused UI tests pass; browser visual verification is blocked by the browser runtime startup failure.
+
+- 2026-09-09: Revised mobile Telegram Delivery Log into compact grouped entries: event/attempts/status, incident/error details, and side-by-side queued/delivery timing. Retained all information, desktop table, and cancellation workflow. Eighteen focused tests, typecheck, build, and 320/375/475px mobile plus desktop checks passed.
+
+- 2026-09-09: Fixed Middleware URL Copy/Test overflow by stacking the configuration section below 40rem and allowing bounded action wrapping. Browser geometry checks passed at 375, 500, and 1024px; reported 500px layout visually verified.
+
+- 2026-09-09: RAM/storage chart headers now show latest Used / Total decimal GB with matching latest-report percentages; storage identifies the highest-utilization filesystem rather than summing mounts. Missing/invalid capacities are not fabricated. Rotate Secret now confirms and presents the one-time replacement script in dialogs on Agent Detail, with no redirect and guarded close. Seventeen focused tests, typecheck, and build passed; sample-data browser checks verified capacity layout and in-page rotation. No new schema migration or agent payload change; real MySQL integration remains pending.
+
+- 2026-09-09: Added admin-only Rotate Secret beside Manage on Agent Detail. It opens the existing project rotation confirmation for that agent using a consumed rotate_agent shortcut, preserving explicit confirmation and one-time script handling. Invalid/cross-project/non-admin shortcuts do not rotate. Nineteen focused tests, typecheck, and desktop/mobile sample-data verification passed; no real secret rotation performed.
+
+- 2026-09-09: Added a decorative clock icon immediately beside the sidebar's live time, preserving its local-time/ticking behaviour. Two focused clock tests passed.
+
+- 2026-09-09: Added admin-only Manage on Agent Detail using the existing settings modal/form and edit API, with loading/retry, abort-on-close, and page refresh after saving. Added a browser-local 24-hour HH:MM:SS sidebar clock beside theme/settings controls, ticking each second and resynchronizing on focus/visibility. Twenty-one focused tests, typecheck, client build, and synthetic desktop/mobile verification passed; no new backend/schema change.
+
+- 2026-09-09: Implemented recurring Telegram collection for observed non-healthy conditions, including missing/invalid telemetry and awaiting first heartbeat. Pending messages deduplicate on stable error identity; sent/failed/cancelled records allow new collection on a later observation. Recovery cancels unsent error reminders and queues recovery. Shared agent locking serializes collection/delivery/cancellation and rechecks cooldown and overdue state; worker overlap prevented. Migration 009 adds indexed alert identity. Forty-one focused tests, typecheck, and build passed; dedicated MySQL concurrency integration added but unrun because `.env.test` is absent. No live messages sent or migrations applied. Existing URL Copy/Test work preserved.
+
+- 2026-09-09: Added Copy and Test actions beside the Latest Script Configuration middleware URL. Reuses clipboard feedback and opens Test in a protected new tab, with no automatic endpoint call. Missing URLs hide the actions. Five focused Agent Detail tests, typecheck, and desktop/mobile sample-data visual checks passed; no backend or schema changes.
+
 - 2026-09-08: Replaced the Sort button's up/down arrows with the stepped horizontal-line ListFilter icon per user preference; label and sorting behaviour are unchanged. Five focused project-page tests passed.
 
 - 2026-09-08: Shortened the project sort trigger to Sort with a decorative ArrowUpDown icon; sorting behaviour is unchanged. Five focused project-page tests passed.
