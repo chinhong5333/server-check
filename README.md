@@ -118,6 +118,48 @@ npm start
 
 The central process listens on `HOST` and `PORT`. `npm start` runs in the foreground. Put it behind HTTPS and a process supervisor before production use. An example systemd unit is available at `deploy/server-check.service.example`.
 
+### PM2 Setup And One-Command Updates
+
+Use the same Linux deployment user for every PM2 command. Select Node 24 and install PM2 once:
+
+```bash
+nvm use 24
+npm install --global pm2
+```
+
+The tracked `ecosystem.config.cjs` manages the `server-check` process. To customize its name, logging, or restart settings without creating Git conflicts, copy it once (do not overwrite an existing local file):
+
+```bash
+cp -n ecosystem.config.cjs ecosystem.local.config.cjs
+```
+
+Edit `ecosystem.local.config.cjs` as needed. Keep one fork-mode instance, `watch: false`, the existing `cwd`/`script`, and `env: { NODE_ENV: "production" }`. Keep HOST, PORT, and credentials in `.env`, not ecosystem environment overrides. The updater automatically prefers the local ecosystem file. One instance avoids duplicate background workers. The 15-second PM2 kill timeout allows the application's 10-second shutdown deadline. The interpreter follows the Node executable used to invoke PM2.
+
+For an already installed/built/migrated deployment, start under the ecosystem file:
+
+```bash
+pm2 startOrRestart ecosystem.local.config.cjs --only server-check --update-env
+pm2 save
+pm2 startup
+# Run the privileged startup command printed by PM2, then pm2 save again.
+```
+
+If an existing PM2 process wraps `npm start` rather than the compiled entry point, replace that old process once during a maintenance window before starting the ecosystem configuration. Stop/remove only this application's old PM2 entry, never other apps. If changing the app name, remove the old named instance first to avoid two monitoring workers. Regenerate PM2 startup integration after changing the nvm Node installation.
+
+For subsequent updates, from the repository:
+
+```bash
+bash scripts/update-production.sh
+```
+
+The script loads nvm and runs `nvm use 24` automatically before checking npm/PM2 or changing the deployment. Install Node 24 once with `nvm install 24`; the updater does not install runtimes automatically. It respects `NVM_DIR`, otherwise uses the standard `$XDG_CONFIG_HOME/nvm` or `$HOME/.nvm` location. PM2 must be installed under the selected Node 24 environment. See the [official nvm loading instructions](https://github.com/nvm-sh/nvm#installing-and-updating).
+
+The command is **`npm ci`**, not `npm run ci`. The updater checks Node/PM2/flock, requires a clean worktree and an upstream branch, obtains a repository update lock, asks for backup confirmation, pulls with `git pull --ff-only`, stops only the configured app, runs `npm ci --include=dev` (including the postinstall server/client build), runs `npm run migrate`, starts/restarts from the ecosystem file, checks local API/database readiness, and saves the PM2 process list. `pm2 save` persists the current user's entire PM2 list, not only this app. Existing `.env` is preserved. The reverse proxy remains unchanged.
+
+This is a maintenance-window deployment, not zero downtime. Review incoming migrations and make a database backup beforehand. For unattended use, `bash scripts/update-production.sh --yes` acknowledges that preparation and skips the confirmation. It does not create a backup. Migration/build failures stop the workflow; the app may remain stopped and no automatic code/database rollback is attempted. A readiness failure after startup leaves the app available for PM2 inspection. Use `pm2 logs server-check --lines 100` (or your configured name) to diagnose it. Do not blindly retry partially applied MySQL DDL migrations. Ensure no other supervisor or PM2 user is running this application.
+
+References: [PM2 ecosystem options](https://doc.pm2.io/en/runtime/reference/ecosystem-file/), [PM2 environment updates](https://pm2.io/docs/runtime/best-practices/environment-variables/), and [npm ci](https://docs.npmjs.com/cli/commands/npm-ci/).
+
 The supervisor must also use Node 24; it does not automatically inherit an interactive `nvm use` command. `nvm which 24` shows the selected executable. The example systemd unit uses `/usr/bin/node` and `ProtectHome=true`, so a runtime inside a user's nvm home directory is not accessible through that unit as written. Use a service-accessible Node 24 installation outside home directories and set `ExecStart` to its absolute executable path, retaining the service's hardening.
 
 PUBLIC_BASE_URL must be the central monitor address that every monitored server can reach. Do not leave it as 127.0.0.1 when agents run on other servers because loopback points the agent back to itself.

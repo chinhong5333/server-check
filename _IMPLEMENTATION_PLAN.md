@@ -48,6 +48,10 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- Production updater now loads nvm from its configured/standard location and selects Node 24 before checking deployment commands. Missing nvm/Node 24 fails before pull or service stop. Bash syntax and three focused deployment configuration tests passed.
+
+- Added PM2 ecosystem configuration and a guarded Linux production updater combining fast-forward pull, app stop, locked dependency installation/build, pending migrations, PM2 restart, readiness verification, and PM2 persistence. Supports a Git-ignored local ecosystem copy. Shell syntax and two focused configuration tests passed; a real deployment/PM2/MySQL acceptance run remains site-specific and was not executed against user data.
+
 - Enhanced project-card responsiveness using a 21rem minimum fluid grid and per-card container queries. Narrow cards stack status/body content while wider cards use side-by-side layouts; names remain single-line ellipsized. Scoped compact mobile spacing and 44px sorting/Manage touch targets. Verified browsing/sorting at 320, 375, 414, 768, 1024, 1440, 1920, and 2560px, plus light/dark screenshots; 13 targeted tests and client build passed.
 
 - Suppressed routine HTTP access logs (including successful polling/heartbeat requests) while retaining HTTP 5xx/error logs and application/worker diagnostics. Applies to direct Node/PM2 and npm start without shell redirection.

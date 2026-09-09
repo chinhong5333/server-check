@@ -4,6 +4,7 @@ dist/
 !.env.example
 !.env.test.example
 .runtime/
+ecosystem.local.config.cjs
 .playwright-cli/
 *.bak
 coverage/

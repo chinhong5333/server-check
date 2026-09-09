@@ -1,5 +1,21 @@
 # Implementation Log
 
+## Date Time — 2026-09-10 12:22:00 AM
+### Task
+Automatically Select Node 24 In Updater
+### Description
+Added explicit nvm loading for non-interactive Bash, respecting NVM_DIR and standard XDG/home installation locations, followed by nvm use 24 before npm/PM2 checks and all deployment mutations. Temporarily disables nounset around nvm loading/use for compatibility, then restores it. Missing installation/version fails clearly without automatic downloads. Updated subsequent-update README instructions to one command and added a focused ordering/version regression. Bash syntax and three configuration tests passed; no real deployment or local runtime version was changed.
+### Next Steps
+Commit only when authorized; production user needs nvm, Node 24, and PM2 installed once.
+
+## Date Time — 2026-09-10 12:20:00 AM
+### Task
+PM2 Ecosystem And Production Update Script
+### Description
+Added ecosystem.config.cjs for one fork-mode compiled server instance, no watch, selected Node interpreter, automatic restart delay, and 15-second kill timeout. Added ignored ecosystem.local.config.cjs override path for operator customization without dirtying tracked settings. Application environment remains in .env. Added scripts/update-production.sh with whole-function parsing before self-updating git pull, prerequisite and Node checks, clean-worktree/upstream validation, flock exclusion, interactive backup confirmation with explicit --yes unattended mode, fast-forward pull, named-app stop before replacing node_modules, npm ci including build dependencies and lifecycle build, explicit migration, startOrRestart, bounded local readiness polling, and PM2 save. Errors abort without automatic rollback; documentation explicitly explains downtime, backups, partial migration handling, old npm-wrapper/name transition, and same-user PM2 requirements. No secrets are embedded and no update/migration was executed. Checked primary PM2/npm documentation. Git Bash syntax check passed; tests/unit/production-deployment.test.ts passed two configuration/order tests. These are static/configuration checks, not a claim of real PM2 deployment validation.
+### Next Steps
+User reviews deployment configuration, commits/pushes when authorized, and performs a backed-up maintenance-window production acceptance run. Run nvm use 24 and bash scripts/update-production.sh as the existing PM2 user. No automatic commit.
+
 ## Date Time — 2026-09-10 12:03:14 AM
 ### Task
 Responsive Project Card Collection
