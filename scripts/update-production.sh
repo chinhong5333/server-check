@@ -4,8 +4,8 @@ set -Eeuo pipefail
 
 # Parse the whole workflow before git pull can replace this file on disk.
 main() {
-if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "--yes" ) ]]; then
-  echo "Usage: bash scripts/update-production.sh [--yes]" >&2
+if [[ $# -ne 0 ]]; then
+  echo "Usage: bash scripts/update-production.sh" >&2
   exit 2
 fi
 
@@ -43,11 +43,6 @@ flock -n 9 || { echo "Another update is already running." >&2; exit 1; }
 git rev-parse --abbrev-ref '@{upstream}' >/dev/null
 
 echo "This update briefly stops Server Check, installs/builds dependencies, and applies pending database migrations."
-echo "Back up the database and review pending migrations before continuing. No automatic rollback is attempted."
-if [[ "${1:-}" != "--yes" ]]; then
-  read -r -p "Backup prepared and ready to update? Type yes: " confirmation
-  [[ "$confirmation" == "yes" ]] || { echo "Update cancelled."; exit 1; }
-fi
 
 phase="pull"
 trap 'echo "Update failed during $phase. Do not restart against a partially migrated schema; inspect the error and repair before rerunning. The app may remain stopped." >&2' ERR

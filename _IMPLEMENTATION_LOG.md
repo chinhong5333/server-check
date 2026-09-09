@@ -1,5 +1,13 @@
 # Implementation Log
 
+## Date Time — 2026-09-10 12:31:00 AM
+### Task
+Remove Unrequested Backup Confirmation
+### Description
+Removed the backup instruction, interactive read/confirmation block, and now-unnecessary --yes flag from the production updater at the user's request. Updated README and regression assertions for direct execution without prompting. Retained clean-worktree, locking, fail-fast, migration, and readiness behavior. Bash syntax and all three focused deployment tests passed. No live deployment, commit, or push performed.
+### Next Steps
+Commit and push only with explicit authorization.
+
 ## Date Time — 2026-09-10 12:22:00 AM
 ### Task
 Automatically Select Node 24 In Updater

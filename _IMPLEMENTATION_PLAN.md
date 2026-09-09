@@ -48,6 +48,8 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- Removed the unrequested production-updater backup confirmation and --yes option. The update now proceeds directly with no interactive prompt; existing failure/locking safeguards remain. Bash syntax and three focused tests passed.
+
 - Production updater now loads nvm from its configured/standard location and selects Node 24 before checking deployment commands. Missing nvm/Node 24 fails before pull or service stop. Bash syntax and three focused deployment configuration tests passed.
 
 - Added PM2 ecosystem configuration and a guarded Linux production updater combining fast-forward pull, app stop, locked dependency installation/build, pending migrations, PM2 restart, readiness verification, and PM2 persistence. Supports a Git-ignored local ecosystem copy. Shell syntax and two focused configuration tests passed; a real deployment/PM2/MySQL acceptance run remains site-specific and was not executed against user data.

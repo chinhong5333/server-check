@@ -15,7 +15,7 @@ describe("production deployment configuration", () => {
     expect(ecosystem.apps[0].interpreter).toBe(process.execPath);
   });
 
-  it("orders the update safely and requires an explicit unattended acknowledgement", () => {
+  it("orders the update safely without an interactive confirmation", () => {
     const commands = ['git pull --ff-only', 'pm2 stop "$app_name"', 'npm ci --include=dev --ignore-scripts=false',
       'npm run migrate', 'pm2 startOrRestart', 'phase="readiness verification"', 'pm2 save'];
     const positions = commands.map(command => script.indexOf(command));
@@ -23,7 +23,9 @@ describe("production deployment configuration", () => {
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     expect(script).toContain('flock -n 9');
     expect(script).toContain('git status --porcelain');
-    expect(script).toContain('"${1:-}" != "--yes"');
+    expect(script).not.toContain('read -r -p');
+    expect(script).not.toContain('--yes');
+    expect(script).not.toMatch(/backup/i);
     expect(script).toContain('ecosystem.local.config.cjs');
     expect(script).not.toContain('git reset');
     expect(script).not.toContain('pm2 stop all');
