@@ -5,6 +5,8 @@ import { agentHealthSnapshotSchema } from "../../shared/contracts.js";
 import { readAgentChecks } from "../services/check-configuration.js";
 import type {
   AgentIncidentLog,
+  AgentLatestResources,
+  CapacitySnapshot,
   AgentSummary,
   TelegramDeliverySummary
 } from "../../shared/contracts.js";
@@ -38,6 +40,11 @@ interface AgentRow extends RowDataPacket {
   agent_version: string | null;
   heartbeat_interval_seconds: number;
   latest_load_5: string | null;
+  latest_ram_total_bytes: string | null;
+  latest_ram_available_bytes: string | null;
+  latest_storage_total_bytes: string | null;
+  latest_storage_available_bytes: string | null;
+  latest_storage_mount_point: string | null;
 }
 
 interface MetricBucketRow extends RowDataPacket {
@@ -83,6 +90,16 @@ interface TelegramDeliveryRow extends RowDataPacket {
 
 const emptyQuerySchema = z.object({}).strict();
 
+/** Converts a matching latest-report total/available pair to capacity without fabricating missing values. */
+function capacity(total: string | null | undefined, available: string | null | undefined): CapacitySnapshot | null {
+  if (total == null || available == null) return null;
+  const totalBytes = Number(total);
+  const availableBytes = Number(available);
+  if (!Number.isSafeInteger(totalBytes) || !Number.isSafeInteger(availableBytes) || totalBytes <= 0 || availableBytes < 0 || availableBytes > totalBytes) return null;
+  const usedBytes = totalBytes - availableBytes;
+  return { used_bytes: usedBytes, total_bytes: totalBytes, utilization_percent: usedBytes * 100 / totalBytes };
+}
+
 function parseIncidentDetails(value: unknown): unknown {
   if (typeof value !== "string") return value;
   try {
@@ -102,6 +119,9 @@ export function createAgentsRouter(config: AppConfig): Router {
    * History points include raw load_5 bucket averages; latest_load_5 is the raw five-minute
    * load from the current heartbeat, independent of the history range, or null when unavailable.
    * The existing load_5_per_core field retains its normalized meaning.
+   * latest_resources contains nullable RAM/storage used_bytes, total_bytes, and utilization_percent
+   * from the latest heartbeat, independent of the chart range. Storage includes mount_point for
+   * the filesystem with highest utilization in that report; used is total minus available.
    * @param {object} request.body No request body is accepted by this read-only endpoint.
    * @param {Request<{agent_id: string}, {}, {}, {from: string, to: string, bucket_seconds: string}>} request Authenticated history request.
    * @param {string} request.params.agent_id Public identifier of the active agent.
@@ -127,17 +147,33 @@ export function createAgentsRouter(config: AppConfig): Router {
                 a.last_service_checks_json, a.status, a.probable_cause,
                 a.last_heartbeat_at, a.last_metrics_at, a.agent_version,
                 a.heartbeat_interval_seconds, p.public_id AS project_public_id,
-                (SELECT m.load_5 FROM metric_samples m
-                 WHERE m.agent_id = a.id AND m.received_at = a.last_heartbeat_at AND m.is_delete = 0
-                 ORDER BY m.id DESC LIMIT 1) AS latest_load_5
+                latest.load_5 AS latest_load_5,
+                latest.memory_total_bytes AS latest_ram_total_bytes,
+                latest.memory_available_bytes AS latest_ram_available_bytes,
+                fs.total_bytes AS latest_storage_total_bytes,
+                fs.available_bytes AS latest_storage_available_bytes,
+                fs.mount_point AS latest_storage_mount_point
          FROM agents a
          INNER JOIN projects p ON p.id = a.project_id
+         LEFT JOIN metric_samples latest ON latest.id = (
+           SELECT m.id FROM metric_samples m
+           WHERE m.agent_id = a.id AND m.received_at = a.last_heartbeat_at AND m.is_delete = 0
+           ORDER BY m.id DESC LIMIT 1)
+         LEFT JOIN filesystem_samples fs ON fs.id = (
+           SELECT f.id FROM filesystem_samples f WHERE f.metric_sample_id = latest.id AND f.is_delete = 0
+             AND f.total_bytes > 0 AND f.available_bytes <= f.total_bytes
+           ORDER BY f.available_bytes / f.total_bytes ASC, f.id ASC LIMIT 1)
          WHERE a.public_id = ? AND a.is_delete = 0 AND p.is_delete = 0
          LIMIT 1`,
         [request.params.agent_id]
       );
       const agent = agentRows[0];
       if (!agent) throw new AppError(404, "agent_not_found", "The selected agent does not exist.");
+      const storage = capacity(agent.latest_storage_total_bytes, agent.latest_storage_available_bytes);
+      const latestResources: AgentLatestResources = {
+        ram: capacity(agent.latest_ram_total_bytes, agent.latest_ram_available_bytes),
+        storage: storage && agent.latest_storage_mount_point != null ? { ...storage, mount_point: agent.latest_storage_mount_point } : null
+      };
 
       const bucketMilliseconds = query.bucket_seconds * 1000;
       const [metricRows] = await getPool(config).execute<MetricBucketRow[]>(
@@ -191,6 +227,7 @@ export function createAgentsRouter(config: AppConfig): Router {
         to: query.to,
         bucket_seconds: query.bucket_seconds,
         latest_load_5: agent.latest_load_5 == null ? null : Number(agent.latest_load_5),
+        latest_resources: latestResources,
         points: metricRows.map((row) => ({
           at: Number(row.bucket_at),
           ram_available_percent:

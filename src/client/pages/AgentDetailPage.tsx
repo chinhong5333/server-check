@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleHelp, Link2, X } from "lucide-react";
+import { ArrowLeft, CircleHelp, ExternalLink, Link2, X } from "lucide-react";
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 import {
   CartesianGrid,
@@ -12,6 +12,10 @@ import {
 import { Link, useParams } from "react-router-dom";
 import { DEFAULT_AGENT_CHECKS, type AgentChecks, type AgentHealthSnapshot, type AgentIncidentLog, type TelegramDeliverySummary } from "../../shared/contracts";
 import { AgentHealthChecks } from "../components/AgentHealthChecks";
+import { CopyButton } from "../components/CopyButton";
+import { ManageAgentButton } from "../components/ManageAgentButton";
+import { RotateAgentSecretButton } from "../components/RotateAgentSecretButton";
+import type { AgentLatestResources, CapacitySnapshot } from "../../shared/contracts";
 import { apiFetch } from "../api";
 import { useAuth } from "../auth/AuthProvider";
 import { AgentIncidentHistory } from "../components/AgentIncidentHistory";
@@ -24,6 +28,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { FAST_REFRESH_INTERVAL_MS, useApiResource } from "../hooks/useApiResource";
 import {
   formatDateTime,
+  formatCapacityPair,
   formatLatency,
   formatPercent,
   formatLoadAverage,
@@ -61,6 +66,7 @@ interface HistoryResponse {
   bucket_seconds: number;
   points: HistoryPoint[];
   latest_load_5: number | null;
+  latest_resources: AgentLatestResources;
 }
 
 const tickFormatter = (value: number) =>
@@ -76,7 +82,7 @@ const serverStateDefinitions = [
   },
   {
     status: "healthy",
-    description: "The latest valid report passed all configured checks and the next heartbeat is not yet due. This reflects the last report, not continuous polling."
+    description: "The latest valid report passed all configured checks and the missing-heartbeat timeout has not elapsed. This reflects the last report, not continuous polling."
   },
   {
     status: "warning",
@@ -108,7 +114,8 @@ function MetricChart({
   data,
   dataKey,
   formatter,
-  latestReading
+  latestReading,
+  capacity
 }: {
   title: string;
   description: string;
@@ -116,6 +123,7 @@ function MetricChart({
   dataKey: keyof HistoryPoint;
   formatter: (value: number | null | undefined) => string;
   latestReading?: number | null;
+  capacity?: CapacitySnapshot | null;
 }) {
   const latestValue = latestReading === undefined ? latestMetricValue(data, dataKey) : latestReading;
   return (
@@ -126,6 +134,7 @@ function MetricChart({
           <span>Latest Value</span>
           <MetricValue value={latestValue} format={formatter} className="chart-latest__value" />
         </div>
+        {capacity && <div className="chart-capacity"><span>Used / Total</span><span className="numeric">{formatCapacityPair(capacity.used_bytes, capacity.total_bytes)}</span></div>}
       </div>
       <div className="chart" role="img" aria-label={`${title}. ${description}`}>
         <ResponsiveContainer width="100%" height="100%">
@@ -249,6 +258,11 @@ export function AgentDetailPage() {
           <h1>{agent.server_name}</h1>
           <p>Current status, seven-day metric trends, and historical records for this monitored server.</p>
         </div>
+        {user?.role === "admin" && <div className="agent-detail-actions">
+          <ManageAgentButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name} onSaved={resource.reload} />
+          <RotateAgentSecretButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name}
+            checks={agent.checks} healthApiUrl={agent.health_api_url} onFinished={resource.reload} />
+        </div>}
       </header>
       </div>
 
@@ -312,7 +326,14 @@ export function AgentDetailPage() {
         <dl>
           <div>
             <dt><Link2 aria-hidden="true" /> Middleware API URL</dt>
-            <dd>{agent.health_api_url ? <code>{agent.health_api_url}</code> : "Not Monitored"}</dd>
+            <dd className="script-url-row">{agent.health_api_url ? <>
+              <code>{agent.health_api_url}</code>
+              <span className="script-url-actions">
+                <CopyButton value={agent.health_api_url} label="Copy" />
+                <a className="button button--secondary" href={agent.health_api_url} target="_blank" rel="noopener noreferrer"
+                  aria-label="Test Middleware API URL In A New Tab" title="Open In A New Tab"><ExternalLink aria-hidden="true" />Test</a>
+              </span>
+            </> : "Not Monitored"}</dd>
           </div>
         </dl>
       </section>
@@ -324,8 +345,10 @@ export function AgentDetailPage() {
         />
       ) : (
         <div className="chart-grid">
-          <MetricChart title="RAM Utilization" description="Used memory reported by the operating system." data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent} />
-          <MetricChart title="Storage Utilization" description="Highest used percentage across monitored filesystems." data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent} />
+          <MetricChart title="RAM Utilization" description="Used memory reported by the operating system." data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
+            latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} capacity={resource.data.latest_resources?.ram} />
+          <MetricChart title="Storage Utilization" description={`Highest used percentage across monitored filesystems.${resource.data.latest_resources?.storage ? ` Filesystem: ${resource.data.latest_resources.storage.mount_point}.` : ""}`} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
+            latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} capacity={resource.data.latest_resources?.storage} />
           <MetricChart title="Load Average (5 Min)" description="Raw five-minute load. Latest value is from the latest heartbeat; chart shows 30-minute averages." data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
           <MetricChart title="Health Latency" description="Response time from the server-local health probe." data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
         </div>

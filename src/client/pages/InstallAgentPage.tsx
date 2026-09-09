@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight, Download, KeyRound, Pencil, Plus, ShieldAlert, TerminalSquare, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 import {
   generateAgentScriptBodySchema,
   DEFAULT_AGENT_CHECKS,
@@ -47,6 +48,9 @@ function AgentHeartbeatStatus({ agent }: { agent: AgentSummary }) {
 }
 
 export function InstallAgentPage() {
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rotationTarget = searchParams.get("rotate_agent");
   const { showToast } = useToast();
   const {
     selectedProject,
@@ -115,6 +119,33 @@ export function InstallAgentPage() {
     setError(null);
     setDeleteError(null);
   }, [projectId]);
+
+  useEffect(() => {
+    if (!rotationTarget || projectStatus !== "success" || projectId === "none") return;
+    const consumeRequest = () => setSearchParams((current) => {
+      const next = new URLSearchParams(current); next.delete("rotate_agent"); return next;
+    }, { replace: true });
+    if (user?.role !== "admin") { consumeRequest(); return; }
+    const controller = new AbortController();
+    // Fetch this project's current settings rather than using a previous route's cached roster.
+    void apiFetch<AgentSummary[]>(`/api/v1/projects/${encodeURIComponent(projectId)}/agents`, { signal: controller.signal })
+      .then((rows) => {
+        if (controller.signal.aborted) return;
+        const target = rows.find((agent) => agent.id === rotationTarget);
+        if (!target) throw new Error("The selected agent is no longer available in this project.");
+        setRegistrationOpen(false); setEditingAgent(null); setAgentPendingDelete(null); setError(null);
+        setAgentPendingRotation(target);
+        setRotationHealthUrl(target.health_api_url ?? "");
+        setRotationChecks(target.checks ?? { ...DEFAULT_AGENT_CHECKS });
+        consumeRequest();
+      }).catch((cause) => {
+        if (!controller.signal.aborted) {
+          showToast({ tone: "error", message: cause instanceof Error ? cause.message : "Could not open access secret rotation." });
+          consumeRequest();
+        }
+      });
+    return () => controller.abort();
+  }, [rotationTarget, projectId, projectStatus, user?.role, setSearchParams, showToast]);
 
   if (projectStatus === "loading") return <PageSkeleton rows={5} />;
   if (projectStatus === "error") {
@@ -576,7 +607,7 @@ export function InstallAgentPage() {
         labelledBy="rotate-agent-credential-title"
         describedBy="rotate-agent-credential-description"
         surfaceClassName="agent-dialog__surface agent-rotation-confirmation"
-        restoreFocusTo={rotateTriggerRef.current}
+        restoreFocusTo={rotateTriggerRef.current ?? registrationButtonRef.current}
       >
         {agentPendingRotation ? (
           <>

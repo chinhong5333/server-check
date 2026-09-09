@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+export interface CapacitySnapshot {
+  used_bytes: number;
+  total_bytes: number;
+  utilization_percent: number;
+}
+
+export interface AgentLatestResources {
+  ram: CapacitySnapshot | null;
+  storage: (CapacitySnapshot & { mount_point: string }) | null;
+}
+
 export const createAdminBodySchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
   password: z.string().min(15).max(128),
