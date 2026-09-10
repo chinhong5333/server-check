@@ -1,11 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chatsFromUpdates, discoverTelegramChats } from "../../src/server/services/telegram-chat-discovery";
+import { chatsFromUpdates, discoverTelegramChats, getTelegramBotLink } from "../../src/server/services/telegram-chat-discovery";
 const token = "123456789:synthetic-token-for-test-only";
 const fetchMock = vi.fn();
 const result = (value: unknown) => new Response(JSON.stringify({ ok: true, result: value }), { status: 200 });
 describe("Telegram chat discovery", () => {
   beforeEach(() => { vi.stubGlobal("fetch", fetchMock); fetchMock.mockReset(); });
   afterEach(() => vi.unstubAllGlobals());
+  it("generates a public bot link using only getMe", async () => {
+    fetchMock.mockResolvedValue(result({ is_bot: true, username: "MonitorTestBot" }));
+    expect(await getTelegramBotLink(token)).toEqual({ username: "MonitorTestBot", url: "https://t.me/MonitorTestBot" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(`https://api.telegram.org/bot${token}/getMe`);
+  });
+  it("never propagates credential-bearing upstream errors or invalid usernames", async () => {
+    fetchMock.mockRejectedValue(new Error(`https://api.telegram.org/bot${token}/getMe`));
+    await expect(getTelegramBotLink(token)).rejects.toThrow("Unable to load the Telegram bot link");
+    fetchMock.mockResolvedValue(result({ is_bot: true, username: "bad/../../evil" }));
+    await expect(getTelegramBotLink(token)).rejects.toMatchObject({ code: "telegram_bot_link_unavailable" });
+  });
   it("deduplicates chat identities and excludes private chats and message contents", () => {
     const chats = chatsFromUpdates([
       { message: { chat: { id: -10, title: "Old Name", type: "group" }, text: "private message content" } },

@@ -16,7 +16,7 @@ import {
   encryptPlatformTelegramBotToken
 } from "../security/telegram-secrets.js";
 import { sendTelegramMessage } from "../services/telegram.js";
-import { discoverTelegramChats } from "../services/telegram-chat-discovery.js";
+import { discoverTelegramChats, getTelegramBotLink } from "../services/telegram-chat-discovery.js";
 
 const PLATFORM_SCOPE_KEY = "platform";
 const emptyObjectSchema = z.object({}).strict();
@@ -210,6 +210,33 @@ export function createSettingsRouter(config: AppConfig): Router {
       }
       const botToken = decryptPlatformTelegramBotToken(config.jwt.secret, rows[0].telegram_bot_token_encrypted);
       response.status(200).json(await discoverTelegramChats(botToken));
+    })
+  );
+
+  /**
+   * GET /api/v1/settings/telegram/bot-link
+   * Resolves the saved platform bot's public chat link using Telegram getMe.
+   * @param {import("express").Request<{}, {}, Record<string, never>, Record<string, never>>} request Authenticated admin request; body and query must be empty. No token input is accepted.
+   * @param {import("express").Response<{username: string, url: string}>} response Public bot username and HTTPS link only, with Cache-Control: no-store.
+   * @returns {Promise<void>} Returns 200 on success, 409 for missing/rejected credentials, 429 for local request limits, or 502 for upstream failure. Does not send messages or modify settings.
+   */
+  router.get("/telegram/bot-link",
+    rateLimit({ windowMs: 60000, limit: 6, keyGenerator: (request) => request.auth!.userInternalId,
+      standardHeaders: "draft-8", legacyHeaders: false,
+      message: { error: { code: "telegram_bot_link_rate_limited", message: "Please wait a minute before retrying the bot link." } } }),
+    asyncHandler(async (request, response) => {
+      response.setHeader("Cache-Control", "no-store");
+      emptyObjectSchema.parse(request.body ?? {});
+      emptyObjectSchema.parse(request.query);
+      const [rows] = await getPool(config).execute<PlatformTelegramRow[]>(
+        `SELECT id, telegram_bot_token_encrypted, telegram_chat_id, is_delete
+         FROM platform_telegram_settings WHERE scope_key = ? AND is_delete = 0 LIMIT 1`, [PLATFORM_SCOPE_KEY]
+      );
+      if (!rows[0]?.telegram_bot_token_encrypted) {
+        throw new AppError(409, "telegram_bot_not_configured", "Save the Platform Sender Bot Token to display its Telegram link.");
+      }
+      const token = decryptPlatformTelegramBotToken(config.jwt.secret, rows[0].telegram_bot_token_encrypted);
+      response.status(200).json(await getTelegramBotLink(token));
     })
   );
 

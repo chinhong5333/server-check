@@ -58,6 +58,23 @@ async function telegramResult(botToken: string, method: "getMe" | "getWebhookInf
 }
 
 /**
+ * Looks up the saved bot's public identity without reading chats or sending messages.
+ * @param {string} botToken Decrypted server-only BotFather credential.
+ * @returns {Promise<{username: string, url: string}>} Validated public username and HTTPS bot-chat link.
+ */
+export async function getTelegramBotLink(botToken: string): Promise<{ username: string; url: string }> {
+  try {
+    const bot = z.object({ is_bot: z.literal(true), username: z.string().regex(/^[A-Za-z0-9_]{5,32}$/) })
+      .parse(await telegramResult(botToken, "getMe"));
+    return { username: bot.username, url: `https://t.me/${bot.username}` };
+  } catch (error) {
+    if (error instanceof AppError && error.code === "telegram_bot_rejected") throw error;
+    // Neither raw fetch errors nor Telegram responses may expose credential-bearing URLs.
+    throw new AppError(502, "telegram_bot_link_unavailable", "Unable to load the Telegram bot link. Check the saved token and try again.");
+  }
+}
+
+/**
  * Discovers chats from at most 100 available updates using the saved platform bot.
  * @param {string} botToken Decrypted server-only BotFather credential.
  * @returns {Promise<TelegramChatDiscovery>} Bot username and deduplicated group/channel names and IDs.

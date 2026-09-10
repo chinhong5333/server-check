@@ -32,6 +32,21 @@ describe("platform Setting page", () => {
 
   afterEach(cleanup);
 
+  it("displays the saved bot link and refreshes it after saving a replacement token", async () => {
+    let username = "OriginalMonitorBot";
+    apiFetchMock.mockImplementation(async (path, init) => {
+      if (init?.method === "PATCH") { username = "ReplacementMonitorBot"; return; }
+      if (path === "/api/v1/settings/telegram/bot-link") return { username, url: `https://t.me/${username}` };
+      return { telegram_bot_configured: true, telegram_chat_id: null };
+    });
+    render(<ToastProvider><MemoryRouter><PlatformSettingsPage /></MemoryRouter></ToastProvider>);
+    expect(await screen.findByRole("link", { name: "Open Telegram Bot @OriginalMonitorBot In A New Tab" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Telegram Bot Token"), { target: { value: `123456789:${"a".repeat(35)}` } });
+    expect(screen.queryByRole("link", { name: /Open Telegram Bot/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save Platform Sender" }));
+    expect(await screen.findByRole("link", { name: "Open Telegram Bot @ReplacementMonitorBot In A New Tab" })).toHaveAttribute("href", "https://t.me/ReplacementMonitorBot");
+  });
+
   it("saves one platform Telegram destination for all incidents", async () => {
     render(
       <ToastProvider>

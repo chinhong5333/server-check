@@ -1,5 +1,15 @@
 # Implementation Log
 
+## Date Time — 2026-09-10 11:58:00 AM
+### Task
+Display Telegram Bot Link From Saved Sender Token
+### Description
+Added getTelegramBotLink service using only getMe, validating is_bot and username before constructing the public t.me URL. Added documented admin-only GET /api/v1/settings/telegram/bot-link with strict empty inputs, saved encrypted-token lookup, no-store, six-per-minute per-user limit, and safe missing/rejected/upstream errors. No schema changes, update polling, message sending, or token disclosure. TelegramSettingsForm now mounts a compact TelegramBotLink component for a configured sender, hides it during unsaved token edits, and refreshes it after successful token replacement/settings changes. Component supports loading, abort on unmount, safe URL verification, new-tab link with noreferrer/noopener and accessible name, and inline retry. Existing settings layout and Cobalt tokens were preserved.
+
+Ran explicit telegram-chat-route, telegram-chat-discovery, telegram-bot-link, and platform-settings-page unit tests: 19 passed. TypeScript checks passed. Fixed an initial test-only beforeEach returning a mock function (treated as cleanup) by using a void block. Browser success display verified with synthetic data at 375px and 1440px; error/retry display verified at 320px. Built-in browser runtime is available again. Temporary viewport was reset. No real token changes, live getMe calls, test messages, or database writes/tests were performed. Synthetic preview is ignored under output/telegram-bot-link-preview.html. UI skills kept the change compact and within the existing Platform Sender section; database search for external-link UX returned no applicable match, so standard accessible link conventions were used. Changes remain uncommitted.
+### Next Steps
+Rebuild/restart the deployed backend and frontend after approved commit/push. Validate the actual configured bot lookup in its deployment environment; no additional manual username setting is needed.
+
 ## Date Time — 2026-09-10 12:31:00 AM
 ### Task
 Remove Unrequested Backup Confirmation

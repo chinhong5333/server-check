@@ -48,6 +48,8 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- Added automatic Telegram Bot Link display beneath Platform Sender, resolved through admin-only saved-token getMe lookup. Included abort/retry/refresh behavior, validated public URLs, rate limiting, safe errors, and no-store responses. Nineteen focused tests and TypeScript checks passed; synthetic desktop/mobile success/error displays verified. No live Telegram calls or database tests were performed.
+
 - Removed the unrequested production-updater backup confirmation and --yes option. The update now proceeds directly with no interactive prompt; existing failure/locking safeguards remain. Bash syntax and three focused tests passed.
 
 - Production updater now loads nvm from its configured/standard location and selects Node 24 before checking deployment commands. Missing nvm/Node 24 fails before pull or service stop. Bash syntax and three focused deployment configuration tests passed.

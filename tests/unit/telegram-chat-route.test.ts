@@ -3,9 +3,9 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { encryptPlatformTelegramBotToken } from "../../src/server/security/telegram-secrets";
 import type { AppConfig } from "../../src/server/config";
-const { execute, discover, transaction } = vi.hoisted(() => ({ execute: vi.fn(), discover: vi.fn(), transaction: vi.fn() }));
+const { execute, discover, transaction, botLink } = vi.hoisted(() => ({ execute: vi.fn(), discover: vi.fn(), transaction: vi.fn(), botLink: vi.fn() }));
 vi.mock("../../src/server/db", () => ({ getPool: () => ({ execute }), withTransaction: transaction }));
-vi.mock("../../src/server/services/telegram-chat-discovery", () => ({ discoverTelegramChats: discover }));
+vi.mock("../../src/server/services/telegram-chat-discovery", () => ({ discoverTelegramChats: discover, getTelegramBotLink: botLink }));
 vi.mock("../../src/server/middleware/auth", async original => ({
   ...await original<typeof import("../../src/server/middleware/auth")>(),
   authenticate: () => (req: Request, res: Response, next: NextFunction) => {
@@ -20,7 +20,28 @@ import { errorHandler } from "../../src/server/errors";
 const config = { jwt: { secret: "a".repeat(48) } } as AppConfig;
 function app() { const app = express(); app.use(express.json(), createSettingsRouter(config), errorHandler); return app; }
 describe("Telegram chat discovery route", () => {
-  beforeEach(() => { execute.mockReset(); discover.mockReset(); transaction.mockReset(); });
+  beforeEach(() => { execute.mockReset(); discover.mockReset(); transaction.mockReset(); botLink.mockReset(); });
+  it("protects bot links and uses only the saved credential without exposing it", async () => {
+    expect((await request(app()).get("/telegram/bot-link")).status).toBe(401);
+    expect((await request(app()).get("/telegram/bot-link").set("x-test-role", "operator")).status).toBe(403);
+    expect(execute).not.toHaveBeenCalled();
+    const token = "123456789:synthetic-token-for-testing";
+    execute.mockResolvedValue([[{ telegram_bot_token_encrypted: encryptPlatformTelegramBotToken(config.jwt.secret, token) }]]);
+    botLink.mockResolvedValue({ username: "MonitorTestBot", url: "https://t.me/MonitorTestBot" });
+    const response = await request(app()).get("/telegram/bot-link").set("x-test-role", "admin");
+    expect(response.status).toBe(200);
+    expect(response.body.url).toBe("https://t.me/MonitorTestBot");
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.text).not.toContain(token);
+    expect(botLink).toHaveBeenCalledWith(token);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+  it("rejects missing bot tokens and query inputs for bot links", async () => {
+    execute.mockResolvedValue([[]]);
+    expect((await request(app()).get("/telegram/bot-link").set("x-test-role", "admin")).status).toBe(409);
+    expect((await request(app()).get("/telegram/bot-link?token=bad").set("x-test-role", "admin")).status).toBe(422);
+    expect(botLink).not.toHaveBeenCalled();
+  });
   it("requires an authenticated admin before database access or Telegram calls", async () => {
     expect((await request(app()).get("/telegram/chats")).status).toBe(401);
     expect((await request(app()).get("/telegram/chats").set("x-test-role", "operator")).status).toBe(403);

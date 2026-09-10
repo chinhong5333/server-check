@@ -10,6 +10,7 @@ import { ApiError, apiFetch } from "../api";
 import { InlineLoader } from "./Feedback";
 import { useToast } from "./ToastProvider";
 import { TelegramChatPicker } from "./TelegramChatPicker";
+import { TelegramBotLink } from "./TelegramBotLink";
 
 export function TelegramSettingsForm({
   settings
@@ -21,6 +22,7 @@ export function TelegramSettingsForm({
   const [telegramChatId, setTelegramChatId] = useState(settings.telegram_chat_id ?? "");
   const [savedChatId, setSavedChatId] = useState(settings.telegram_chat_id);
   const [botConfigured, setBotConfigured] = useState(settings.telegram_bot_configured);
+  const [senderRevision, setSenderRevision] = useState(0);
   const [savingSection, setSavingSection] = useState<"sender" | "destination" | null>(null);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export function TelegramSettingsForm({
     setTelegramChatId(settings.telegram_chat_id ?? "");
     setSavedChatId(settings.telegram_chat_id);
     setBotConfigured(settings.telegram_bot_configured);
+    setSenderRevision(value => value + 1);
     setTokenTouched(false);
     setChatTouched(false);
   }, [settings]);
@@ -80,6 +83,7 @@ export function TelegramSettingsForm({
         body: JSON.stringify(validation.data)
       });
       setBotConfigured(true);
+      setSenderRevision(value => value + 1);
       setTelegramBotToken("");
       setMessage(null);
       showToast({ tone: "success", message: "Platform sender saved." });
@@ -206,6 +210,7 @@ export function TelegramSettingsForm({
               </button>
             </div>
           </div>
+          {botConfigured && !hasUnsavedSender ? <TelegramBotLink key={senderRevision} /> : null}
           </fieldset>
         </form>
 
