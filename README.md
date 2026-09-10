@@ -84,6 +84,10 @@ MariaDB is not used as a test substitute for MySQL. The XAMPP installation visib
 
 ## Central installation
 
+### Monitoring Charts
+
+All four agent-detail graphs use TradingView Lightweight Charts (self-hosted npm package) with our existing authenticated history API. They retain independent 1m/5m/30m/1h controls and latest readings. Native mouse/horizontal-touch dragging is enabled; wheel, pinch, and axis zoom are disabled. Each chart initially displays about 60 samples and pans through its loaded seven-day history without fetching on pointer release. Non-default intervals refresh once per minute; the default 30m series reuses the page history. Historical viewing position is preserved during updates, and updates arriving during a pointer drag are deferred until release. Hover details appear in a bounded floating tooltip; the bottom caption shows only the visible date range. The TradingView attribution remains visible; see THIRD_PARTY_NOTICES.md. No agent-script or database migration is required.
+
 ### Telegram Bot Link
 
 The Telegram page displays **Telegram Bot Link** under **Platform Sender** when a bot token has been saved. The admin-only `GET /api/v1/settings/telegram/bot-link` endpoint accepts no body or query fields, resolves the saved credential through Telegram `getMe`, and returns only `{ username, url }`. The link opens the bot's chat, not the alert group. Saving a replacement token refreshes it; unsaved token edits hide the old link. Lookup failures offer an inline retry without blocking settings. Requests are limited to six per minute per admin, responses are not cached, and raw upstream errors/tokens are never returned. No chat updates are read, messages sent, or database migrations required.

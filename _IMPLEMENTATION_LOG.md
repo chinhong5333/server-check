@@ -1,5 +1,41 @@
 # Implementation Log
 
+## Date Time — 2026-09-10 04:39:30 PM
+### Task
+Native TradingView Latest-Point Pulse
+### Description
+Confirmed the installed Lightweight Charts typings support Disabled, Continuous, and OnDataUpdate last-price animation modes. Enabled native Continuous animation on each shared area series. Added a live prefers-reduced-motion media listener to disable animation when requested and remove the listener on cleanup. No custom animation loop or health/timing logic added. Added reduced-motion toggle/cleanup regression; all four focused TradingView component tests and TypeScript passed. No commit or push.
+### Next Steps
+User review of native latest-value marker; commit only when requested.
+
+## Date Time — 2026-09-10 04:35:00 PM
+### Task
+TradingView Integration And Floating Hover Tooltips
+### Description
+Installed official lightweight-charts 5.2.1 and removed the unused Recharts dependency. Replaced SVG charts and uncommitted custom ChartPanWindow implementation/tests with TradingViewMetricChart. Native Canvas mouse/touch horizontal panning owns interaction; handleScale false disables zoom and vertical page scrolling remains available. Loaded seven-day series enable local panning without pointer-release network requests. Default 30m data reuses the page query; other intervals load independently and refresh once per minute without overlap, preserving viewed timestamps on setData and deferring updates during pointer drag. Data adapter converts milliseconds to sorted unique UTC seconds and preserves missing values as whitespace. Initial view is approximately sixty samples. Added OKLCH-to-sRGB theme conversion, auto-resize, short local axis labels, local timestamp formatting, keyboard pan, observer/listener/chart cleanup, retained attribution, and THIRD_PARTY_NOTICES.md.
+
+User follow-up requested floating hover details. Crosshair events now update a pointer-transparent, chart-bounded tooltip showing date/time and metric value; pointer exit hides it. The bottom caption displays only the visible time range. Added test verifying floating details and exit hiding. Thirteen focused integration/data/hook/page tests initially passed; the expanded TradingView component suite subsequently passed all three tests (fourteen focused cases total). TypeScript and client build passed; existing main-bundle warning remains. Agent-detail bundle is approximately 80KB gzip versus approximately 121KB with prior Recharts implementation. Synthetic 10,800-source-point preview with all four 1m charts rendered without console errors. Native plot drag changed RAM range directly; dark/light and mobile layout checked; floating tooltip visually confirmed. Temporary viewport reset. Backend readiness and frontend HTTP 200 verified and left running. No real DB mutation/test or production benchmark, migration, commit, or push.
+### Next Steps
+User verifies the TradingView interaction using the local preview and approves commit/push. Production rollout requires npm ci/build and restart, not schema changes.
+
+## Date Time — 2026-09-10 04:17:00 PM
+### Task
+Direct Graph Dragging Without Slider
+### Description
+Removed the unrequested slider and Earlier/Latest button strip. ChartPanWindow now exposes only the graph and compact time range. Pointer movement translates the rendered area without rerendering dense data on each move; pointer release commits the requested historical window, and pointer cancellation clears the translation. Existing primary-pointer, horizontal-direction, and retention-boundary guards remain. Arrow/Home/End keyboard shortcuts operate on the focusable graph for accessibility without visible navigation controls. Added direct pointer and keyboard regressions, including vertical drag rejection and absence of sliders/buttons. All thirteen targeted chart tests and TypeScript passed. Browser confirmed zero sliders and direct plot drag changed the RAM time range. Backend readiness and frontend HTTP 200 verified; left running. No database mutation, commit, or push.
+### Next Steps
+User tests direct graph dragging in the synthetic 10,800-point preview; commit only on request.
+
+## Date Time — 2026-09-10 03:56:00 PM
+### Task
+Draggable Fixed-Scale Chart History
+### Description
+Reworked useChartInterval to use 60-slot visible windows (1h at 1m, 5h at 5m, 30h at 30m, 60h at 1h), with per-chart offset clamped to the seven-day history range. Non-default interval requests now fetch only the visible period and debounce position changes by 150ms; old requests are aborted and stale responses ignored. Default 30m continues reusing the page's 336-bucket history but plots only its visible subset. Latest-follow updates the time anchor once per minute; browsing history holds it fixed until Latest is pressed. Changing interval resets to latest. ChartPanWindow adds primary-pointer horizontal drag committed on release, direction/threshold guards, pointer cancellation, a keyboard-accessible position slider, Earlier/Latest buttons, and precise range text. No zoom handlers or controls. Minute-resolved numeric time axes avoid ambiguous hour-only labels. Mobile vertical scrolling is preserved with touch-action pan-y.
+
+Twelve tests passed in chart-interval, chart-pan-window, and agent-detail-page files, covering bounds, window duration, independent grouping, older requests, cancellation/retry, navigation, and accessible controls. TypeScript and client build passed with existing bundle warning. Synthetic browser drag shifted RAM's one-hour window twenty minutes earlier without changing other charts; Latest returned to current time. Mobile 375px navigator and rendering verified; viewport reset. No production/database tests or actual data mutations; production response time not benchmarked. Backend/frontend checks performed and services left running. No commit/push.
+### Next Steps
+User verifies production responsiveness after approved deployment. No schema migration or agent-script changes are needed.
+
 ## Date Time — 2026-09-10 03:32:00 PM
 ### Task
 Apply Approved Compact Header To All Charts

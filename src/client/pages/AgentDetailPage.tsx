@@ -1,14 +1,5 @@
 import { ArrowLeft, CircleHelp, ExternalLink, Link2, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import {
-  CartesianGrid,
-  Area,
-  AreaChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
 import { Link, useParams } from "react-router-dom";
 import { DEFAULT_AGENT_CHECKS, type AgentChecks, type AgentHealthSnapshot, type AgentIncidentLog, type TelegramDeliverySummary } from "../../shared/contracts";
 import { AgentHealthChecks } from "../components/AgentHealthChecks";
@@ -21,6 +12,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { AgentIncidentHistory } from "../components/AgentIncidentHistory";
 import { AgentHeartbeatSummary } from "../components/AgentHeartbeatSummary";
 import { CHART_INTERVALS, useChartInterval } from "../hooks/useChartInterval";
+import { TradingViewMetricChart } from "../components/TradingViewMetricChart";
 import { AgentTelegramDeliveryLog } from "../components/AgentTelegramDeliveryLog";
 import { EmptyState, ErrorState, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
@@ -70,8 +62,6 @@ interface HistoryResponse {
   latest_resources: AgentLatestResources;
 }
 
-const tickFormatter = (value: number) =>
-  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric" }).format(value);
 
 const historyTabIds = ["incidents", "telegram"] as const;
 type HistoryTabId = typeof historyTabIds[number];
@@ -133,6 +123,7 @@ function MetricChart({
     ram_utilization_percent: utilizationFromAvailable(point.ram_available_percent),
     storage_utilization_percent: utilizationFromAvailable(point.disk_available_percent)
   })) ?? [], [chart.points]);
+  const tradingPoints = useMemo(() => chartData.map(point => ({ at: point.at, value: point[dataKey] })), [chartData, dataKey]);
   const latestValue = latestReading === undefined ? latestMetricValue(data, dataKey) : latestReading;
   return (
     <section className="chart-surface">
@@ -159,38 +150,10 @@ function MetricChart({
       </div>
       {chart.error ? <div className="chart-feedback" role="status"><p>{chart.error}</p><button className="button button--secondary" type="button" onClick={chart.retry}>Retry Chart</button></div> : null}
       {chart.points === null ? <div className="chart chart-feedback" role="status">{chart.error ? "Chart Unavailable" : "Loading Chart…"}</div>
-        : chartData.length === 0 ? <div className="chart chart-feedback" role="status">No Data For This Interval</div> : (
-      <div className="chart" role="img" aria-label={`${title}. ${description}`}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
-            <CartesianGrid stroke="var(--color-rule)" vertical={false} />
-            <XAxis dataKey="at" tickFormatter={tickFormatter} stroke="var(--color-muted)" minTickGap={40} />
-            <YAxis tickFormatter={(value) => formatter(Number(value))} stroke="var(--color-muted)" width={64} />
-            <Tooltip
-              labelFormatter={(value) => formatDateTime(Number(value))}
-              formatter={(value) => formatter(value == null ? null : Number(value))}
-              contentStyle={{
-                background: "var(--color-surface-raised)",
-                border: "var(--rule-thin) solid var(--color-rule)",
-                borderRadius: "var(--radius-md)",
-                color: "var(--color-ink)"
-              }}
-            />
-            <Area
-              type="monotone"
-              dataKey={dataKey}
-              stroke="var(--color-accent)"
-              fill="var(--color-accent)"
-              fillOpacity={0.16}
-              strokeWidth={2}
-              dot={false}
-              connectNulls={false}
-              isAnimationActive={false}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-      )}
+        : chartData.length === 0 ? <div className="chart chart-feedback" role="status">No Data For This Interval</div> :
+          <TradingViewMetricChart key={chart.interval} title={title}
+            points={tradingPoints} formatter={formatter} />}
+
     </section>
   );
 }

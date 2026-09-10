@@ -48,6 +48,14 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- Enabled native TradingView last-value pulse on all four area charts via LastPriceAnimationMode.Continuous, disabling it for reduced-motion users and cleaning up preference listeners. Four focused TradingView tests and TypeScript passed. Pulse indicates the latest plotted point, not a new heartbeat or health state.
+
+- Replaced Recharts/custom drag implementation with TradingView Lightweight Charts 5.2.1 Canvas area charts using application history data. Native horizontal dragging, no zoom/slider, independent intervals, preserved history position, theme adaptation, attribution, cleanup, and floating hover tooltips implemented. Focused tests, TypeScript, build, and synthetic native-drag/mobile/light-dark checks passed. Services remain running; production/network performance still requires deployment acceptance.
+
+- Corrected chart panning UI per user clarification: removed the slider, Earlier/Latest buttons, and extra instruction row. Direct horizontal plot drag now moves the plotted area visually and commits the bounded window on release. Keyboard navigation is available on the focusable plot without additional controls. Thirteen focused tests and TypeScript passed; browser direct drag verified; both services remain HTTP 200.
+
+- Added fixed-scale horizontal chart panning, a time slider, and Earlier/Latest navigation on all graphs. Each view spans 60 slots; non-default requests fetch only that window rather than seven days. Default 30m reuses and filters low-density page history. Added debounce/cancellation, bounded history, minute-resolved axis labels, and latest-follow mode. Twelve focused tests, TypeScript/build, desktop plot dragging, and mobile controls verified with synthetic data. Production latency remains site-specific.
+
 - Applied approved compact chart header to all four graphs: interval buttons beside titles, latest/capacity readings grouped at right, no separate full-width toolbar row. Card-width responsive rules keep mobile readings side by side. Nine focused tests passed; 1920px/375px rendered checks passed after correcting shared-style specificity. Backend and frontend verified HTTP 200 and left running.
 
 - Replaced chart interval dropdowns with compact 1m/5m/30m/1h button groups at user request, highlighting selection with aria-pressed. Preserved independent requests and 30m defaults. Nine focused tests passed; narrow-screen preview verified. Backend and frontend remained running (HTTP 200).

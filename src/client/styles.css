@@ -2733,6 +2733,11 @@ button.back-link {
 .chart-interval-control button:hover { border-color: var(--color-accent); }
 @media (pointer: coarse) { .chart-interval-control button { min-height: 44px; min-width: 44px; } }
 .chart-feedback { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-sm); padding: var(--space-md); color: var(--color-muted); }
+.tradingview-canvas { height: 240px; min-width: 0; cursor: grab; }
+.tradingview-canvas:active { cursor: grabbing; }
+.tradingview-caption { padding: var(--space-xs) var(--space-md); color: var(--color-muted); font-size: var(--text-xs); min-height: 2rem; }
+.tradingview-metric { position: relative; }
+.tradingview-tooltip { display: none; position: absolute; z-index: 2; pointer-events: none; max-width: calc(100% - 1rem); padding: var(--space-xs) var(--space-sm); border: var(--rule-thin) solid var(--color-rule-strong); border-radius: var(--radius-md); background: var(--color-surface-raised); color: var(--color-ink); font-size: var(--text-xs); line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; box-shadow: 0 2px 8px var(--color-overlay); }
 .chart-surface { container: metric-chart / inline-size; }
 .chart-surface > .section-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-sm); }
 .chart-surface > .section-heading > div:first-child { min-width: 0; overflow-wrap: anywhere; }
