@@ -1,5 +1,31 @@
 # Implementation Log
 
+## Date Time — 2026-09-10 03:32:00 PM
+### Task
+Apply Approved Compact Header To All Charts
+### Description
+Reorganized shared MetricChart header into a title/buttons/description block and a right-aligned latest-value/capacity block. Removed the standalone interval row and grouped Used / Total with its actual reading. Added per-card container rules for narrow cards to place readings in a compact horizontal row below the title block. Preserved four independent interval states, latest values, chart data, and graph height. All nine targeted chart-interval and agent-detail tests passed. Browser verified wide 1920px and mobile 375px synthetic previews. Mobile review caught the generic section-heading child display overriding the reading flex row; increased the scoped rule specificity and visually confirmed the fix. Backend readiness and frontend both returned HTTP 200 and remained running. No database changes or commits.
+### Next Steps
+User review and explicit commit authorization.
+
+## Date Time — 2026-09-10 03:26:00 PM
+### Task
+Compact Chart Interval Buttons
+### Description
+Replaced each chart's select and visible Interval label with four small bordered buttons labeled exactly 1m, 5m, 30m, 1h. Added semantic group labels, expanded accessible button names, aria-pressed selected state, token-based highlight and hover borders. Desktop buttons are compact; coarse-pointer devices retain 44px touch targets. Data loading and selection logic is unchanged. Updated page regressions: all nine focused chart/page tests passed. Synthetic browser checked selection and narrow-screen layout with no control overflow; temporary viewport reset. Verified backend readiness and frontend both return HTTP 200 and left services running. No database writes, commit, or push.
+### Next Steps
+Review the compact controls; commit only on request.
+
+## Date Time — 2026-09-10 03:12:00 PM
+### Task
+Independent Agent Chart Intervals
+### Description
+Added an accessible native Interval selector within each chart header, offering 1 Min, 5 Min, 30 Min, and 1 Hour. Default 30-minute series reuses the existing page request; each chart's non-default selection has independent state and requests the existing history endpoint over the same seven-day duration. New useChartInterval hook aborts obsolete requests, ignores late responses, prevents overlapping periodic requests, retries failures, and refreshes custom series once per minute. Explicit loading/empty/error states prevent displaying the previous grouping under a newly selected label. Existing latest-value/capacity calculations remain separate from selected plot data. CPU helper text now describes selected grouping rather than hard-coded 30-minute averages. Kept all returned points, memoized plot conversion, retained disabled chart animation/dots, and used existing Cobalt tokens for the 44px selector.
+
+Verified tests/unit/chart-interval.test.tsx and tests/unit/agent-detail-page.test.tsx: nine tests passed. TypeScript checks and client build passed (existing bundle-size warning). Browser synthetic preview confirmed four independent values (60/300/1800/3600), default options, latest-value stability, visible focus treatment, and mobile/desktop fit at 375/1440px. The 60-second synthetic response contained 10,080 points and rendered as an area chart. Frontend was started for preview after connection refusal; no database/backend was started and no real records were modified. Temporary viewport reset. Full suite and database tests were not run. No commit or push.
+### Next Steps
+Review the running frontend; commit only when requested. Selections reset to 30 Min on page remount and require no migration or agent-script update.
+
 ## Date Time — 2026-09-10 11:58:00 AM
 ### Task
 Display Telegram Bot Link From Saved Sender Token

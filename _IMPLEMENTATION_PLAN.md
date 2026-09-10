@@ -48,6 +48,12 @@ Build a production-oriented, centralized server monitoring service for multiple 
 
 ## Progress
 
+- Applied approved compact chart header to all four graphs: interval buttons beside titles, latest/capacity readings grouped at right, no separate full-width toolbar row. Card-width responsive rules keep mobile readings side by side. Nine focused tests passed; 1920px/375px rendered checks passed after correcting shared-style specificity. Backend and frontend verified HTTP 200 and left running.
+
+- Replaced chart interval dropdowns with compact 1m/5m/30m/1h button groups at user request, highlighting selection with aria-pressed. Preserved independent requests and 30m defaults. Nine focused tests passed; narrow-screen preview verified. Backend and frontend remained running (HTTP 200).
+
+- Added independent 1 Min/5 Min/30 Min/1 Hour chart grouping controls, default 30 Min, for all four agent-detail charts. Reuses default history request, fetches custom grouping per chart with cancellation/error/retry and non-overlapping minute refresh. Latest readings remain independent. Nine focused tests, TypeScript, client build, desktop/mobile preview, and synthetic 10,080-point rendering verified. No backend/schema changes.
+
 - Added automatic Telegram Bot Link display beneath Platform Sender, resolved through admin-only saved-token getMe lookup. Included abort/retry/refresh behavior, validated public URLs, rate limiting, safe errors, and no-store responses. Nineteen focused tests and TypeScript checks passed; synthetic desktop/mobile success/error displays verified. No live Telegram calls or database tests were performed.
 
 - Removed the unrequested production-updater backup confirmation and --yes option. The update now proceeds directly with no interactive prompt; existing failure/locking safeguards remain. Bash syntax and three focused tests passed.

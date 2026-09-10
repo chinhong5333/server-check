@@ -1,5 +1,5 @@
 import { ArrowLeft, CircleHelp, ExternalLink, Link2, X } from "lucide-react";
-import { useCallback, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   CartesianGrid,
   Area,
@@ -20,6 +20,7 @@ import { apiFetch } from "../api";
 import { useAuth } from "../auth/AuthProvider";
 import { AgentIncidentHistory } from "../components/AgentIncidentHistory";
 import { AgentHeartbeatSummary } from "../components/AgentHeartbeatSummary";
+import { CHART_INTERVALS, useChartInterval } from "../hooks/useChartInterval";
 import { AgentTelegramDeliveryLog } from "../components/AgentTelegramDeliveryLog";
 import { EmptyState, ErrorState, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
@@ -115,7 +116,8 @@ function MetricChart({
   dataKey,
   formatter,
   latestReading,
-  capacity
+  capacity,
+  agentId
 }: {
   title: string;
   description: string;
@@ -124,21 +126,43 @@ function MetricChart({
   formatter: (value: number | null | undefined) => string;
   latestReading?: number | null;
   capacity?: CapacitySnapshot | null;
+  agentId: string;
 }) {
+  const chart = useChartInterval<HistoryPoint>(agentId, data);
+  const chartData = useMemo(() => chart.points?.map(point => ({ ...point,
+    ram_utilization_percent: utilizationFromAvailable(point.ram_available_percent),
+    storage_utilization_percent: utilizationFromAvailable(point.disk_available_percent)
+  })) ?? [], [chart.points]);
   const latestValue = latestReading === undefined ? latestMetricValue(data, dataKey) : latestReading;
   return (
     <section className="chart-surface">
       <div className="section-heading">
-        <div><h2>{title}</h2><p>{description}</p></div>
-        <div className="chart-latest" aria-label={`Latest Value for ${title}`}>
-          <span>Latest Value</span>
-          <MetricValue value={latestValue} format={formatter} className="chart-latest__value" />
+        <div className="chart-heading-copy">
+          <div className="chart-heading-title"><h2>{title}</h2>
+        <div className="chart-interval-control" role="group" aria-label={`${title} Interval`}>
+          {CHART_INTERVALS.map(option => <button key={option.seconds} type="button"
+            aria-label={option.label} aria-pressed={chart.interval === option.seconds}
+            onClick={() => chart.setInterval(option.seconds)}>
+            {option.seconds === 3600 ? "1h" : `${option.seconds / 60}m`}
+          </button>)}
         </div>
-        {capacity && <div className="chart-capacity"><span>Used / Total</span><span className="numeric">{formatCapacityPair(capacity.used_bytes, capacity.total_bytes)}</span></div>}
+          </div>
+          <p>{description}</p>
+        </div>
+        <div className="chart-readings">
+          <div className="chart-latest" aria-label={`Latest Value for ${title}`}>
+            <span>Latest Value</span>
+            <MetricValue value={latestValue} format={formatter} className="chart-latest__value" />
+          </div>
+          {capacity && <div className="chart-capacity"><span>Used / Total</span><span className="numeric">{formatCapacityPair(capacity.used_bytes, capacity.total_bytes)}</span></div>}
+        </div>
       </div>
+      {chart.error ? <div className="chart-feedback" role="status"><p>{chart.error}</p><button className="button button--secondary" type="button" onClick={chart.retry}>Retry Chart</button></div> : null}
+      {chart.points === null ? <div className="chart chart-feedback" role="status">{chart.error ? "Chart Unavailable" : "Loading Chart…"}</div>
+        : chartData.length === 0 ? <div className="chart chart-feedback" role="status">No Data For This Interval</div> : (
       <div className="chart" role="img" aria-label={`${title}. ${description}`}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
             <CartesianGrid stroke="var(--color-rule)" vertical={false} />
             <XAxis dataKey="at" tickFormatter={tickFormatter} stroke="var(--color-muted)" minTickGap={40} />
             <YAxis tickFormatter={(value) => formatter(Number(value))} stroke="var(--color-muted)" width={64} />
@@ -166,6 +190,7 @@ function MetricChart({
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      )}
     </section>
   );
 }
@@ -345,12 +370,12 @@ export function AgentDetailPage() {
         />
       ) : (
         <div className="chart-grid">
-          <MetricChart title="RAM Utilization" description="Used memory reported by the operating system." data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
+          <MetricChart agentId={agent.id} key={`${agent.id}:ram_utilization_percent`} title="RAM Utilization" description="Used memory reported by the operating system." data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
             latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} capacity={resource.data.latest_resources?.ram} />
-          <MetricChart title="Storage Utilization" description={`Highest used percentage across monitored filesystems.${resource.data.latest_resources?.storage ? ` Filesystem: ${resource.data.latest_resources.storage.mount_point}.` : ""}`} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
+          <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title="Storage Utilization" description={`Highest used percentage across monitored filesystems.${resource.data.latest_resources?.storage ? ` Filesystem: ${resource.data.latest_resources.storage.mount_point}.` : ""}`} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
             latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} capacity={resource.data.latest_resources?.storage} />
-          <MetricChart title="Load Average (5 Min)" description="Raw five-minute load. Latest value is from the latest heartbeat; chart shows 30-minute averages." data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
-          <MetricChart title="Health Latency" description="Response time from the server-local health probe." data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
+          <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title="Load Average (5 Min)" description="Raw five-minute load. Latest value is from the latest heartbeat; chart averages follow the selected interval." data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
+          <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title="Health Latency" description="Response time from the server-local health probe." data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
         </div>
       )}
 

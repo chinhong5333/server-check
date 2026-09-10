@@ -83,6 +83,28 @@ describe("agent detail incident history", () => {
 
   afterEach(cleanup);
 
+  it("offers four independent interval selectors defaulting to 30 minutes", async () => {
+    const original = apiFetchMock.getMockImplementation()!;
+    apiFetchMock.mockImplementation(async (path: string) => {
+      const data = await original(path);
+      return path.includes("/history?") ? { ...data, points: [{ at: Date.now(), ram_available_percent: 50, disk_available_percent: 60, load_5: 0.7, health_latency_ms: 10 }] } : data;
+    });
+    render(<MemoryRouter initialEntries={["/projects/project-1/agents/agent-1"]}><Routes>
+      <Route path="/projects/:projectId/agents/:agentId" element={<AgentDetailPage />} />
+    </Routes></MemoryRouter>);
+    const ram = await screen.findByRole("group", { name: "RAM Utilization Interval" });
+    const groups = screen.getAllByRole("group", { name: /Interval$/ });
+    for (const selector of groups) {
+      expect(within(selector).getByRole("button", { name: "30 Min" })).toHaveAttribute("aria-pressed", "true");
+      expect(within(selector).getAllByRole("button").map(option => option.textContent)).toEqual(["1m", "5m", "30m", "1h"]);
+    }
+    expect(groups).toHaveLength(4);
+    fireEvent.click(within(ram).getByRole("button", { name: "1 Min" }));
+    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith(expect.stringContaining("bucket_seconds=60"), expect.objectContaining({ signal: expect.any(AbortSignal) })));
+    expect(within(screen.getByRole("group", { name: "Storage Utilization Interval" })).getByRole("button", { name: "30 Min" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(screen.getByRole("group", { name: "Health Latency Interval" })).getByRole("button", { name: "30 Min" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("hides URL actions when no middleware URL is configured", async () => {
     const original = apiFetchMock.getMockImplementation()!;
     apiFetchMock.mockImplementation(async (path: string) => {
