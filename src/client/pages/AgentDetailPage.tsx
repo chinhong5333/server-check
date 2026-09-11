@@ -148,17 +148,36 @@ function MetricChart({
           {capacity && <div className="chart-capacity"><span>Used / Total</span><span className="numeric">{formatCapacityPair(capacity.used_bytes, capacity.total_bytes)}</span></div>}
         </div>
       </div>
+      <div className="chart-body">
       {chart.error ? <div className="chart-feedback" role="status"><p>{chart.error}</p><button className="button button--secondary" type="button" onClick={chart.retry}>Retry Chart</button></div> : null}
       {chart.points === null ? <div className="chart chart-feedback" role="status">{chart.error ? "Chart Unavailable" : "Loading Chart…"}</div>
         : chartData.length === 0 ? <div className="chart chart-feedback" role="status">No Data For This Interval</div> :
           <TradingViewMetricChart key={chart.interval} title={title}
             points={tradingPoints} formatter={formatter} />}
-
+      </div>
     </section>
   );
 }
 
 export function AgentDetailPage() {
+  const alignChartHeaders = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return;
+    const headers = [...node.querySelectorAll<HTMLElement>(".chart-surface > .section-heading")];
+    const align = () => {
+      const height = Math.max(0, ...headers.map(header => {
+        const style = getComputedStyle(header);
+        const top = header.getBoundingClientRect().top;
+        const bottom = Math.max(top, ...[...header.children].map(child => child.getBoundingClientRect().bottom));
+        return bottom - top + parseFloat(style.paddingBottom) + parseFloat(style.borderBottomWidth);
+      }));
+      node.style.setProperty("--chart-header-height", `${Math.ceil(height)}px`);
+    };
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(align);
+    for (const header of headers) for (const child of header.children) observer.observe(child);
+    align();
+    return () => observer.disconnect();
+  }, []);
   const { user } = useAuth();
   const { agentId, projectId } = useParams<{ agentId: string; projectId: string }>();
   const [activeHistoryTab, setActiveHistoryTab] = useState<HistoryTabId>("incidents");
@@ -332,7 +351,7 @@ export function AgentDetailPage() {
           message="The agent has not delivered a valid telemetry sample in this range."
         />
       ) : (
-        <div className="chart-grid">
+        <div className="chart-grid" ref={alignChartHeaders}>
           <MetricChart agentId={agent.id} key={`${agent.id}:ram_utilization_percent`} title="RAM Utilization" description="Used memory reported by the operating system." data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
             latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} capacity={resource.data.latest_resources?.ram} />
           <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title="Storage Utilization" description={`Highest used percentage across monitored filesystems.${resource.data.latest_resources?.storage ? ` Filesystem: ${resource.data.latest_resources.storage.mount_point}.` : ""}`} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}

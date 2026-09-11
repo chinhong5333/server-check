@@ -2739,6 +2739,9 @@ button.back-link {
 .tradingview-metric { position: relative; }
 .tradingview-tooltip { display: none; position: absolute; z-index: 2; pointer-events: none; max-width: calc(100% - 1rem); padding: var(--space-xs) var(--space-sm); border: var(--rule-thin) solid var(--color-rule-strong); border-radius: var(--radius-md); background: var(--color-surface-raised); color: var(--color-ink); font-size: var(--text-xs); line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; box-shadow: 0 2px 8px var(--color-overlay); }
 .chart-surface { container: metric-chart / inline-size; }
+.chart-grid > .chart-surface { display: flex; flex-direction: column; }
+.chart-grid > .chart-surface > .section-heading { min-height: var(--chart-header-height, auto); box-sizing: border-box; }
+.chart-body { min-width: 0; }
 .chart-surface > .section-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-sm); }
 .chart-surface > .section-heading > div:first-child { min-width: 0; overflow-wrap: anywhere; }
 @container metric-chart (max-width: 34rem) {
