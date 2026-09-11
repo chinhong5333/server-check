@@ -40,6 +40,27 @@ beforeEach(() => {
   });
 });
 describe("admin controls", () => {
+  it.each([true,false])("sets sub-admin enabled=%s and revokes sessions only on disable", async enabled => {
+    state.execute.mockImplementation(async (sql:string) => {
+      if(sql.startsWith("SELECT id FROM internal_users")) return [[{id:"1"}]];
+      if(sql.startsWith("SELECT id, is_disabled")) return [[{id:"20",is_disabled:0}]];
+      return [{affectedRows:1}];
+    });
+    const result=await request(app()).patch(`/admins/${second}/status`).set("x-csrf-token","csrf").send({enabled});
+    expect(result.status).toBe(204);
+    expect(state.execute).toHaveBeenCalledWith("UPDATE internal_users SET is_disabled = ?, updated_at = ? WHERE id = ?",[enabled?0:1,expect.any(Number),"20"]);
+    expect(state.execute.mock.calls.some(([sql])=>sql.startsWith("UPDATE user_sessions"))).toBe(!enabled);
+  });
+  it("rejects status changes by sub-admins, invalid input, and full-admin targets", async () => {
+    state.role="sub_admin";state.permissions=["view_projects","edit_global_settings"];
+    expect((await request(app()).patch(`/admins/${second}/status`).set("x-csrf-token","csrf").send({enabled:false})).status).toBe(403);
+    expect(state.execute).not.toHaveBeenCalled();
+    state.role="admin";
+    expect((await request(app()).patch(`/admins/${second}/status`).set("x-csrf-token","csrf").send({enabled:"false"})).status).toBe(422);
+    state.execute.mockImplementation(async(sql:string)=>sql.startsWith("SELECT id FROM internal_users")?[[{id:"1"}]]:[[]]);
+    expect((await request(app()).patch(`/admins/${second}/status`).set("x-csrf-token","csrf").send({enabled:false})).status).toBe(404);
+    expect(state.execute.mock.calls.some(([sql])=>sql.startsWith("UPDATE"))).toBe(false);
+  });
   it("creates sub-admins with only the explicit permissions", async () => {
     const result = await request(app()).post("/admins").set("x-csrf-token","csrf").send({email:"sub@example.test",password:"SyntheticNew1!",current_password:"current",role:"sub_admin",permissions:["view_projects","edit_agent_settings"]});
     expect(result.status).toBe(201);

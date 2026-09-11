@@ -24,6 +24,7 @@ interface UserRow extends RowDataPacket {
   password_hash: string;
   role: "admin" | "operator" | "sub_admin";
   permissions_json: unknown;
+  is_disabled: number;
   failed_login_count: number;
   locked_until: string | null;
 }
@@ -66,7 +67,7 @@ export function createAuthRouter(config: AppConfig): Router {
       const body = loginBodySchema.parse(request.body);
       const email = body.email.toLowerCase();
       const [rows] = await getPool(config).execute<UserRow[]>(
-        `SELECT id, public_id, email, password_hash, role, permissions_json, failed_login_count, locked_until
+        `SELECT id, public_id, email, password_hash, role, permissions_json, is_disabled, failed_login_count, locked_until
          FROM internal_users
          WHERE email = ? AND is_delete = 0
          LIMIT 1`,
@@ -75,7 +76,7 @@ export function createAuthRouter(config: AppConfig): Router {
       const user = rows[0];
       const now = Date.now();
 
-      if (!user || (user.locked_until && Number(user.locked_until) > now)) {
+      if (!user || Number(user.is_disabled) === 1 || (user.locked_until && Number(user.locked_until) > now)) {
         throw genericLoginError;
       }
 
@@ -102,10 +103,10 @@ export function createAuthRouter(config: AppConfig): Router {
 
       await withTransaction(config, async (connection) => {
         const [currentUsers] = await connection.execute<UserRow[]>(
-          "SELECT password_hash FROM internal_users WHERE id = ? AND is_delete = 0 FOR UPDATE",
+          "SELECT password_hash, is_disabled FROM internal_users WHERE id = ? AND is_delete = 0 FOR UPDATE",
           [user.id]
         );
-        if (!currentUsers[0] || currentUsers[0].password_hash !== user.password_hash) {
+        if (!currentUsers[0] || Number(currentUsers[0].is_disabled) === 1 || currentUsers[0].password_hash !== user.password_hash) {
           throw genericLoginError;
         }
         await connection.execute(

@@ -14,6 +14,7 @@ interface SessionRow extends RowDataPacket {
   email: string;
   role: "admin" | "operator" | "sub_admin";
   permissions_json: unknown;
+  is_disabled: number;
   csrf_hash: string;
   expires_at: string;
   revoked_at: string | null;
@@ -50,7 +51,7 @@ export function authenticate(config: AppConfig) {
            u.id AS user_internal_id,
            u.public_id AS user_public_id,
            u.email,
-           u.role, u.permissions_json
+           u.role, u.permissions_json, u.is_disabled
          FROM user_sessions s
          INNER JOIN internal_users u ON u.id = s.user_id
          WHERE s.public_id = ? AND s.is_delete = 0 AND u.is_delete = 0
@@ -62,6 +63,7 @@ export function authenticate(config: AppConfig) {
       const now = Date.now();
       if (
         !session ||
+        Number(session.is_disabled) === 1 ||
         session.user_public_id !== claims.sub ||
         session.revoked_at !== null ||
         Number(session.expires_at) <= now

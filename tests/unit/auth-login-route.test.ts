@@ -83,6 +83,18 @@ describe("remembered login session", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+  it("blocks a disabled account before password verification creates a session", async () => {
+    poolExecuteMock.mockResolvedValue([[{id:"9",role:"sub_admin",is_disabled:1,password_hash:"stored-hash"}]]);
+    const response=await request(createTestApp()).post("/login").send({email:"sub@example.com",password:"secret",remember_session:false});
+    expect(response.status).toBe(401);
+    expect(withTransactionMock).not.toHaveBeenCalled();
+  });
+  it("rechecks disabled status under the login lock", async () => {
+    transactionExecuteMock.mockResolvedValue([[{password_hash:"stored-hash",is_disabled:1}]]);
+    const response=await request(createTestApp()).post("/login").send({email:"admin@example.com",password:"secret",remember_session:false});
+    expect(response.status).toBe(401);
+    expect(transactionExecuteMock.mock.calls.some(([sql])=>sql.includes("INSERT INTO user_sessions"))).toBe(false);
+  });
 
   it("persists the cookie and server session for seven days when requested", async () => {
     const response = await request(createTestApp())

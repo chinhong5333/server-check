@@ -24,17 +24,17 @@ export function createAdminsRouter(config: AppConfig): Router {
    * GET /api/v1/admins
    * Lists active admins and sub-admins, without password/session information.
    * @param {import("express").Request} request Body and query must be empty.
-   * @param {import("express").Response} response Array of public id, email, role, permissions, and created_at values.
+   * @param {import("express").Response} response Array of public id, email, role, permissions, enabled status, and created_at values.
    * @returns {Promise<void>} Resolves after the administrator list is returned.
    */
   router.get("/", asyncHandler(async (request, response) => {
     z.object({}).strict().parse(request.query);
     z.object({}).strict().parse(request.body ?? {});
     const [rows] = await getPool(config).execute<RowDataPacket[]>(
-      "SELECT public_id, email, role, permissions_json, created_at FROM internal_users WHERE role IN ('admin', 'sub_admin') AND is_delete = 0 ORDER BY email, id"
+      "SELECT public_id, email, role, permissions_json, is_disabled, created_at FROM internal_users WHERE role IN ('admin', 'sub_admin') AND is_delete = 0 ORDER BY email, id"
     );
     response.setHeader("Cache-Control", "no-store");
-    response.json(rows.map((row) => ({ id: row.public_id, email: row.email, role: row.role, permissions: readPermissions(row.permissions_json), created_at: Number(row.created_at) })));
+    response.json(rows.map((row) => ({ id: row.public_id, email: row.email, role: row.role, enabled: Number(row.is_disabled) !== 1, permissions: readPermissions(row.permissions_json), created_at: Number(row.created_at) })));
   }));
   /**
    * POST /api/v1/admins
@@ -105,6 +105,34 @@ export function createAdminsRouter(config: AppConfig): Router {
       await connection.execute("UPDATE internal_users SET permissions_json = ?, updated_at = ? WHERE id = ?", [JSON.stringify(body.permissions), now, targets[0].id]);
       await connection.execute(`INSERT INTO audit_events (user_id, action, entity_type, entity_id, metadata_json, created_at, updated_at, is_delete)
         VALUES (?, 'team.permissions.update', 'internal_user', ?, ?, ?, ?, 0)`, [request.auth!.userInternalId, id, JSON.stringify({ permissions: body.permissions }), now, now]);
+    });
+    response.sendStatus(204);
+  }));
+  /**
+   * PATCH /api/v1/admins/:user_id/status
+   * Enables or disables a sub-admin without changing their password or permissions.
+   * @param {import("express").Request} request Full-admin authenticated request with CSRF; query must be empty.
+   * @param {string} request.params.user_id Public UUID of the sub-admin; full admins cannot be targeted.
+   * @param {boolean} request.body.enabled True restores sign-in; false blocks access and revokes existing sessions.
+   * @param {import("express").Response} response 204 on success; 403 unauthorized; 404 no matching sub-admin.
+   * @returns {Promise<void>} Atomically updates status, revokes sessions when disabling, and audits the change. Enabling never reactivates revoked sessions.
+   */
+  router.patch("/:user_id/status", requireCsrf, rateLimit({ windowMs:60000, limit:10,
+    keyGenerator:request => request.auth!.userInternalId, standardHeaders:"draft-8", legacyHeaders:false }),
+  asyncHandler(async (request,response) => {
+    const id = z.string().uuid().parse(request.params.user_id);
+    const body = z.object({enabled:z.boolean()}).strict().parse(request.body);
+    z.object({}).strict().parse(request.query);
+    await withTransaction(config, async connection => {
+      const [actors] = await connection.execute<RowDataPacket[]>("SELECT id FROM internal_users WHERE id = ? AND role = 'admin' AND is_delete = 0 FOR UPDATE",[request.auth!.userInternalId]);
+      if (!actors[0]) throw new AppError(403,"permission_denied","Only admins can change account status.");
+      const [targets] = await connection.execute<RowDataPacket[]>("SELECT id, is_disabled FROM internal_users WHERE public_id = ? AND role = 'sub_admin' AND is_delete = 0 FOR UPDATE",[id]);
+      if (!targets[0]) throw new AppError(404,"sub_admin_not_found","The selected sub-admin no longer exists.");
+      const now = Date.now();
+      await connection.execute("UPDATE internal_users SET is_disabled = ?, updated_at = ? WHERE id = ?",[body.enabled ? 0 : 1,now,targets[0].id]);
+      if (!body.enabled) await connection.execute("UPDATE user_sessions SET revoked_at = ?, updated_at = ? WHERE user_id = ? AND revoked_at IS NULL",[now,now,targets[0].id]);
+      await connection.execute(`INSERT INTO audit_events (user_id, action, entity_type, entity_id, metadata_json, created_at, updated_at, is_delete)
+        VALUES (?, 'team.status.update', 'internal_user', ?, ?, ?, ?, 0)`,[request.auth!.userInternalId,id,JSON.stringify({enabled:body.enabled}),now,now]);
     });
     response.sendStatus(204);
   }));
