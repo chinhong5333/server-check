@@ -8,10 +8,20 @@ import { lockAgentAlerts } from "../../src/server/services/alert-queue.js";
 import { recordAgentCondition, resolveAgentCondition } from "../../src/server/services/incidents.js";
 import { runMigrations } from "../../src/server/migrations.js";
 import { purgeExpiredHistory } from "../../src/server/services/retention.js";
+import { advanceMiddlewareFailures } from "../../src/server/services/middleware-failures.js";
 
 let config: AppConfig;
 let projectId: number | undefined;
 let agentId: number;
+
+it("persists middleware streaks across transactions and rolls back rejected reports", async () => {
+  await getPool(config).execute("UPDATE agents SET middleware_failure_threshold = 3, middleware_failure_count = 0 WHERE id = ?", [agentId]);
+  expect(await withTransaction(config, connection => advanceMiddlewareFailures(connection, String(agentId), "unhealthy"))).toEqual({ count: 1, threshold: 3 });
+  expect(await withTransaction(config, connection => advanceMiddlewareFailures(connection, String(agentId), "unhealthy"))).toEqual({ count: 2, threshold: 3 });
+  await expect(withTransaction(config, async connection => { await advanceMiddlewareFailures(connection, String(agentId), "unhealthy"); throw new Error("Reject synthetic transaction"); })).rejects.toThrow("Reject synthetic transaction");
+  expect(await withTransaction(config, connection => advanceMiddlewareFailures(connection, String(agentId), "unhealthy"))).toEqual({ count: 3, threshold: 3 });
+  expect(await withTransaction(config, connection => advanceMiddlewareFailures(connection, String(agentId), "healthy"))).toEqual({ count: 0, threshold: 3 });
+});
 const now = Date.now();
 const day = 86_400_000;
 const stamp = { created_at: now, updated_at: now, is_delete: 0 };

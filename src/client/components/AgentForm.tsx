@@ -8,7 +8,7 @@ import { useToast } from "./ToastProvider";
 import { availableFromUtilization, utilizationFromAvailable } from "../lib/format";
 
 interface AgentFormProps {
-  initialValues?: AgentEditableInput;
+  initialValues?: Partial<AgentEditableInput>;
   submitting: boolean;
   submitLabel: string;
   submittingLabel: string;
@@ -40,6 +40,7 @@ export function AgentForm({
   const [telegramCooldown, setTelegramCooldown] = useState(
     String(initialValues?.telegram_alert_cooldown_seconds ?? 900)
   );
+  const [middlewareFailureThreshold, setMiddlewareFailureThreshold] = useState(String(initialValues?.middleware_failure_threshold ?? 2));
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,7 +55,8 @@ export function AgentForm({
       disk_available_threshold_percent: availableFromUtilization(Number(storageUtilization)),
       load_5_per_core_threshold: Number(cpuLoad),
       heartbeat_interval_seconds: Number(heartbeatInterval),
-      telegram_alert_cooldown_seconds: Number(telegramCooldown)
+      telegram_alert_cooldown_seconds: Number(telegramCooldown),
+      middleware_failure_threshold: Number(middlewareFailureThreshold)
     });
     if (!validation.success) {
       const message = "Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram send interval.";
@@ -116,10 +118,18 @@ export function AgentForm({
                 <input id="agent-cpu-load" inputMode="decimal" value={cpuLoad} onChange={(event) => setCpuLoad(event.target.value)} required />
                 <span className="field__help">Alerts when five-minute load divided by logical CPU count reaches this value.</span>
               </div>
+              <div className="field field--wide middleware-alert-policy">
+                <label htmlFor="agent-middleware-failures">Consecutive Failures Before Alert</label>
+                <select id="agent-middleware-failures" aria-describedby="agent-middleware-failures-help" value={middlewareFailureThreshold} onChange={event => setMiddlewareFailureThreshold(event.target.value)}>
+                  {Array.from({length:10},(_,i)=>i+1).map(count=><option key={count} value={count}>{count}</option>)}
+                </select>
+                <span id="agent-middleware-failures-help" className="field__help">Middleware API only. A successful check resets the count. Each failure is recorded; Telegram waits for this threshold and its sending interval.</span>
+              </div>
             </div>
           </fieldset>
 
           <div className="agent-form-policy-side">
+
             <fieldset className="form-section">
               <legend>Heartbeat</legend>
               <div className="form-section__grid">

@@ -14,7 +14,8 @@ vi.mock("../../src/server/db.js", () => ({
   withTransaction: withTransactionMock
 }));
 
-vi.mock("../../src/server/middleware/auth.js", () => ({
+vi.mock("../../src/server/middleware/auth.js", async original => ({
+  ...await original<typeof import("../../src/server/middleware/auth.js")>(),
   authenticate: () => (request: Request, _response: Response, next: NextFunction) => {
     request.auth = {
       user: { id: "user-1", email: "admin@example.com", role: "admin" },
@@ -128,7 +129,8 @@ describe("agent settings update route", () => {
         disk_available_threshold_percent: 10,
         load_5_per_core_threshold: 1.5,
         heartbeat_interval_seconds: 120,
-        telegram_alert_cooldown_seconds: 900
+        telegram_alert_cooldown_seconds: 900,
+        middleware_failure_threshold: 3
       });
 
     expect(response.status).toBe(204);
@@ -141,6 +143,11 @@ describe("agent settings update route", () => {
     expect(updateStatement).not.toContain("last_heartbeat_at");
     expect(updateStatement).not.toContain("last_metrics_at");
     expect(updateStatement).not.toContain("health_api_url");
+    expect(updateStatement).toContain("middleware_failure_threshold = ?");
+    expect(updateStatement).toContain("middleware_failure_count = IF(middleware_failure_threshold = ?, middleware_failure_count, 0)");
+    const saved = transactionExecuteMock.mock.calls.find(([sql])=>String(sql).includes("UPDATE agents"))!;
+    expect(String(saved[0]).match(/\?/g)?.length).toBe(saved[1].length);
+    expect(saved[1].slice(6,8)).toEqual([3,3]);
     expect(statements.some((sql) => sql.includes("UPDATE incidents"))).toBe(false);
     expect(statements.some((sql) => sql.includes("UPDATE notification_outbox"))).toBe(false);
     expect(statements.some((sql) => sql.includes("'agent.update'"))).toBe(true);

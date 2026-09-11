@@ -84,6 +84,12 @@ MariaDB is not used as a test substitute for MySQL. The XAMPP installation visib
 
 ## Central installation
 
+### Consecutive Middleware Failures
+
+Agent creation and editing include **Consecutive Failures Before Alert** (`middleware_failure_threshold`, integer 1–10, default 2). This affects only the Middleware API: every unique valid report is stored, but its outage incident and Telegram alert are opened only when the persistent `middleware_failure_count` reaches the saved threshold. Before that, the agent shows a warning with the current count. A successful or disabled middleware check resets the streak; missing/invalid telemetry neither advances nor resets it. Duplicate sequence retries do not count again. Different middleware error types still count as consecutive failed checks.
+
+Once the incident is open, existing deduplication/reminder/send-interval behavior continues until recovery. A transient failure below the threshold produces no recovery message because no incident was opened. Changing the threshold resets a pending count, but does not close an already-open outage. Heartbeat, RAM, storage, and Apache/Nginx rules are unchanged. No script reinstall is needed. Apply migration `012_middleware_failure_threshold.sql` before starting this backend; existing agents receive threshold 2 and count 0. Local migration is applied. Dedicated MySQL integration remains a separate acceptance gate; this amendment was verified with focused unit/route/UI tests and build checks, not production database mutations.
+
 ### Teams And Sub-Admin Permissions
 
 Admins can **Disable** or **Enable** sub-admins from the Teams list after confirmation. Disabling preserves account data/grants/passwords but revokes all current sessions and blocks sign-in. Re-enabling requires a fresh sign-in; old sessions stay revoked. Full admins cannot be targeted by the status endpoint. Status changes are admin-only, CSRF-protected, rate-limited, and audited. Deployment requires migration `011_sub_admin_status.sql` after `010`; both are applied locally. The isolated MySQL integration test includes disable/re-enable checks but remains unrun without `.env.test`.

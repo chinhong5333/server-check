@@ -349,7 +349,8 @@ describe("project-scoped agents page", () => {
             disk_available_threshold_percent: 10,
             load_5_per_core_threshold: 1.5,
             heartbeat_interval_seconds: 120,
-            telegram_alert_cooldown_seconds: 900
+            telegram_alert_cooldown_seconds: 900,
+            middleware_failure_threshold: 2
           })
         }
       )
@@ -423,7 +424,8 @@ describe("project-scoped agents page", () => {
             disk_available_threshold_percent: 10,
             load_5_per_core_threshold: 1.5,
             heartbeat_interval_seconds: 120,
-            telegram_alert_cooldown_seconds: 900
+            telegram_alert_cooldown_seconds: 900,
+            middleware_failure_threshold: 2
           })
         }
       )

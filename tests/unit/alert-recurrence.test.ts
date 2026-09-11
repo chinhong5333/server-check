@@ -27,6 +27,31 @@ function store() {
   return {connection:{execute} as unknown as PoolConnection,incidents,messages};
 }
 describe("recurring condition collection",()=>{
+  it("waits for the middleware failure threshold, reminds after opening, and recovers normally",async()=>{
+    const s=store();const payload={...healthy,health_probe:{...healthy.health_probe,outcome:"unhealthy" as const,http_status_code:null,error_code:"timeout"}};
+    for(const count of [1,2]) {
+      const snapshot=await evaluateTelemetryIncidents(s.connection,{...policy,middlewareFailures:{count,threshold:3}},payload,count);
+      expect(snapshot.status).toBe("warning");expect(snapshot.probableCause).toContain(`(${count}/3)`);
+    }
+    expect(s.incidents).toHaveLength(0);expect(s.messages).toHaveLength(0);
+    await evaluateTelemetryIncidents(s.connection,{...policy,middlewareFailures:{count:3,threshold:3}},payload,3);
+    expect(s.incidents).toHaveLength(1);expect(s.messages).toHaveLength(1);
+    expect(s.messages[0].payload.details).toMatchObject({consecutive_failures:3,failure_threshold:3});
+    s.messages[0].status="sent";
+    await evaluateTelemetryIncidents(s.connection,{...policy,middlewareFailures:{count:1,threshold:10}},payload,4);
+    expect(s.messages).toHaveLength(2);
+    await evaluateTelemetryIncidents(s.connection,{...policy,middlewareFailures:{count:0,threshold:10}},healthy,5);
+    expect(s.incidents[0].status).toBe("resolved");
+    expect(s.messages[1].status).toBe("cancelled");
+    expect(s.messages[2].event).toBe("resolved");
+  });
+  it("does not send recovery for a transient failure that never opened an incident",async()=>{
+    const s=store();
+    await evaluateTelemetryIncidents(s.connection,{...policy,middlewareFailures:{count:1,threshold:2}},
+      {...healthy,health_probe:{...healthy.health_probe,outcome:"unhealthy",http_status_code:502,error_code:"http_status_error"}},1);
+    await evaluateTelemetryIncidents(s.connection,{...policy,middlewareFailures:{count:0,threshold:2}},healthy,2);
+    expect(s.incidents).toHaveLength(0);expect(s.messages).toHaveLength(0);
+  });
   it("keeps one pending error, then requeues after delivery without opening another incident",async()=>{
     const s=store();const payload={...healthy,service_checks:{...healthy.service_checks,nginx:{service_name:"nginx",status:"inactive" as const}}};
     await evaluateTelemetryIncidents(s.connection,policy,payload,1);

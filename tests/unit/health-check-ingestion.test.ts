@@ -33,6 +33,7 @@ describe("Health result persistence", () => {
     execute.mockReset(); poolExecute.mockReset(); transact.mockReset();
     execute.mockImplementation(async (sql: string, values: unknown[]) => {
       expect(sql.match(/\?/g)?.length ?? 0).toBe(values.length);
+      if (sql.includes("SELECT middleware_failure_threshold")) return [[{middleware_failure_threshold:2,middleware_failure_count:0}]];
       if (sql.includes("FROM agents") && sql.includes("FOR UPDATE")) return [[{ id: "1" }]];
       return sql.trim().startsWith("SELECT") ? [[]] : [{ insertId: 4, affectedRows: 1 }];
     });
@@ -48,6 +49,13 @@ describe("Health result persistence", () => {
     const snapshot = JSON.parse(update?.[1][11]);
     expect(snapshot.apache.status).toBe("active"); expect(snapshot.nginx.status).toBe("inactive");
     expect(snapshot.middleware_api.http_status_code).toBe(200);
+  });
+  it("does not advance a failure streak for a duplicate sequence", async () => {
+    const original=execute.getMockImplementation()!;
+    execute.mockImplementation((sql:string,values:unknown[])=>sql.includes("SELECT id FROM metric_samples")?Promise.resolve([[{id:"existing"}]]):original(sql,values));
+    const response=await request(app({apache:true,nginx:true,middleware_api:true})).post("/").set("authorization",`Bearer ${credential}`).send({...body,health_probe:{...body.health_probe,outcome:"unhealthy",http_status_code:null,error_code:"timeout"}});
+    expect(response.status).toBe(202);
+    expect(execute.mock.calls.some(([sql])=>sql.includes("middleware_failure_count"))).toBe(false);
   });
   it("accepts legacy Apache/API reports without an Nginx field", async () => {
     const response = await request(app(null)).post("/").set("authorization", `Bearer ${credential}`)

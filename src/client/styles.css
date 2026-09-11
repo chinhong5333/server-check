@@ -2008,6 +2008,8 @@ pre,
 .agent-dialog--agent-form .form-section__grid--thresholds > .field {
   align-content: start;
 }
+.agent-dialog--agent-form .form-section__grid--thresholds > .field.middleware-alert-policy { grid-column: 1 / -1; }
+.middleware-alert-policy select { max-width: 8rem; }
 
 .agent-dialog--raw-log {
   width: min(64rem, calc(100% - (var(--space-md) * 2)));

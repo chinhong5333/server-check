@@ -224,7 +224,8 @@ export function InstallAgentPage() {
             disk_available_threshold_percent: pendingRegistration.disk_available_threshold_percent,
             load_5_per_core_threshold: pendingRegistration.load_5_per_core_threshold,
             heartbeat_interval_seconds: pendingRegistration.heartbeat_interval_seconds,
-            telegram_alert_cooldown_seconds: pendingRegistration.telegram_alert_cooldown_seconds
+            telegram_alert_cooldown_seconds: pendingRegistration.telegram_alert_cooldown_seconds,
+            middleware_failure_threshold: pendingRegistration.middleware_failure_threshold
           })
         }
       );
@@ -591,7 +592,8 @@ export function InstallAgentPage() {
                 disk_available_threshold_percent: editingAgent.disk_available_threshold_percent,
                 load_5_per_core_threshold: editingAgent.load_5_per_core_threshold,
                 heartbeat_interval_seconds: editingAgent.heartbeat_interval_seconds,
-                telegram_alert_cooldown_seconds: editingAgent.telegram_alert_cooldown_seconds
+                telegram_alert_cooldown_seconds: editingAgent.telegram_alert_cooldown_seconds,
+                middleware_failure_threshold: editingAgent.middleware_failure_threshold ?? 2
               }}
               submitting={submitting}
               submitLabel="Save Changes"

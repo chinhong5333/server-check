@@ -15,12 +15,14 @@ it("loads the selected agent settings and saves through the existing edit endpoi
   const saved=show();expect(await screen.findByLabelText("Server Name")).toHaveValue("Atlas");
   expect(api).toHaveBeenCalledWith("/api/v1/projects/project-1/agents",expect.objectContaining({signal:expect.any(AbortSignal)}));
   fireEvent.change(screen.getByLabelText("Server Name"),{target:{value:"Atlas Updated"}});
+  expect(screen.getByLabelText("Consecutive Failures Before Alert")).toHaveValue("2");
+  fireEvent.change(screen.getByLabelText("Consecutive Failures Before Alert"),{target:{value:"3"}});
   fireEvent.click(screen.getByRole("button",{name:"Save Changes"}));
   await waitFor(()=>expect(saved).toHaveBeenCalledOnce());
   const call=api.mock.calls.find(([,init])=>init?.method==="PUT")!;
   expect(call[0]).toBe("/api/v1/projects/project-1/agents/agent-1");
   expect(JSON.parse(call[1].body)).toEqual({server_name:"Atlas Updated",ram_available_threshold_percent:15,disk_available_threshold_percent:10,
-    load_5_per_core_threshold:1.5,heartbeat_interval_seconds:120,telegram_alert_cooldown_seconds:900});
+    load_5_per_core_threshold:1.5,heartbeat_interval_seconds:120,telegram_alert_cooldown_seconds:900,middleware_failure_threshold:3});
   await waitFor(()=>expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
 it("aborts loading and makes no write when closed",async()=>{

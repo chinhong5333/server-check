@@ -12,6 +12,7 @@ interface AgentPolicy {
   ramThreshold: number;
   diskThreshold: number;
   loadThreshold: number;
+  middlewareFailures?: { count: number; threshold: number };
 }
 
 interface OpenIncidentRow extends RowDataPacket {
@@ -218,6 +219,15 @@ export async function evaluateTelemetryIncidents(
   const activeTypes = new Set(conditions.map((condition) => condition.type));
 
   for (const condition of conditions) {
+    if (condition.type === "health_api_unhealthy" && policy.middlewareFailures) {
+      const { count, threshold } = policy.middlewareFailures;
+      condition.details = { ...condition.details, consecutive_failures: count, failure_threshold: threshold };
+      if (count < threshold && !openByType.has("health_api_unhealthy")) {
+        condition.severity = "warning";
+        condition.probableCause = `Middleware API check failed (${count}/${threshold}); waiting for consecutive failures before alerting`;
+        continue;
+      }
+    }
     await recordAgentCondition(connection, policy, condition, now);
   }
   for (const incident of openRows) {

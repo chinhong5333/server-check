@@ -109,7 +109,8 @@ export const deleteProjectBodySchema = z
 const agentEditableShape = {
   server_name: z.string().trim().min(2).max(120),
   ...agentPolicyShape,
-  telegram_alert_cooldown_seconds: z.number().int().min(300).max(86_400)
+  telegram_alert_cooldown_seconds: z.number().int().min(300).max(86_400),
+  middleware_failure_threshold: z.number().int().min(1).max(10).default(2)
 };
 
 export const agentHealthApiUrlSchema = z.string().trim().url().max(2048).refine((value) => {
@@ -304,6 +305,7 @@ export interface AgentSummary {
   load_5_per_core_threshold: number;
   heartbeat_interval_seconds: number;
   telegram_alert_cooldown_seconds: number;
+  middleware_failure_threshold?: number;
 }
 
 export interface AgentInstallationResponse {

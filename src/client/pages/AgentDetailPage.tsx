@@ -78,11 +78,11 @@ const serverStateDefinitions = [
   },
   {
     status: "warning",
-    description: "RAM, storage, or CPU load has reached its threshold, or a monitored web server's status cannot be determined."
+    description: "A resource threshold was reached, a web server's status is unknown, or a middleware failure is awaiting the configured consecutive-failure count."
   },
   {
     status: "critical",
-    description: "A heartbeat is overdue, the middleware API is unhealthy, or a monitored Apache/Nginx service is inactive."
+    description: "A heartbeat is overdue, the middleware API has a confirmed unhealthy incident, or a monitored Apache/Nginx service is inactive."
   },
   {
     status: "stale",

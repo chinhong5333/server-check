@@ -6,6 +6,7 @@ import { getPool, withTransaction } from "../db.js";
 import { AppError, asyncHandler } from "../errors.js";
 import { safeEqualHex, sha256 } from "../security/crypto.js";
 import { evaluateTelemetryIncidents, recordAgentCondition, resolveHeartbeatIncident } from "../services/incidents.js";
+import { advanceMiddlewareFailures } from "../services/middleware-failures.js";
 import { lockAgentAlerts } from "../services/alert-queue.js";
 import { matchesConfiguredChecks, readAgentChecks } from "../services/check-configuration.js";
 
@@ -306,6 +307,7 @@ export function createHeartbeatRouter(config: AppConfig): Router {
         );
         }
 
+        const middlewareFailures = await advanceMiddlewareFailures(connection, agent.id, payload.health_probe.outcome);
         const snapshot = await evaluateTelemetryIncidents(
           connection,
           {
@@ -316,7 +318,8 @@ export function createHeartbeatRouter(config: AppConfig): Router {
             projectName: agent.project_name,
             ramThreshold: Number(agent.ram_available_threshold_percent),
             diskThreshold: Number(agent.disk_available_threshold_percent),
-            loadThreshold: Number(agent.load_5_per_core_threshold)
+            loadThreshold: Number(agent.load_5_per_core_threshold),
+            middlewareFailures
           },
           payload,
           now
