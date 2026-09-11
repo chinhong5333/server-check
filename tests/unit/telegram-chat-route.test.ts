@@ -10,8 +10,8 @@ vi.mock("../../src/server/middleware/auth", async original => ({
   ...await original<typeof import("../../src/server/middleware/auth")>(),
   authenticate: () => (req: Request, res: Response, next: NextFunction) => {
     const role = req.get("x-test-role");
-    if (role !== "admin" && role !== "operator") { res.sendStatus(401); return; }
-    req.auth = { user: { id: "test-admin", email: "admin@example.test", role }, userInternalId: "9", sessionId: "session-test",
+    if (role !== "admin" && role !== "operator" && role !== "sub_admin") { res.sendStatus(401); return; }
+    req.auth = { user: { id: "test-admin", email: "admin@example.test", role, permissions: req.get("x-test-global") === "yes" ? ["edit_global_settings"] : [] }, userInternalId: "9", sessionId: "session-test",
       sessionInternalId: "10", csrfHash: "unused", expiresAt: Date.now() + 60000, jwtExpiresAt: Date.now() + 60000 }; next();
   }
 }));
@@ -21,6 +21,12 @@ const config = { jwt: { secret: "a".repeat(48) } } as AppConfig;
 function app() { const app = express(); app.use(express.json(), createSettingsRouter(config), errorHandler); return app; }
 describe("Telegram chat discovery route", () => {
   beforeEach(() => { execute.mockReset(); discover.mockReset(); transaction.mockReset(); botLink.mockReset(); });
+  it("allows global-settings sub-admins without requiring project view access", async () => {
+    execute.mockResolvedValue([[]]);
+    expect((await request(app()).get("/telegram").set("x-test-role","sub_admin")).status).toBe(403);
+    expect(execute).not.toHaveBeenCalled();
+    expect((await request(app()).get("/telegram").set("x-test-role","sub_admin").set("x-test-global","yes")).status).toBe(200);
+  });
   it("protects bot links and uses only the saved credential without exposing it", async () => {
     expect((await request(app()).get("/telegram/bot-link")).status).toBe(401);
     expect((await request(app()).get("/telegram/bot-link").set("x-test-role", "operator")).status).toBe(403);

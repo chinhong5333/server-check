@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { RowDataPacket } from "mysql2/promise";
 import type { AppConfig } from "../config.js";
 import { getPool } from "../db.js";
+import { hasPermission, readPermissions, type Permission } from "../../shared/permissions.js";
 import { AppError } from "../errors.js";
 import { issueSessionJwt, sessionCookieName, setSessionCookie, verifySessionJwt } from "../security/jwt.js";
 
@@ -11,7 +12,8 @@ interface SessionRow extends RowDataPacket {
   user_internal_id: string;
   user_public_id: string;
   email: string;
-  role: "admin" | "operator";
+  role: "admin" | "operator" | "sub_admin";
+  permissions_json: unknown;
   csrf_hash: string;
   expires_at: string;
   revoked_at: string | null;
@@ -48,7 +50,7 @@ export function authenticate(config: AppConfig) {
            u.id AS user_internal_id,
            u.public_id AS user_public_id,
            u.email,
-           u.role
+           u.role, u.permissions_json
          FROM user_sessions s
          INNER JOIN internal_users u ON u.id = s.user_id
          WHERE s.public_id = ? AND s.is_delete = 0 AND u.is_delete = 0
@@ -71,7 +73,8 @@ export function authenticate(config: AppConfig) {
         user: {
           id: session.user_public_id,
           email: session.email,
-          role: session.role
+          role: session.role,
+          permissions: readPermissions(session.permissions_json)
         },
         userInternalId: session.user_internal_id,
         sessionId: session.session_public_id,
@@ -121,6 +124,20 @@ export function requireRole(role: "admin" | "operator") {
     if (!currentRole || (role === "admin" && currentRole !== "admin")) {
       next(new AppError(403, "permission_denied", "Your account cannot perform this action."));
       return;
+    }
+    next();
+  };
+}
+
+/**
+ * Enforces a current database-backed permission after authentication.
+ * @param {Permission} permission Canonical capability required by the endpoint.
+ * @returns {import("express").RequestHandler} Returns 403 without executing the handler when access is denied.
+ */
+export function requirePermission(permission: Permission) {
+  return (request: Request, _response: Response, next: NextFunction): void => {
+    if (!hasPermission(request.auth?.user, permission)) {
+      next(new AppError(403, "permission_denied", "Your account cannot perform this action.")); return;
     }
     next();
   };

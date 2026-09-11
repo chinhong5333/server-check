@@ -2,7 +2,7 @@ import express, { type Request, type Response, type NextFunction } from "express
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "../../src/server/config.js";
-const state = vi.hoisted(() => ({ execute: vi.fn(), role: "admin", verify: vi.fn(), hash: vi.fn() }));
+const state = vi.hoisted(() => ({ execute: vi.fn(), role: "admin", permissions: [] as string[], verify: vi.fn(), hash: vi.fn() }));
 vi.mock("../../src/server/db.js", () => ({ getPool: () => ({ execute: state.execute, query: state.execute }),
   withTransaction: async (_config: unknown, operation: (connection: unknown) => Promise<unknown>) => operation({ execute: state.execute }) }));
 vi.mock("../../src/server/security/crypto.js", async (original) => ({
@@ -11,7 +11,7 @@ vi.mock("../../src/server/security/crypto.js", async (original) => ({
 vi.mock("../../src/server/middleware/auth.js", async (original) => ({
   ...await original<typeof import("../../src/server/middleware/auth.js")>(),
   authenticate: () => (req: Request, _res: Response, next: NextFunction) => {
-    req.auth = { user: { id: "actor", email: "actor@example.test", role: state.role }, userInternalId: "1", csrfHash: sha256("csrf") } as Request["auth"];
+    req.auth = { user: { id: "actor", email: "actor@example.test", role: state.role, permissions: state.permissions }, userInternalId: "1", csrfHash: sha256("csrf") } as Request["auth"];
     next();
   }
 }));
@@ -29,7 +29,7 @@ function app() {
   result.use("/agents", createAgentsRouter(config)); result.use(errorHandler); return result;
 }
 beforeEach(() => {
-  state.role = "admin"; state.execute.mockReset(); state.verify.mockReset(); state.hash.mockReset();
+  state.role = "admin"; state.permissions = []; state.execute.mockReset(); state.verify.mockReset(); state.hash.mockReset();
   state.verify.mockResolvedValue(true); state.hash.mockResolvedValue("stored-hash-only");
   state.execute.mockImplementation(async (sql: string) => {
     if (sql.startsWith("SELECT password_hash")) return [[{ password_hash: "acting-hash" }]];
@@ -40,19 +40,55 @@ beforeEach(() => {
   });
 });
 describe("admin controls", () => {
+  it("creates sub-admins with only the explicit permissions", async () => {
+    const result = await request(app()).post("/admins").set("x-csrf-token","csrf").send({email:"sub@example.test",password:"SyntheticNew1!",current_password:"current",role:"sub_admin",permissions:["view_projects","edit_agent_settings"]});
+    expect(result.status).toBe(201);
+    const values = state.execute.mock.calls.find(([sql])=>sql.includes("INSERT INTO internal_users"))![1];
+    expect(values).toContain("sub_admin");
+    expect(values).toContain('["view_projects","edit_agent_settings"]');
+  });
+  it("never lets sub-admins access Teams even with every capability", async () => {
+    state.role="sub_admin"; state.permissions=["view_projects","edit_global_settings","edit_project_settings","edit_agent_settings","delete_projects","delete_agents","rotate_agent_secrets"];
+    expect((await request(app()).get("/admins")).status).toBe(403);
+    expect((await request(app()).post("/admins").set("x-csrf-token","csrf").send({})).status).toBe(403);
+    expect((await request(app()).patch(`/admins/${first}/permissions`).set("x-csrf-token","csrf").send({})).status).toBe(403);
+    expect(state.execute).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["delete", `/projects/${first}`], ["delete", `/projects/${first}/agents/${second}`],
+    ["post", `/projects/${first}/agents/${second}/credential-rotation`]
+  ])("edit permissions cannot authorize %s %s", async (method,path) => {
+    state.role="sub_admin"; state.permissions=["view_projects","edit_project_settings","edit_agent_settings"];
+    const call = method === "delete" ? request(app()).delete(path) : request(app()).post(path);
+    expect((await call.set("x-csrf-token","csrf").send({})).status).toBe(403);
+    expect(state.execute).not.toHaveBeenCalled();
+  });
+  it("denies project reads without view permission", async () => {
+    state.role="sub_admin"; state.permissions=["edit_global_settings"];
+    expect((await request(app()).get("/projects")).status).toBe(403);
+    expect((await request(app()).get(`/agents/${first}/history`)).status).toBe(403);
+    expect(state.execute).not.toHaveBeenCalled();
+  });
+  it("updates only sub-admin permissions after checking the acting admin", async () => {
+    const original = state.execute.getMockImplementation()!;
+    state.execute.mockImplementation((sql:string,...args:unknown[])=>sql.startsWith("SELECT id FROM internal_users") ? Promise.resolve([[{id:"20"}]]) : original(sql,...args));
+    const result = await request(app()).patch(`/admins/${second}/permissions`).set("x-csrf-token","csrf").send({current_password:"current",permissions:["view_projects"]});
+    expect(result.status).toBe(204);
+    expect(state.execute).toHaveBeenCalledWith("UPDATE internal_users SET permissions_json = ?, updated_at = ? WHERE id = ?", ['["view_projects"]',expect.any(Number),"20"]);
+  });
   it("creates only a full-access admin with a hashed password and safe audit", async () => {
     const result = await request(app()).post("/admins").set("x-csrf-token", "csrf").send({
-      email: "NEW@EXAMPLE.TEST", password: "synthetic new password", current_password: "synthetic current password"
+      email: "NEW@EXAMPLE.TEST", password: "SyntheticNew1!", current_password: "synthetic current password"
     });
     expect(result.status).toBe(201);
     const insert = state.execute.mock.calls.find(([sql]) => sql.includes("INSERT INTO internal_users"))!;
-    expect(insert[0]).toContain("'admin'"); expect(insert[1]).toContain("new@example.test"); expect(insert[1]).toContain("stored-hash-only");
-    expect(JSON.stringify(state.execute.mock.calls)).not.toContain("synthetic new password");
+    expect(insert[1]).toContain("admin"); expect(insert[1]).toContain("new@example.test"); expect(insert[1]).toContain("stored-hash-only");
+    expect(JSON.stringify(state.execute.mock.calls)).not.toContain("SyntheticNew1!");
     expect(JSON.stringify(result.body)).not.toContain("password");
   });
   it("rejects incorrect current password without creating an account", async () => {
     state.verify.mockResolvedValue(false);
-    const result = await request(app()).post("/admins").set("x-csrf-token", "csrf").send({email:"new@example.test",password:"synthetic new password",current_password:"wrong"});
+    const result = await request(app()).post("/admins").set("x-csrf-token", "csrf").send({email:"new@example.test",password:"SyntheticNew1!",current_password:"wrong"});
     expect(result.status).toBe(400); expect(state.hash).not.toHaveBeenCalled();
   });
   it("rejects a duplicate email with a controlled conflict", async () => {
@@ -60,7 +96,7 @@ describe("admin controls", () => {
       if (sql.startsWith("SELECT password_hash")) return [[{ password_hash: "hash" }]];
       throw Object.assign(new Error("duplicate"), { code: "ER_DUP_ENTRY" });
     });
-    const result = await request(app()).post("/admins").set("x-csrf-token", "csrf").send({email:"new@example.test",password:"synthetic new password",current_password:"current"});
+    const result = await request(app()).post("/admins").set("x-csrf-token", "csrf").send({email:"new@example.test",password:"SyntheticNew1!",current_password:"current"});
     expect(result.status).toBe(409);
   });
   it("saves a complete reordered snapshot and rejects stale snapshots", async () => {

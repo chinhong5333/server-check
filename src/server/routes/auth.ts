@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Router, type Request } from "express";
+import { readPermissions } from "../../shared/permissions.js";
 import rateLimit from "express-rate-limit";
 import type { RowDataPacket } from "mysql2/promise";
 import {
@@ -21,7 +22,8 @@ interface UserRow extends RowDataPacket {
   public_id: string;
   email: string;
   password_hash: string;
-  role: "admin" | "operator";
+  role: "admin" | "operator" | "sub_admin";
+  permissions_json: unknown;
   failed_login_count: number;
   locked_until: string | null;
 }
@@ -64,7 +66,7 @@ export function createAuthRouter(config: AppConfig): Router {
       const body = loginBodySchema.parse(request.body);
       const email = body.email.toLowerCase();
       const [rows] = await getPool(config).execute<UserRow[]>(
-        `SELECT id, public_id, email, password_hash, role, failed_login_count, locked_until
+        `SELECT id, public_id, email, password_hash, role, permissions_json, failed_login_count, locked_until
          FROM internal_users
          WHERE email = ? AND is_delete = 0
          LIMIT 1`,
@@ -161,7 +163,7 @@ export function createAuthRouter(config: AppConfig): Router {
         body.remember_session ? REMEMBER_SESSION_SECONDS : undefined
       );
       const payload: SessionResponse = {
-        user: { id: user.public_id, email: user.email, role: user.role },
+        user: { id: user.public_id, email: user.email, role: user.role, permissions: readPermissions(user.permissions_json) },
         csrf_token: csrfToken
       };
       response.status(200).json(payload);
@@ -224,7 +226,7 @@ export function createAuthRouter(config: AppConfig): Router {
    * Changes the signed-in user's password after verifying the current password and revokes all sessions.
    * @param {Request} request Authenticated, CSRF-protected request; query must be empty.
    * @param {string} request.body.current_password Current password, 1–1024 characters.
-   * @param {string} request.body.new_password Different new password, 15–128 characters; never trimmed.
+   * @param {string} request.body.new_password Different new password, 8–128 characters with uppercase, lowercase, a number, and a symbol; never trimmed.
    * @param {import("express").Response<void>} response Clears the session cookie and sends 204.
    * @returns {Promise<void>} Persists the password hash, session revocations, and audit event atomically.
    */

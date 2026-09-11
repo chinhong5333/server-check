@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { permissionsSchema, type Permission } from "./permissions.js";
 
 export interface CapacitySnapshot {
   used_bytes: number;
@@ -20,7 +21,9 @@ export const accountPasswordSchema = z.string().min(8).max(128)
 export const createAdminBodySchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
   password: accountPasswordSchema,
-  current_password: z.string().min(1).max(1024)
+  current_password: z.string().min(1).max(1024),
+  role: z.enum(["admin", "sub_admin"]).default("admin"),
+  permissions: permissionsSchema.default([])
 }).strict();
 
 export const sortProjectsBodySchema = z.object({
@@ -31,7 +34,7 @@ export const sortProjectsBodySchema = z.object({
   value.ordered_ids.length === value.expected_ids.length &&
   value.ordered_ids.every((id) => value.expected_ids.includes(id)), "Project IDs must be unique and contain the same projects.");
 
-export const roleSchema = z.enum(["admin", "operator"]);
+export const roleSchema = z.enum(["admin", "operator", "sub_admin"]);
 export type InternalRole = z.infer<typeof roleSchema>;
 
 export const changePasswordBodySchema = z.object({
@@ -234,6 +237,7 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   role: InternalRole;
+  permissions?: Permission[];
 }
 
 export interface SessionResponse {

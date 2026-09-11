@@ -19,7 +19,7 @@ import {
 import type { AppConfig } from "../config.js";
 import { getPool, withTransaction } from "../db.js";
 import { AppError, asyncHandler } from "../errors.js";
-import { authenticate, requireRole } from "../middleware/auth.js";
+import { authenticate, requirePermission } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { readAgentChecks } from "../services/check-configuration.js";
 import { createAgentCredential, sha256 } from "../security/crypto.js";
@@ -142,10 +142,12 @@ async function findAgent(
 export function createProjectsRouter(config: AppConfig): Router {
   const router = Router();
   router.use(authenticate(config));
+  router.use(requirePermission("view_projects"));
 
   /**
    * GET /api/v1/projects
    * Lists active monitoring projects with separate current counts for healthy, new, warning, critical, and stale agents.
+   * Authorization: full admin or a sub-admin with view_projects.
    * @param {Request} request Authenticated request; request body and query must be empty.
    * @param {import("express").Response<ProjectSummary[]>} response Project summaries.
    * @returns {Promise<void>} Resolves after project aggregation.
@@ -185,13 +187,14 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * PUT /api/v1/projects/order
    * Saves a global project order atomically, rejecting stale project snapshots.
+   * Authorization: full admin or a sub-admin with view_projects and edit_project_settings.
    * @param {Request} request Admin request with empty query.
    * @param {string[]} request.body.ordered_ids Unique active project UUIDs in the desired order, maximum 2000.
    * @param {string[]} request.body.expected_ids All active project UUIDs in their originally displayed order.
    * @param {import("express").Response} response Empty 204 response; 409 if the project list changed.
    * @returns {Promise<void>} Persists order and audit together; requires admin role and CSRF.
    */
-  router.put("/order", requireRole("admin"), requireCsrf, asyncHandler(async (request, response) => {
+  router.put("/order", requirePermission("edit_project_settings"), requireCsrf, asyncHandler(async (request, response) => {
     const body = sortProjectsBodySchema.parse(request.body);
     z.object({}).strict().parse(request.query);
     await withTransaction(config, async (connection) => {
@@ -218,6 +221,7 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * POST /api/v1/projects
    * Creates one project. Monitoring policy is configured per agent.
+   * Authorization: full admin or a sub-admin with view_projects and edit_project_settings.
    * @param {Request<{}, {}, import("zod").infer<typeof createProjectBodySchema>>} request Admin request with canonical body.name.
    * @param {string} request.body.name Project display name.
    * @param {import("express").Response<{id: string}>} response Created project identifier.
@@ -225,7 +229,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    */
   router.post(
     "/",
-    requireRole("admin"),
+    requirePermission("edit_project_settings"),
     requireCsrf,
     asyncHandler(async (request, response) => {
       const body = createProjectBodySchema.parse(request.body);
@@ -260,6 +264,7 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * PUT /api/v1/projects/:project_id
    * Replaces a project's display name while preserving its stable public identifier and slug.
+   * Authorization: full admin or a sub-admin with view_projects and edit_project_settings.
    * @param {Request<{project_id: string}, {}, import("zod").infer<typeof updateProjectBodySchema>>} request Admin request with the canonical project identifier and body.name.
    * @param {string} request.params.project_id Public identifier of the project being renamed.
    * @param {string} request.body.name Replacement project display name.
@@ -268,7 +273,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    */
   router.put(
     "/:project_id",
-    requireRole("admin"),
+    requirePermission("edit_project_settings"),
     requireCsrf,
     asyncHandler(async (request: Request<{ project_id: string }>, response) => {
       const body = updateProjectBodySchema.parse(request.body);
@@ -309,6 +314,7 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * DELETE /api/v1/projects/:project_id
    * Soft-removes a project, revokes and soft-removes its agents, resolves open incidents, and cancels pending notifications while retaining history.
+   * Authorization: full admin or a sub-admin with view_projects and delete_projects.
    * @param {Request<{project_id: string}, {}, import("zod").infer<typeof deleteProjectBodySchema>>} request Admin request with the canonical project identifier and confirmation body; query must be empty.
    * @param {string} request.params.project_id Public identifier of the project being removed.
    * @param {string} request.body.confirmation_name Exact current project name required for destructive confirmation.
@@ -317,7 +323,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    */
   router.delete(
     "/:project_id",
-    requireRole("admin"),
+    requirePermission("delete_projects"),
     requireCsrf,
     asyncHandler(async (request: Request<{ project_id: string }>, response) => {
       const body = deleteProjectBodySchema.parse(request.body);
@@ -391,6 +397,7 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * POST /api/v1/projects/:project_id/agents/:agent_id/credential-rotation
    * Explicitly rotates one agent credential and returns its one-time replacement script and crontab entry.
+   * Authorization: full admin or a sub-admin with view_projects and rotate_agent_secrets.
    * @param {Request<{project_id: string, agent_id: string}, {}, import("zod").infer<typeof generateAgentScriptBodySchema>>} request Admin request with canonical project and agent identifiers and script health endpoint.
    * @param {string} request.params.project_id Public identifier of the owning project.
    * @param {string} request.params.agent_id Public identifier of the agent whose credential will be rotated.
@@ -404,7 +411,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    */
   router.post(
     "/:project_id/agents/:agent_id/credential-rotation",
-    requireRole("admin"),
+    requirePermission("rotate_agent_secrets"),
     requireCsrf,
     asyncHandler(async (request: Request<{ project_id: string; agent_id: string }>, response) => {
       const body = generateAgentScriptBodySchema.parse(request.body);
@@ -508,6 +515,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    * Lists monitored agents and their latest diagnostic state for one project.
    * Includes latest_load_5 as raw five-minute load from the current heartbeat, or null
    * when unavailable. Existing load_5_per_core and alert thresholds remain normalized.
+   * Authorization: full admin or a sub-admin with view_projects.
    * @param {Request<{project_id: string}>} request Authenticated request with canonical params.project_id.
    * @param {import("express").Response<AgentSummary[]>} response Agent summaries ordered by severity.
    * @param {object} response.body.checks Saved Apache, Nginx, and middleware_api selections for each agent.
@@ -564,6 +572,7 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * PUT /api/v1/projects/:project_id/agents/:agent_id
    * Replaces an agent's editable configuration without changing its credential or current monitoring state.
+   * Authorization: full admin or a sub-admin with view_projects and edit_agent_settings.
    * @param {Request<{project_id: string, agent_id: string}, {}, import("zod").infer<typeof updateAgentBodySchema>>} request Admin request with canonical agent update fields.
    * @param {string} request.params.project_id Public identifier of the owning project.
    * @param {string} request.params.agent_id Public identifier of the agent being updated.
@@ -578,7 +587,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    */
   router.put(
     "/:project_id/agents/:agent_id",
-    requireRole("admin"),
+    requirePermission("edit_agent_settings"),
     requireCsrf,
     asyncHandler(async (request: Request<{ project_id: string; agent_id: string }>, response) => {
       const body = updateAgentBodySchema.parse(request.body);
@@ -642,6 +651,7 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * DELETE /api/v1/projects/:project_id/agents/:agent_id
    * Soft-removes an agent, revokes its credential, resolves open incidents, and cancels pending notifications.
+   * Authorization: full admin or a sub-admin with view_projects and delete_agents.
    * @param {Request<{project_id: string, agent_id: string}>} request Admin request with canonical project and agent identifiers; body and query must be empty.
    * @param {string} request.params.project_id Public identifier of the owning project.
    * @param {string} request.params.agent_id Public identifier of the agent being removed.
@@ -650,7 +660,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    */
   router.delete(
     "/:project_id/agents/:agent_id",
-    requireRole("admin"),
+    requirePermission("delete_agents"),
     requireCsrf,
     asyncHandler(async (request: Request<{ project_id: string; agent_id: string }>, response) => {
       const project = await findProject(config, request.params.project_id);
@@ -705,6 +715,7 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * GET /api/v1/projects/:project_id/incidents
    * Lists recent incidents for one project.
+   * Authorization: full admin or a sub-admin with view_projects.
    * @param {Request<{project_id: string}>} request Authenticated request with canonical params.project_id.
    * @param {import("express").Response<IncidentSummary[]>} response Recent incident summaries.
    * @returns {Promise<void>} Resolves after incident lookup.
@@ -740,6 +751,7 @@ export function createProjectsRouter(config: AppConfig): Router {
   /**
    * POST /api/v1/projects/:project_id/agent-installations
    * Creates one registered agent and returns its one-time self-contained shell installation.
+   * Authorization: full admin or a sub-admin with view_projects and edit_agent_settings.
    * @param {Request<{project_id: string}, {}, import("zod").infer<typeof createAgentInstallationBodySchema>>} request Admin request with canonical agent installation fields.
    * @param {string} request.params.project_id Public identifier of the owning project.
    * @param {string} request.body.server_name Internal display name for the monitored server.
@@ -758,7 +770,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    */
   router.post(
     "/:project_id/agent-installations",
-    requireRole("admin"),
+    requirePermission("edit_agent_settings"),
     requireCsrf,
     asyncHandler(async (request: Request<{ project_id: string }>, response) => {
       const body = createAgentInstallationBodySchema.parse(request.body);

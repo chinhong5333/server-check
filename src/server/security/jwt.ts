@@ -5,7 +5,7 @@ import type { AppConfig } from "../config.js";
 export interface SessionJwtClaims extends JWTPayload {
   sub: string;
   sid: string;
-  role: "admin" | "operator";
+  role: "admin" | "operator" | "sub_admin";
   remember_session: boolean;
 }
 
@@ -43,7 +43,7 @@ export async function verifySessionJwt(
   if (
     typeof payload.sub !== "string" ||
     typeof payload.sid !== "string" ||
-    (payload.role !== "admin" && payload.role !== "operator") ||
+    (payload.role !== "admin" && payload.role !== "operator" && payload.role !== "sub_admin") ||
     (payload.remember_session !== undefined && typeof payload.remember_session !== "boolean")
   ) {
     throw new Error("JWT claims are invalid.");

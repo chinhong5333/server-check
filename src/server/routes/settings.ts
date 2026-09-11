@@ -9,7 +9,7 @@ import {
 import type { AppConfig } from "../config.js";
 import { getPool, withTransaction } from "../db.js";
 import { AppError, asyncHandler } from "../errors.js";
-import { authenticate, requireRole } from "../middleware/auth.js";
+import { authenticate, requirePermission } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import {
   decryptPlatformTelegramBotToken,
@@ -31,11 +31,12 @@ interface PlatformTelegramRow extends RowDataPacket {
 export function createSettingsRouter(config: AppConfig): Router {
   const router = Router();
   router.use(authenticate(config));
-  router.use(requireRole("admin"));
+  router.use(requirePermission("edit_global_settings"));
 
   /**
    * GET /api/v1/settings/telegram
    * Returns the platform Telegram delivery status without exposing the stored bot token.
+   * Authorization: full admin or a sub-admin with edit_global_settings.
    * @param {import("express").Request} request Admin request; body and query must be empty.
    * @param {import("express").Response<PlatformTelegramSettings>} response Safe platform Telegram settings.
    * @returns {Promise<void>} Resolves after the platform settings lookup.
@@ -62,6 +63,7 @@ export function createSettingsRouter(config: AppConfig): Router {
   /**
    * PATCH /api/v1/settings/telegram
    * Replaces the platform Telegram destination and optionally replaces or removes its encrypted bot token.
+   * Authorization: full admin or a sub-admin with edit_global_settings.
    * @param {import("express").Request<{}, {}, import("zod").infer<typeof updatePlatformTelegramBodySchema>>} request Admin request.
    * @param {string|null} [request.body.telegram_bot_token] New BotFather token, null to remove it, or omitted to keep the existing encrypted token.
    * @param {string|null} request.body.telegram_chat_id Platform chat ID or channel username; null disables Telegram delivery.
@@ -137,6 +139,7 @@ export function createSettingsRouter(config: AppConfig): Router {
   /**
    * POST /api/v1/settings/telegram/test
    * Sends one test message through the saved platform Telegram Bot Token and Chat ID.
+   * Authorization: full admin or a sub-admin with edit_global_settings.
    * @param {import("express").Request<{}, {}, Record<string, never>, Record<string, never>>} request Admin request; request body and query must be empty.
    * @param {import("express").Response<void>} response Empty success response after Telegram accepts the message.
    * @returns {Promise<void>} Resolves after configuration validation, credential decryption, and Telegram delivery.
@@ -188,6 +191,7 @@ export function createSettingsRouter(config: AppConfig): Router {
   /**
    * GET /api/v1/settings/telegram/chats
    * Discovers group/channel names and IDs from the saved platform bot's pending updates.
+   * Authorization: full admin or a sub-admin with edit_global_settings.
    * @param {import("express").Request<{}, {}, Record<string, never>, Record<string, never>>} request Authenticated admin request; body and query must be empty. No token input is accepted.
    * @param {import("express").Response<import("../../shared/contracts.js").TelegramChatDiscovery>} response Bot username and chat id/name/type only, with Cache-Control: no-store.
    * @returns {Promise<void>} Returns 200 on discovery, 409 for missing/rejected bot configuration or webhook conflicts, 429 for request limits, or 502 for upstream failures. Does not save a destination, send messages, acknowledge updates, or alter webhooks.
@@ -216,6 +220,7 @@ export function createSettingsRouter(config: AppConfig): Router {
   /**
    * GET /api/v1/settings/telegram/bot-link
    * Resolves the saved platform bot's public chat link using Telegram getMe.
+   * Authorization: full admin or a sub-admin with edit_global_settings.
    * @param {import("express").Request<{}, {}, Record<string, never>, Record<string, never>>} request Authenticated admin request; body and query must be empty. No token input is accepted.
    * @param {import("express").Response<{username: string, url: string}>} response Public bot username and HTTPS link only, with Cache-Control: no-store.
    * @returns {Promise<void>} Returns 200 on success, 409 for missing/rejected credentials, 429 for local request limits, or 502 for upstream failure. Does not send messages or modify settings.

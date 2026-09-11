@@ -13,7 +13,7 @@ import type {
 import type { AppConfig } from "../config.js";
 import { getPool, withTransaction, type ResultSetHeader } from "../db.js";
 import { AppError, asyncHandler } from "../errors.js";
-import { authenticate, requireRole } from "../middleware/auth.js";
+import { authenticate, requirePermission } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { lockAgentAlerts } from "../services/alert-queue.js";
 
@@ -112,6 +112,7 @@ function parseIncidentDetails(value: unknown): unknown {
 export function createAgentsRouter(config: AppConfig): Router {
   const router = Router();
   router.use(authenticate(config));
+  router.use(requirePermission("view_projects"));
 
   /**
    * GET /api/v1/agents/:agent_id/history
@@ -122,6 +123,7 @@ export function createAgentsRouter(config: AppConfig): Router {
    * latest_resources contains nullable RAM/storage used_bytes, total_bytes, and utilization_percent
    * from the latest heartbeat, independent of the chart range. Storage includes mount_point for
    * the filesystem with highest utilization in that report; used is total minus available.
+   * Authorization: full admin or a sub-admin with view_projects.
    * @param {object} request.body No request body is accepted by this read-only endpoint.
    * @param {Request<{agent_id: string}, {}, {}, {from: string, to: string, bucket_seconds: string}>} request Authenticated history request.
    * @param {string} request.params.agent_id Public identifier of the active agent.
@@ -245,6 +247,7 @@ export function createAgentsRouter(config: AppConfig): Router {
   /**
    * GET /api/v1/agents/:agent_id/incidents
    * Lists recent incidents for one active agent.
+   * Authorization: full admin or a sub-admin with view_projects.
    * @param {Request<{agent_id: string}, {}, {}, {}>} request Authenticated request with canonical params.agent_id; body and query must be empty.
    * @param {string} request.params.agent_id Public identifier of the active agent.
    * @param {import("express").Response<AgentIncidentLog[]>} response Complete normalized agent incident logs ordered newest first.
@@ -296,6 +299,7 @@ export function createAgentsRouter(config: AppConfig): Router {
   /**
    * GET /api/v1/agents/:agent_id/telegram-deliveries
    * Lists recent Telegram delivery attempts for one active agent.
+   * Authorization: full admin or a sub-admin with view_projects.
    * @param {Request<{agent_id: string}, {}, {}, {}>} request Authenticated request with canonical params.agent_id; body and query must be empty.
    * @param {string} request.params.agent_id Public identifier of the active agent.
    * @param {import("express").Response<TelegramDeliverySummary[]>} response Telegram delivery records ordered newest first.
@@ -348,13 +352,14 @@ export function createAgentsRouter(config: AppConfig): Router {
   /**
    * POST /api/v1/agents/:agent_id/telegram-deliveries/cancel-pending
    * Cancels pending Telegram deliveries for exactly one active agent and retains their log records.
+   * Authorization: full admin or a sub-admin with view_projects and edit_agent_settings.
    * @param {Request} request Admin and CSRF authenticated request; query must be empty.
    * @param {string} request.params.agent_id Active agent public UUID.
    * @param {true} request.body.confirm Must be explicitly true after the UI's second confirmation.
    * @param {import("express").Response} response 200 with cancelled_count; in-flight sends may complete first.
    * @returns {Promise<void>} Atomically cancels queued rows and records an audit event; future alerts are unaffected.
    */
-  router.post("/:agent_id/telegram-deliveries/cancel-pending", requireRole("admin"), requireCsrf,
+  router.post("/:agent_id/telegram-deliveries/cancel-pending", requirePermission("edit_agent_settings"), requireCsrf,
     asyncHandler(async (request, response) => {
       z.object({ confirm: z.literal(true) }).strict().parse(request.body);
       emptyQuerySchema.parse(request.query);
