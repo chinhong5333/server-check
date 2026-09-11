@@ -1,3 +1,4 @@
+import { hasPermission } from "../../shared/permissions";
 import {
   Activity,
   BellRing,
@@ -60,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         Skip To Content
       </a>
       <header className="mobile-header">
-        <NavLink className="wordmark" to="/projects">
+        <NavLink className="wordmark" to={hasPermission(user, "view_projects") ? "/projects" : "/settings/password"}>
           <ScrollText aria-hidden="true" />
           Server Check
         </NavLink>
@@ -85,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-hidden={!navigationVisible}
         inert={!navigationVisible}
       >
-        <NavLink className="wordmark sidebar__wordmark" to="/projects" onClick={() => setMenuOpen(false)}>
+        <NavLink className="wordmark sidebar__wordmark" to={hasPermission(user, "view_projects") ? "/projects" : "/settings/password"} onClick={() => setMenuOpen(false)}>
           <ScrollText aria-hidden="true" />
           <span>
             Server Check
@@ -114,10 +115,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <nav className="sidebar__nav" aria-label="Settings Navigation">
             <span className="sidebar__section-label">Settings</span>
             {[
-              ...(user?.role === "admin" ? [
-                { to: "/settings/telegram", label: "Telegram", icon: BellRing },
-                { to: "/settings/admins", label: "Teams", icon: Users }
-              ] : []),
+              ...(hasPermission(user, "edit_global_settings") ? [{ to: "/settings/telegram", label: "Telegram", icon: BellRing }] : []),
+              ...(user?.role === "admin" ? [{ to: "/settings/admins", label: "Teams", icon: Users }] : []),
               { to: "/settings/password", label: "Change Password", icon: KeyRound }
             ].map(({ to, label, icon: Icon }) => <NavLink key={to} to={to}
               className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
@@ -146,7 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar__bottom">
           <div className="sidebar__utilities">
             <ThemeToggle />
-            {user?.role === "admin" ? (
+            {hasPermission(user, "edit_global_settings") || user?.role === "admin" ? (
               <NavLink
                 to="/settings"
                 className={({ isActive }) => `icon-button sidebar__settings${isActive ? " sidebar__settings--active" : ""}`}
@@ -170,7 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <UserRound aria-hidden="true" />
               <span className="sidebar__account-details">
                 <strong>{user?.email}</strong>
-                <span>{user?.role}</span>
+                <span>{user?.role === "sub_admin" ? "Sub-Admin" : user?.role}</span>
               </span>
             </NavLink>
             <button className="icon-button" type="button" aria-label="Sign Out" onClick={() => void logout()}>

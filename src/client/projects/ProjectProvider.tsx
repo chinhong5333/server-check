@@ -7,6 +7,8 @@ import {
 } from "react";
 import { useLocation } from "react-router-dom";
 import type { ProjectSummary } from "../../shared/contracts";
+import { hasPermission } from "../../shared/permissions";
+import { useAuth } from "../auth/AuthProvider";
 import { apiFetch } from "../api";
 import { FAST_REFRESH_INTERVAL_MS, useApiResource } from "../hooks/useApiResource";
 
@@ -34,13 +36,15 @@ export function projectIdFromLocation(pathname: string, search: string): string 
 }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const canView = hasPermission(user, "view_projects");
   const location = useLocation();
-  const loadProjects = useCallback(() => apiFetch<ProjectSummary[]>("/api/v1/projects"), []);
+  const loadProjects = useCallback(() => canView ? apiFetch<ProjectSummary[]>("/api/v1/projects") : Promise.resolve([]), [canView]);
   const resource = useApiResource<ProjectSummary[]>("projects", loadProjects, {
     refreshIntervalMs: FAST_REFRESH_INTERVAL_MS
   });
   const selectedId = projectIdFromLocation(location.pathname, location.search);
-  const projects = resource.data ?? [];
+  const projects = canView ? resource.data ?? [] : [];
   const selectedProject = selectedId
     ? projects.find((project) => project.id === selectedId) ?? null
     : null;

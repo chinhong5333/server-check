@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformTelegramSettings } from "../../src/shared/contracts";
+vi.mock("../../src/client/auth/AuthProvider", () => ({ useAuth: () => ({ user: { role: "admin" } }) }));
 
 const { apiFetchMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn()

@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useParams, useLocation } from "react-router-dom";
+import { hasPermission } from "../shared/permissions";
 import { useAuth } from "./auth/AuthProvider";
 import { AppShell } from "./components/AppShell";
 import { ErrorState, PageSkeleton } from "./components/Feedback";
@@ -57,8 +58,10 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { failed: bool
 
 function ProtectedApplication() {
   const { status, user } = useAuth();
+  const location = useLocation();
   if (status === "loading") return <main className="standalone-feedback"><PageSkeleton rows={5} /></main>;
   if (status === "anonymous") return <Navigate to="/login" replace />;
+  if (!hasPermission(user, "view_projects") && !location.pathname.startsWith("/settings") && location.pathname !== "/account") return <Navigate to="/settings/password" replace />;
 
   return (
     <ProjectProvider>
@@ -67,10 +70,10 @@ function ProtectedApplication() {
           <Route path="/account" element={<Navigate to="/settings/password" replace />} />
           <Route path="/settings/password" element={<AccountPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/settings" element={<Navigate to={user?.role === "admin" ? "/settings/telegram" : "/settings/password"} replace />} />
-          <Route path="/settings/telegram" element={user?.role === "admin" ? <PlatformSettingsPage /> : <Navigate to="/settings/password" replace />} />
+          <Route path="/settings" element={<Navigate to={hasPermission(user, "edit_global_settings") ? "/settings/telegram" : "/settings/password"} replace />} />
+          <Route path="/settings/telegram" element={hasPermission(user, "edit_global_settings") ? <PlatformSettingsPage /> : <Navigate to="/settings/password" replace />} />
           <Route path="/settings/admins" element={user?.role === "admin" ? <AdminManagementPage /> : <Navigate to="/settings/password" replace />} />
-          <Route path="/projects/new" element={<CreateProjectPage />} />
+          <Route path="/projects/new" element={hasPermission(user, "edit_project_settings") ? <CreateProjectPage /> : <Navigate to="/projects" replace />} />
           <Route path="/projects/:projectId" element={<InstallAgentPage />} />
           <Route path="/projects/:projectId/agents" element={<ProjectOverviewRedirect />} />
           <Route path="/projects/:projectId/incidents" element={<ProjectOverviewRedirect />} />

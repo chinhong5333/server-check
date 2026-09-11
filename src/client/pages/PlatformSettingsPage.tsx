@@ -6,8 +6,11 @@ import { apiFetch } from "../api";
 import { ErrorState, PageSkeleton } from "../components/Feedback";
 import { TelegramSettingsForm } from "../components/TelegramSettingsForm";
 import { useApiResource } from "../hooks/useApiResource";
+import { useAuth } from "../auth/AuthProvider";
+import { hasPermission } from "../../shared/permissions";
 
 export function PlatformSettingsPage() {
+  const { user } = useAuth();
   const loadSettings = useCallback(
     () => apiFetch<PlatformTelegramSettings>("/api/v1/settings/telegram"),
     []
@@ -17,7 +20,7 @@ export function PlatformSettingsPage() {
   return (
     <div className="page-stack">
       <div className="settings-page-intro">
-      <Link className="back-link" to="/projects"><ArrowLeft aria-hidden="true" /> Back To Projects</Link>
+      {hasPermission(user, "view_projects") && <Link className="back-link" to="/projects"><ArrowLeft aria-hidden="true" /> Back To Projects</Link>}
       <header className="page-header">
         <div>
           <p className="page-context">Platform</p>

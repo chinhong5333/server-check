@@ -1,3 +1,4 @@
+import { hasPermission } from "../../shared/permissions";
 import { ListFilter, FolderPlus, X } from "lucide-react";
 import { useRef, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -52,6 +53,7 @@ export function ProjectsPage() {
           type="button"
           aria-haspopup="dialog"
           aria-controls="create-project-dialog"
+          hidden={!hasPermission(user, "edit_project_settings")}
           onClick={openCreateDialog}
           disabled={sortSnapshot !== null}
         >
@@ -62,7 +64,7 @@ export function ProjectsPage() {
 
       <ModalDialog
         id="create-project-dialog"
-        open={createOpen}
+        open={createOpen && hasPermission(user, "edit_project_settings")}
         labelledBy="create-project-title"
         describedBy="create-project-description"
         surfaceClassName="agent-dialog__surface form-surface"
@@ -104,7 +106,8 @@ export function ProjectsPage() {
               type="button"
               aria-haspopup="dialog"
               aria-controls="create-project-dialog"
-              onClick={openCreateDialog}
+              hidden={!hasPermission(user, "edit_project_settings")}
+          onClick={openCreateDialog}
             >
               Create First Project
             </button>
@@ -119,10 +122,10 @@ export function ProjectsPage() {
             <div className="project-sort__actions"><span className="numeric section-count">
               Total {formatCount(projects.length)} {projects.length === 1 ? "Project" : "Projects"}
             </span>
-            {user?.role === "admin" && !sortSnapshot && projects.length > 1 && <button type="button" className="button button--secondary"
+            {hasPermission(user, "edit_project_settings") && !sortSnapshot && projects.length > 1 && <button type="button" className="button button--secondary"
               onClick={() => setSortSnapshot([...projects])}><ListFilter aria-hidden="true" />Sort</button>}</div>
           </div>
-          {sortSnapshot ? <ProjectSortMode projects={sortSnapshot} onClose={() => setSortSnapshot(null)}
+          {sortSnapshot && hasPermission(user, "edit_project_settings") ? <ProjectSortMode projects={sortSnapshot} onClose={() => setSortSnapshot(null)}
             onSaved={() => { reloadProjects(); setSortSnapshot(null); }} /> :
           <ul className="project-card-grid">
             {projects.map((project) => <li key={project.id}><ProjectCard project={project} /></li>)}

@@ -1,3 +1,4 @@
+import { hasPermission } from "../../shared/permissions";
 import { ArrowLeft, ArrowRight, Download, KeyRound, Pencil, Plus, ShieldAlert, TerminalSquare, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -125,7 +126,7 @@ export function InstallAgentPage() {
     const consumeRequest = () => setSearchParams((current) => {
       const next = new URLSearchParams(current); next.delete("rotate_agent"); return next;
     }, { replace: true });
-    if (user?.role !== "admin") { consumeRequest(); return; }
+    if (!hasPermission(user, "rotate_agent_secrets")) { consumeRequest(); return; }
     const controller = new AbortController();
     // Fetch this project's current settings rather than using a previous route's cached roster.
     void apiFetch<AgentSummary[]>(`/api/v1/projects/${encodeURIComponent(projectId)}/agents`, { signal: controller.signal })
@@ -455,6 +456,7 @@ export function InstallAgentPage() {
           <p>Monitor server health and manage every agent registered to this project.</p>
         </div>
         <button
+          hidden={!hasPermission(user, "edit_agent_settings")}
           ref={registrationButtonRef}
           className="button button--primary"
           type="button"
@@ -481,7 +483,7 @@ export function InstallAgentPage() {
 
       <ModalDialog
         id="register-agent"
-        open={registrationOpen}
+        open={registrationOpen && hasPermission(user, "edit_agent_settings")}
         labelledBy="register-agent-title"
         dialogClassName={registrationStep === "settings" ? "agent-dialog--agent-form" : undefined}
         surfaceClassName="agent-dialog__surface form-surface"
@@ -556,7 +558,7 @@ export function InstallAgentPage() {
 
       <ModalDialog
         id="edit-agent"
-        open={Boolean(editingAgent)}
+        open={Boolean(editingAgent) && hasPermission(user, "edit_agent_settings")}
         labelledBy="edit-agent-title"
         dialogClassName="agent-dialog--agent-form"
         surfaceClassName="agent-dialog__surface form-surface"
@@ -603,7 +605,7 @@ export function InstallAgentPage() {
 
       <ModalDialog
         id="rotate-agent-credential"
-        open={Boolean(agentPendingRotation)}
+        open={Boolean(agentPendingRotation) && hasPermission(user, "rotate_agent_secrets")}
         labelledBy="rotate-agent-credential-title"
         describedBy="rotate-agent-credential-description"
         surfaceClassName="agent-dialog__surface agent-rotation-confirmation"
@@ -661,7 +663,7 @@ export function InstallAgentPage() {
 
       <ModalDialog
         id="delete-agent"
-        open={Boolean(agentPendingDelete)}
+        open={Boolean(agentPendingDelete) && hasPermission(user, "delete_agents")}
         labelledBy="delete-agent-title"
         describedBy="delete-agent-description"
         surfaceClassName="agent-dialog__surface agent-delete-confirmation"
@@ -801,6 +803,7 @@ export function InstallAgentPage() {
                         <button
                           className="icon-button"
                           type="button"
+                          hidden={!hasPermission(user, "edit_agent_settings")}
                           aria-label={`Edit ${agent.server_name}`}
                           title="Edit Agent"
                           aria-haspopup="dialog"
@@ -819,6 +822,7 @@ export function InstallAgentPage() {
                         <button
                           className="icon-button"
                           type="button"
+                          hidden={!hasPermission(user, "rotate_agent_secrets")}
                           aria-label={`Rotate ${agent.server_name} Access Secret`}
                           title="Rotate Access Secret"
                           aria-haspopup="dialog"
@@ -839,6 +843,7 @@ export function InstallAgentPage() {
                         <button
                           className="icon-button icon-button--danger"
                           type="button"
+                          hidden={!hasPermission(user, "delete_agents")}
                           aria-label={`Delete ${agent.server_name}`}
                           title="Delete Agent"
                           aria-haspopup="dialog"

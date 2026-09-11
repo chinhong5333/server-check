@@ -41,6 +41,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void restore();
   }, [restore]);
 
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const refresh = () => { if (document.visibilityState !== "hidden") void restore(); };
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [status, restore]);
+
   const login = useCallback(async (email: string, password: string, rememberSession: boolean) => {
     const session = await apiFetch<SessionResponse>("/api/v1/auth/login", {
       method: "POST",

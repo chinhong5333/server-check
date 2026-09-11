@@ -1,3 +1,5 @@
+import { useAuth } from "../auth/AuthProvider";
+import { hasPermission } from "../../shared/permissions";
 import { Settings, ShieldAlert, Trash2, X } from "lucide-react";
 import { useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +15,7 @@ function agentCountFor(project: ProjectSummary): number {
 }
 
 export function ProjectActions({ project }: { project: ProjectSummary }) {
+  const { user } = useAuth();
   const { reloadProjects } = useProjects();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -125,18 +128,18 @@ export function ProjectActions({ project }: { project: ProjectSummary }) {
   return (
     <div className="project-management-actions">
       <button className="button button--secondary" type="button"
-        aria-haspopup="dialog" aria-controls="rename-project-dialog"
+        hidden={!hasPermission(user, "edit_project_settings")} aria-haspopup="dialog" aria-controls="rename-project-dialog"
         onClick={(event) => openRenameDialog(project, event)}>
         <Settings aria-hidden="true" /> Rename Project
       </button>
       <button className="button button--secondary project-delete-action" type="button"
-        aria-haspopup="dialog" aria-controls="delete-project-dialog"
+        hidden={!hasPermission(user, "delete_projects")} aria-haspopup="dialog" aria-controls="delete-project-dialog"
         onClick={(event) => openDeleteDialog(project, event)}>
         <Trash2 aria-hidden="true" /> Delete Project
       </button>
       <ModalDialog
         id="rename-project-dialog"
-        open={Boolean(projectPendingRename)}
+        open={Boolean(projectPendingRename) && hasPermission(user, "edit_project_settings")}
         labelledBy="rename-project-title"
         describedBy="rename-project-description"
         dialogClassName="agent-dialog--project-rename"
@@ -201,7 +204,7 @@ export function ProjectActions({ project }: { project: ProjectSummary }) {
 
       <ModalDialog
         id="delete-project-dialog"
-        open={Boolean(projectPendingDelete)}
+        open={Boolean(projectPendingDelete) && hasPermission(user, "delete_projects")}
         labelledBy="delete-project-title"
         describedBy="delete-project-description"
         surfaceClassName="agent-dialog__surface agent-delete-confirmation"

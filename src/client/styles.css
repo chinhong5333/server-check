@@ -2772,3 +2772,5 @@ button.back-link {
 @media (max-width: 59.999rem) {
   .telegram-log-heading { padding: var(--space-md); gap: var(--space-sm); }
 }
+
+[hidden] { display: none !important; }

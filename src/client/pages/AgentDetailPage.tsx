@@ -1,3 +1,4 @@
+import { hasPermission } from "../../shared/permissions";
 import { ArrowLeft, CircleHelp, ExternalLink, Link2, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -265,10 +266,10 @@ export function AgentDetailPage() {
           <h1>{agent.server_name}</h1>
           <p>Current status, seven-day metric trends, and historical records for this monitored server.</p>
         </div>
-        {user?.role === "admin" && <div className="agent-detail-actions">
-          <ManageAgentButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name} onSaved={resource.reload} />
-          <RotateAgentSecretButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name}
-            checks={agent.checks} healthApiUrl={agent.health_api_url} onFinished={resource.reload} />
+        {(hasPermission(user, "edit_agent_settings") || hasPermission(user, "rotate_agent_secrets")) && <div className="agent-detail-actions">
+          {hasPermission(user, "edit_agent_settings") && <ManageAgentButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name} onSaved={resource.reload} />}
+          {hasPermission(user, "rotate_agent_secrets") && <RotateAgentSecretButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name}
+            checks={agent.checks} healthApiUrl={agent.health_api_url} onFinished={resource.reload} />}
         </div>}
       </header>
       </div>
@@ -411,7 +412,7 @@ export function AgentDetailPage() {
               <ErrorState title="Couldn't Load Telegram Delivery Log" message={telegramDeliveries.error?.message ?? "Try again."} onRetry={telegramDeliveries.reload} />
             ) : null}
             {telegramDeliveries.status === "success" ? <AgentTelegramDeliveryLog deliveries={telegramDeliveries.data ?? []}
-              cancellation={user?.role === "admin" ? { agentId: resource.data.agent.id, agentName: resource.data.agent.server_name, onCancelled: telegramDeliveries.reload } : undefined} /> : null}
+              cancellation={hasPermission(user, "edit_agent_settings") ? { agentId: resource.data.agent.id, agentName: resource.data.agent.server_name, onCancelled: telegramDeliveries.reload } : undefined} /> : null}
           </div>
         )}
       </section>

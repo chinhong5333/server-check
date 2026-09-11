@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentSummary, ProjectSummary } from "../../src/shared/contracts";
 
 const { apiFetchMock, projectFixture, authFixture } = vi.hoisted(() => ({
-  authFixture: { role: "admin" },
+  authFixture: { role: "admin", permissions: [] as string[] },
   apiFetchMock: vi.fn(),
   projectFixture: {
     id: "project-1",
@@ -40,7 +40,7 @@ vi.mock("../../src/client/projects/ProjectProvider", () => ({
 
 vi.mock("../../src/client/auth/AuthProvider", () => ({
   useAuth: () => ({
-    user: { id: "user-1", email: "operator@example.com", role: authFixture.role },
+    user: { id: "user-1", email: "operator@example.com", role: authFixture.role, permissions: authFixture.permissions },
     logout: vi.fn()
   })
 }));
@@ -122,6 +122,7 @@ describe("project-scoped agents page", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     authFixture.role = "admin";
+    authFixture.permissions = [];
   });
 
   afterEach(() => {
@@ -166,6 +167,18 @@ describe("project-scoped agents page", () => {
     expect(screen.queryByRole("link", { name: "Incidents" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Project setting" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Project" })).not.toBeInTheDocument();
+  });
+  it("shows edit actions without delete or rotation for a scoped sub-admin", async () => {
+    authFixture.role="sub_admin";authFixture.permissions=["view_projects","edit_agent_settings"];
+    apiFetchMock.mockResolvedValue(agents);
+    renderAgentsPage();
+    await screen.findByRole("heading",{name:"Registered Agents"});
+    expect(screen.getByRole("button",{name:"Register Agent"})).toBeInTheDocument();
+    expect(screen.getByRole("button",{name:"Edit atlas-web-01"})).toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:"Rotate atlas-web-01 Access Secret"})).not.toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:"Delete atlas-web-01"})).not.toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:"Rename Project"})).not.toBeInTheDocument();
+    expect(screen.queryByRole("button",{name:"Delete Project"})).not.toBeInTheDocument();
   });
 
   it("shows one project with its agent roster before registration", async () => {
@@ -270,7 +283,7 @@ describe("project-scoped agents page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue To Script Generation" }));
     expect(
       within(screen.getByRole("region", { name: "Notifications" })).getByRole("alert")
-    ).toHaveTextContent("Check the server details, utilization thresholds, heartbeat interval, and Telegram send interval.");
+    ).toHaveTextContent("Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram send interval.");
     fireEvent.click(screen.getByRole("button", { name: "Close Registration" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Register Agent" })).toHaveFocus());
   });
