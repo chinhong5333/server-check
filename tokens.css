@@ -29,6 +29,7 @@
   --color-info-surface: oklch(94% 0.03 250);
   --color-overlay: oklch(18% 0.02 258 / 0.48);
   --color-skeleton: oklch(89% 0.012 252);
+  --color-dot-grid: oklch(72% 0.018 254 / 0.32);
   --color-code-surface: oklch(20% 0.018 260);
   --color-code-ink: oklch(92% 0.01 250);
   --color-code-muted: oklch(76% 0.015 250);

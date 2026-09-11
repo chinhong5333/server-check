@@ -41,6 +41,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+:root:not([data-theme="dark"]) body {
+  background-image: radial-gradient(
+    circle,
+    var(--color-dot-grid) 0 var(--rule-thin),
+    transparent var(--rule-thin)
+  );
+  background-size: var(--space-lg) var(--space-lg);
+}
+
 button,
 input,
 select,
