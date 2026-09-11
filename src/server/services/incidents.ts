@@ -36,17 +36,20 @@ export interface DiagnosticSnapshot {
   probableCause: string | null;
 }
 
+function rootFilesystem(payload: TelemetryPayload) {
+  return payload.filesystems.find((filesystem) =>
+    filesystem.mount_point === "/" && filesystem.total_bytes > 0 && filesystem.available_bytes <= filesystem.total_bytes
+  ) ?? null;
+}
+
 function calculateSnapshot(payload: TelemetryPayload): Omit<DiagnosticSnapshot, "status" | "probableCause"> {
   const memoryTotal = payload.metrics.memory_total_bytes;
   const memoryAvailable = payload.metrics.memory_available_bytes;
   const ramAvailablePercent =
     memoryTotal && memoryAvailable !== null ? (memoryAvailable / memoryTotal) * 100 : null;
 
-  const availablePercentages = payload.filesystems
-    .filter((filesystem) => filesystem.total_bytes > 0)
-    .map((filesystem) => (filesystem.available_bytes / filesystem.total_bytes) * 100);
-  const diskAvailablePercent =
-    availablePercentages.length > 0 ? Math.min(...availablePercentages) : null;
+  const root = rootFilesystem(payload);
+  const diskAvailablePercent = root === null ? null : (root.available_bytes / root.total_bytes) * 100;
 
   const load5PerCore =
     payload.metrics.load_5 !== null && payload.metrics.cpu_count
@@ -82,12 +85,7 @@ function conditionsForPayload(
     snapshot.diskAvailablePercent !== null &&
     snapshot.diskAvailablePercent < policy.diskThreshold
   ) {
-    const filesystem = payload.filesystems
-      .filter((item) => item.total_bytes > 0)
-      .sort(
-        (left, right) =>
-          left.available_bytes / left.total_bytes - right.available_bytes / right.total_bytes
-      )[0];
+    const filesystem = rootFilesystem(payload);
     conditions.push({
       type: "disk_low",
       severity: "warning",

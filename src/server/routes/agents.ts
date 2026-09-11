@@ -39,6 +39,8 @@ interface AgentRow extends RowDataPacket {
   last_metrics_at: string | null;
   agent_version: string | null;
   heartbeat_interval_seconds: number;
+  middleware_failure_count: number;
+  middleware_failure_threshold: number;
   latest_load_5: string | null;
   latest_ram_total_bytes: string | null;
   latest_ram_available_bytes: string | null;
@@ -121,8 +123,10 @@ export function createAgentsRouter(config: AppConfig): Router {
    * load from the current heartbeat, independent of the history range, or null when unavailable.
    * The existing load_5_per_core field retains its normalized meaning.
    * latest_resources contains nullable RAM/storage used_bytes, total_bytes, and utilization_percent
-   * from the latest heartbeat, independent of the chart range. Storage includes mount_point for
-   * the filesystem with highest utilization in that report; used is total minus available.
+   * from the latest heartbeat, independent of the chart range. Storage is limited to the root
+   * filesystem mounted at `/`; used is total minus available.
+   * agent.middleware_failure_count and agent.middleware_failure_threshold expose the current
+   * persisted middleware streak so the UI can distinguish a suppressed warning from an alert.
    * Authorization: full admin or a sub-admin with view_projects.
    * @param {object} request.body No request body is accepted by this read-only endpoint.
    * @param {Request<{agent_id: string}, {}, {}, {from: string, to: string, bucket_seconds: string}>} request Authenticated history request.
@@ -148,7 +152,8 @@ export function createAgentsRouter(config: AppConfig): Router {
         `SELECT a.id, a.public_id, a.server_name, a.health_api_url, a.check_configuration_json,
                 a.last_service_checks_json, a.status, a.probable_cause,
                 a.last_heartbeat_at, a.last_metrics_at, a.agent_version,
-                a.heartbeat_interval_seconds, p.public_id AS project_public_id,
+                a.heartbeat_interval_seconds, a.middleware_failure_count,
+                a.middleware_failure_threshold, p.public_id AS project_public_id,
                 latest.load_5 AS latest_load_5,
                 latest.memory_total_bytes AS latest_ram_total_bytes,
                 latest.memory_available_bytes AS latest_ram_available_bytes,
@@ -163,8 +168,8 @@ export function createAgentsRouter(config: AppConfig): Router {
            ORDER BY m.id DESC LIMIT 1)
          LEFT JOIN filesystem_samples fs ON fs.id = (
            SELECT f.id FROM filesystem_samples f WHERE f.metric_sample_id = latest.id AND f.is_delete = 0
-             AND f.total_bytes > 0 AND f.available_bytes <= f.total_bytes
-           ORDER BY f.available_bytes / f.total_bytes ASC, f.id ASC LIMIT 1)
+             AND f.mount_point = '/' AND f.total_bytes > 0 AND f.available_bytes <= f.total_bytes
+           ORDER BY f.id ASC LIMIT 1)
          WHERE a.public_id = ? AND a.is_delete = 0 AND p.is_delete = 0
          LIMIT 1`,
         [request.params.agent_id]
@@ -199,7 +204,7 @@ export function createAgentsRouter(config: AppConfig): Router {
            MIN(CASE WHEN total_bytes > 0 THEN available_bytes * 100.0 / total_bytes END)
              AS disk_available_percent
          FROM filesystem_samples
-         WHERE agent_id = ? AND observed_at BETWEEN ? AND ? AND is_delete = 0
+         WHERE agent_id = ? AND observed_at BETWEEN ? AND ? AND mount_point = '/' AND is_delete = 0
          GROUP BY bucket_at
          ORDER BY bucket_at ASC`,
         [bucketMilliseconds, bucketMilliseconds, agent.id, String(query.from), String(query.to)]
@@ -223,7 +228,9 @@ export function createAgentsRouter(config: AppConfig): Router {
           last_heartbeat_at: agent.last_heartbeat_at === null ? null : Number(agent.last_heartbeat_at),
           last_metrics_at: agent.last_metrics_at === null ? null : Number(agent.last_metrics_at),
           agent_version: agent.agent_version,
-          heartbeat_interval_seconds: Number(agent.heartbeat_interval_seconds)
+          heartbeat_interval_seconds: Number(agent.heartbeat_interval_seconds),
+          middleware_failure_count: Number(agent.middleware_failure_count),
+          middleware_failure_threshold: Number(agent.middleware_failure_threshold)
         },
         from: query.from,
         to: query.to,

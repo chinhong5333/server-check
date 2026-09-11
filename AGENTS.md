@@ -36,6 +36,15 @@ These instructions apply to all work inside this repository and supplement highe
 - For UI changes, verify the real rendered result at representative desktop and mobile widths. Semantic markup and unit tests alone are not sufficient visual verification.
 - Compare the result with the prior screen or supplied screenshot before handoff. If the page lost identity, hierarchy, or useful context, revise it before reporting completion.
 
+## Real Product UI Previews
+
+- When the user requests a UI mockup or preview of this product, first inspect and follow the existing preview convention under `output/`.
+- Default to an HTML preview that imports the real React application or production components, design tokens, fonts, and `src/client/styles.css`. Do not substitute an AI-generated image for a real-product preview.
+- Supply controlled, synthetic data by mocking read-only API responses at the browser boundary. Preview code must block write requests and must not mutate local, test, staging, or production database records.
+- Serve previews through the running Vite development server, normally at `http://127.0.0.1:5173/output/<preview-name>.html`, and open the HTML in the browser so the user can inspect the actual responsive interface.
+- Keep preview-only HTML and optional browser captures under `output/`, which is Git-ignored. A PNG may supplement visual verification, but it is not a replacement when the user asks for an HTML preview.
+- Verify that the rendered preview uses the intended production route, components, wording, states, and responsive behavior before handing it to the user.
+
 ## Admin UI Wording
 
 - Use Title Case for every visible page title, section heading, modal title, chart title, tab title, summary header, fieldset legend, and table column header in the admin panel, for example `All Projects`, `Operations Overview`, `Server State`, and `Last Heartbeat`.

@@ -35,8 +35,8 @@ export function formatLoadAverage(value: number | null | undefined): string {
 
 /** Displays decimal gigabytes (1 GB = 1,000,000,000 bytes), with equal precision for both capacities. */
 export function formatCapacityPair(used: number, total: number): string {
-  const format = (bytes: number) => (bytes / 1_000_000_000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${format(used)} GB / ${format(total)} GB`;
+  const format = (bytes: number) => (bytes / 1024 ** 3).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${format(used)} GiB / ${format(total)} GiB`;
 }
 
 export function formatRatio(value: number | null | undefined): string {

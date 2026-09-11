@@ -54,6 +54,8 @@ interface HistoryResponse {
     last_metrics_at: number | null;
     agent_version: string | null;
     heartbeat_interval_seconds: number;
+    middleware_failure_count?: number;
+    middleware_failure_threshold?: number;
   };
   from: number;
   to: number;
@@ -102,7 +104,6 @@ function latestMetricValue(data: HistoryPoint[], dataKey: keyof HistoryPoint): n
 
 function MetricChart({
   title,
-  description,
   data,
   dataKey,
   formatter,
@@ -111,7 +112,6 @@ function MetricChart({
   agentId
 }: {
   title: string;
-  description: string;
   data: HistoryPoint[];
   dataKey: keyof HistoryPoint;
   formatter: (value: number | null | undefined) => string;
@@ -138,8 +138,7 @@ function MetricChart({
             {option.seconds === 3600 ? "1h" : `${option.seconds / 60}m`}
           </button>)}
         </div>
-          </div>
-          <p>{description}</p>
+        </div>
         </div>
         <div className="chart-readings">
           <div className="chart-latest" aria-label={`Latest Value for ${title}`}>
@@ -353,12 +352,12 @@ export function AgentDetailPage() {
         />
       ) : (
         <div className="chart-grid" ref={alignChartHeaders}>
-          <MetricChart agentId={agent.id} key={`${agent.id}:ram_utilization_percent`} title="RAM Utilization" description="Used memory reported by the operating system." data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
+          <MetricChart agentId={agent.id} key={`${agent.id}:ram_utilization_percent`} title="RAM Utilization" data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
             latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} capacity={resource.data.latest_resources?.ram} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title="Storage Utilization" description={`Highest used percentage across monitored filesystems.${resource.data.latest_resources?.storage ? ` Filesystem: ${resource.data.latest_resources.storage.mount_point}.` : ""}`} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
+          <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title="Storage Utilization" data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
             latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} capacity={resource.data.latest_resources?.storage} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title="Load Average (5 Min)" description="Raw five-minute load. Latest value is from the latest heartbeat; chart averages follow the selected interval." data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title="Health Latency" description="Response time from the server-local health probe." data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
+          <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title="Load Average (5 Min)" data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
+          <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title="Health Latency" data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
         </div>
       )}
 

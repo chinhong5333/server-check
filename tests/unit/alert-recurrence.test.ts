@@ -77,6 +77,24 @@ describe("recurring condition collection",()=>{
     expect(new Set(s.incidents.map(i=>i.incident_type))).toEqual(new Set(["ram_low","disk_low","load_high","health_api_unhealthy","apache_inactive","nginx_unknown"]));
     expect(s.messages).toHaveLength(6);
   });
+  it("uses only the root mount for storage status and disk incidents",async()=>{
+    const s=store();
+    const nonRootLow:TelemetryPayload={...healthy,filesystems:[
+      {filesystem:"/dev/root",mount_point:"/",total_bytes:100,available_bytes:50,inode_used_percent:null},
+      {filesystem:"/dev/boot",mount_point:"/boot",total_bytes:100,available_bytes:1,inode_used_percent:null}
+    ]};
+    const healthyRoot=await evaluateTelemetryIncidents(s.connection,policy,nonRootLow,1);
+    expect(healthyRoot.diskAvailablePercent).toBe(50);expect(healthyRoot.status).toBe("healthy");
+    expect(s.incidents).toHaveLength(0);
+
+    const rootLow:TelemetryPayload={...healthy,filesystems:[
+      {filesystem:"/dev/root",mount_point:"/",total_bytes:100,available_bytes:5,inode_used_percent:null},
+      {filesystem:"/dev/boot",mount_point:"/boot",total_bytes:100,available_bytes:90,inode_used_percent:null}
+    ]};
+    const warningRoot=await evaluateTelemetryIncidents(s.connection,policy,rootLow,2);
+    expect(warningRoot.diskAvailablePercent).toBe(5);expect(warningRoot.status).toBe("warning");
+    expect(s.messages[0].payload.details).toMatchObject({available_percent:5,mount_point:"/"});
+  });
   it("cancels pending errors on recovery and queues one recovery only",async()=>{
     const s=store();const condition={type:"telemetry_invalid",severity:"warning" as const,probableCause:"Invalid telemetry",details:{validation_error:"metrics.load_5: invalid"}};
     await recordAgentCondition(s.connection,policy,condition,1);s.messages[0].status="sent";

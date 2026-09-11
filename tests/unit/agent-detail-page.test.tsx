@@ -284,17 +284,24 @@ describe("agent detail incident history", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "RAM Utilization" }).closest("section")?.querySelector(".chart-latest")
     ).toHaveTextContent("Latest Value51.75%");
-    expect(screen.getByRole("heading", { name: "RAM Utilization" }).closest("section")).toHaveTextContent("Used / Total4.14 GB / 8.00 GB");
+    expect(screen.getByRole("heading", { name: "RAM Utilization" }).closest("section")).toHaveTextContent("Used / Total3.86 GiB / 7.45 GiB");
+    const ramTitleGroup = screen.getByRole("heading", { name: "RAM Utilization" }).closest(".chart-heading-title");
+    expect(ramTitleGroup?.children[0]).toBe(screen.getByRole("heading", { name: "RAM Utilization" }));
+    expect(ramTitleGroup?.children[1]).toBe(screen.getByRole("group", { name: "RAM Utilization Interval" }));
     expect(
       screen.getByRole("heading", { level: 2, name: "Storage Utilization" }).closest("section")?.querySelector(".chart-latest")
     ).toHaveTextContent("Latest Value40.0%");
-    expect(screen.getByRole("heading", { name: "Storage Utilization" }).closest("section")).toHaveTextContent("Used / Total40.00 GB / 100.00 GB");
+    expect(screen.getByRole("heading", { name: "Storage Utilization" }).closest("section")).toHaveTextContent("Used / Total37.25 GiB / 93.13 GiB");
     expect(
       screen.getByRole("heading", { level: 2, name: "Load Average (5 Min)" }).closest("section")?.querySelector(".chart-latest")
     ).toHaveTextContent(`Latest Value${expectedLoad}`);
     expect(
       screen.getByRole("heading", { level: 2, name: "Health Latency" }).closest("section")?.querySelector(".chart-latest")
     ).toHaveTextContent("Latest Value42 ms");
+    expect(screen.queryByText("Used memory reported by the operating system.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Highest used percentage across monitored filesystems/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Raw five-minute load/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Response time from the server-local health probe.")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "RAM available" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Storage available" })).not.toBeInTheDocument();
     expect(within(screen.getByLabelText("Agent Status Summary")).queryByText("No active condition")).not.toBeInTheDocument();

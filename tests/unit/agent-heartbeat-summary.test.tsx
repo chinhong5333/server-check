@@ -57,9 +57,37 @@ describe("Merged heartbeat summary", () => {
     expect(screen.getByText("Time Until Marked Overdue")).toBeInTheDocument();
     expect(screen.queryByText("Receiving Heartbeats")).not.toBeInTheDocument();
   });
+  it("shows a suppressed middleware warning with diagnostics and no queued alert", () => {
+    render(<AgentHeartbeatSummary agent={{ ...agent, status: "warning",
+      probable_cause: "Middleware API check failed (1/2); waiting for consecutive failures before alerting",
+      middleware_failure_count: 1, middleware_failure_threshold: 2,
+      service_health: { apache: { service_name: "apache2", status: "active" },
+        nginx: { service_name: "nginx", status: "disabled" }, middleware_api: { checked_at: now,
+          outcome: "unhealthy", http_status_code: null, latency_ms: 30002, error_code: "timeout", error_message: null } }
+    }} help={null} />);
+    expect(screen.getByText("Warning")).toBeInTheDocument();
+    expect(screen.getByText("Middleware API Check Failed")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 consecutive failures recorded. The next successful check will reset this count.")).toBeInTheDocument();
+    expect(screen.getByText("Timeout · No HTTP Response · 30 s")).toBeInTheDocument();
+    expect(screen.getByText("No Alert Queued")).toBeInTheDocument();
+  });
+  it("shows a critical middleware failure after the consecutive threshold is reached", () => {
+    render(<AgentHeartbeatSummary agent={{ ...agent, status: "critical",
+      probable_cause: "The middleware API did not return HTTP 200",
+      middleware_failure_count: 2, middleware_failure_threshold: 2,
+      service_health: { apache: { service_name: "apache2", status: "active" },
+        nginx: { service_name: "nginx", status: "disabled" }, middleware_api: { checked_at: now,
+          outcome: "unhealthy", http_status_code: 503, latency_ms: 412, error_code: "http_status_error", error_message: null } }
+    }} help={null} />);
+    expect(screen.getByText("Critical")).toBeInTheDocument();
+    expect(screen.getByText("Middleware API Unhealthy")).toBeInTheDocument();
+    expect(screen.getByText("2 of 2 consecutive failures reached the alert threshold.")).toBeInTheDocument();
+    expect(screen.getByText("Http Status Error · HTTP 503 · 412 ms")).toBeInTheDocument();
+    expect(screen.getByText("Alert Queued")).toBeInTheDocument();
+  });
   it("does not invent a due time before the first heartbeat", () => {
     render(<AgentHeartbeatSummary agent={{ ...agent, status: "new", last_heartbeat_at: null }} help={null} />);
-    expect(screen.getByText("Awaiting Data")).toBeInTheDocument();
+    expect(screen.getAllByText("Awaiting Data")).toHaveLength(2);
     expect(screen.getByText("No Heartbeat Received")).toBeInTheDocument();
     expect(screen.getByText("Waiting For First Heartbeat")).toBeInTheDocument();
     expect(screen.queryByRole("timer")).not.toBeInTheDocument();
