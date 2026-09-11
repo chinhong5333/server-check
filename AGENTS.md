@@ -5,6 +5,10 @@ These instructions apply to all work inside this repository and supplement highe
 ## Fast Verification
 
 - After completing a requested change, run only the smallest test set directly related to the changed behavior.
+- Focused verification is limited to **10 individual test cases maximum per requested amendment**, not 10 files or 10 cases per command. Do not split runs into batches to bypass this limit.
+- Prioritize cases by direct relevance and risk: the requested behavior first, then security/authorization, data integrity, critical failure paths, and closely related regressions. Skip lower-priority or unrelated cases.
+- Check the selected case count before running. Use explicit file paths and Vitest `-t` name filters when a file contains more cases than the remaining allowance. Each parameterized case counts separately; reruns also count toward the limit.
+- If adequate verification requires more than 10 cases, explain why and ask for explicit approval before exceeding the limit. Report the selected cases and any important coverage left unrun.
 - Use explicit Vitest file paths, for example: `npx vitest run tests/unit/projects-page.test.tsx`.
 - Do not use `npm run test:unit -- <file>` for targeted verification because this project's script can still run the complete unit suite.
 - Do not automatically run `npm test`, `npm run test:unit`, or any other command that executes the complete test suite.
