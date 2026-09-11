@@ -31,7 +31,8 @@ describe("interactive administrator CLI", () => {
 
   it("requires an 8-character password", () => {
     expect(validateAdminPassword("1234567").valid).toBe(false);
-    expect(validateAdminPassword("12345678").valid).toBe(true);
+    expect(validateAdminPassword("12345678").valid).toBe(false);
+    expect(validateAdminPassword("Abcdef1!").valid).toBe(true);
   });
 
   it("uses raw terminal input and never reads an admin password from the environment", async () => {

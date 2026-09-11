@@ -19,7 +19,7 @@ import { createAuthRouter } from "../../src/server/routes/auth";
 import { errorHandler } from "../../src/server/errors";
 
 const currentPassword = "synthetic current passphrase";
-const newPassword = "synthetic replacement passphrase";
+const newPassword = "Replacement1!";
 let storedHash: string;
 const config = { nodeEnv: "test", publicBaseUrl: new URL("http://localhost:3000"),
   jwt: { issuer: "test", audience: "test", secret: "x".repeat(48), ttlSeconds: 900 }

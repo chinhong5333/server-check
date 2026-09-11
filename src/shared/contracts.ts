@@ -11,9 +11,15 @@ export interface AgentLatestResources {
   storage: (CapacitySnapshot & { mount_point: string }) | null;
 }
 
+export const accountPasswordSchema = z.string().min(8).max(128)
+  .regex(/[A-Z]/, "Include an uppercase letter.")
+  .regex(/[a-z]/, "Include a lowercase letter.")
+  .regex(/[0-9]/, "Include a number.")
+  .regex(/[^A-Za-z0-9\s]/, "Include a symbol.");
+
 export const createAdminBodySchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
-  password: z.string().min(15).max(128),
+  password: accountPasswordSchema,
   current_password: z.string().min(1).max(1024)
 }).strict();
 
@@ -28,7 +34,6 @@ export const sortProjectsBodySchema = z.object({
 export const roleSchema = z.enum(["admin", "operator"]);
 export type InternalRole = z.infer<typeof roleSchema>;
 
-export const accountPasswordSchema = z.string().min(15).max(128);
 export const changePasswordBodySchema = z.object({
   current_password: z.string().min(1).max(1024),
   new_password: accountPasswordSchema

@@ -72,10 +72,10 @@ export function AdminManagement() {
       <div className="field field--wide"><label htmlFor="admin-email">Admin Email</label>
         <input data-dialog-initial-focus id="admin-email" type="email" autoComplete="off" maxLength={254} required disabled={busy} value={email} onChange={(e) => setEmail(e.target.value)} /></div>
       <div className="field"><label htmlFor="admin-password">New Admin Password</label>
-        <input id="admin-password" type="password" autoComplete="new-password" minLength={15} maxLength={128} required disabled={busy} value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input id="admin-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required disabled={busy} value={password} onChange={(e) => setPassword(e.target.value)} />
         <span className="field__help">Use 15–128 characters. Share the password securely.</span></div>
       <div className="field"><label htmlFor="admin-confirm-password">Confirm Admin Password</label>
-        <input id="admin-confirm-password" type="password" autoComplete="new-password" minLength={15} maxLength={128} required disabled={busy} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} /></div>
+        <input id="admin-confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required disabled={busy} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} /></div>
       <div className="field field--wide"><label htmlFor="admin-current-password">Your Current Password</label>
         <input id="admin-current-password" type="password" autoComplete="current-password" maxLength={1024} required disabled={busy} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
         <span className="field__help">Confirm your identity before granting full admin access.</span></div>

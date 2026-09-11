@@ -13,7 +13,7 @@ function renderAccount() {
     <Route path="/account" element={<AccountPage />} /><Route path="/login" element={<p>Sign In Again</p>} />
   </Routes></MemoryRouter></ToastProvider>);
   fireEvent.change(screen.getByLabelText("Current Password"), { target: { value: "old synthetic passphrase" } });
-  fireEvent.change(screen.getByLabelText("New Password"), { target: { value: "new synthetic passphrase" } });
+  fireEvent.change(screen.getByLabelText("New Password"), { target: { value: "NewSynthetic1!" } });
 }
 describe("Account password form", () => {
   beforeEach(() => { api.mockReset(); restore.mockReset(); });
@@ -28,11 +28,11 @@ describe("Account password form", () => {
   });
   it("submits only canonical password fields and returns to sign in", async () => {
     api.mockResolvedValue(undefined); restore.mockResolvedValue(undefined); renderAccount();
-    fireEvent.change(screen.getByLabelText("Confirm New Password"), { target: { value: "new synthetic passphrase" } });
+    fireEvent.change(screen.getByLabelText("Confirm New Password"), { target: { value: "NewSynthetic1!" } });
     fireEvent.click(screen.getByRole("button", { name: "Change Password" }));
     await screen.findByText("Sign In Again");
     expect(api).toHaveBeenCalledWith("/api/v1/auth/password", { method: "POST", body: JSON.stringify({
-      current_password: "old synthetic passphrase", new_password: "new synthetic passphrase"
+      current_password: "old synthetic passphrase", new_password: "NewSynthetic1!"
     }) });
     expect(restore).toHaveBeenCalledOnce();
   });

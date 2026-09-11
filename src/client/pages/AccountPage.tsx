@@ -23,7 +23,7 @@ export function AccountPage() {
     event.preventDefault();
     const input = changePasswordBodySchema.safeParse({ current_password: currentPassword, new_password: newPassword });
     if (!input.success || newPassword !== confirmation) {
-      setError(newPassword !== confirmation ? "The new passwords do not match." : "Use a different password between 15 and 128 characters.");
+      setError(newPassword !== confirmation ? "The new passwords do not match." : "Use a different password with 8?128 characters, uppercase, lowercase, a number, and a symbol.");
       return;
     }
     setPending(true);
@@ -56,7 +56,7 @@ export function AccountPage() {
               aria-describedby={error ? "password-change-error" : undefined}
               value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></div>
           <div className="field"><label htmlFor="new-password">New Password</label>
-            <input id="new-password" type="password" autoComplete="new-password" required minLength={15} maxLength={128}
+            <input id="new-password" type="password" autoComplete="new-password" required minLength={8} maxLength={128}
               aria-describedby={error ? "new-password-help password-change-error" : "new-password-help"} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
             <span className="field__help" id="new-password-help">Use 15–128 characters. Spaces and passphrases are supported.</span></div>
           <div className="field"><label htmlFor="confirm-password">Confirm New Password</label>

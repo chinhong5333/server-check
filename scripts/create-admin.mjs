@@ -31,8 +31,11 @@ export function validateAdminPassword(value) {
   if (value.length < 8) {
     return { valid: false, message: "Password must contain at least 8 characters." };
   }
-  if (value.length > 1024) {
-    return { valid: false, message: "Password must contain no more than 1024 characters." };
+  if (value.length > 128) {
+    return { valid: false, message: "Password must contain no more than 128 characters." };
+  }
+  if (!/[A-Z]/.test(value) || !/[a-z]/.test(value) || !/[0-9]/.test(value) || !/[^A-Za-z0-9\s]/.test(value)) {
+    return { valid: false, message: "Password must include uppercase and lowercase letters, a number, and a symbol." };
   }
   return { valid: true, message: null };
 }
