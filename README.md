@@ -18,7 +18,7 @@ The sidebar gear opens the Settings workspace. Its individual pages are Telegram
 
 - **Agent Detail → Telegram Delivery Log → Clear Pending Messages:** two confirmation steps cancel pending Telegram items for that agent only. Records remain visible as Cancelled; future alerts and other agents are unaffected. Messages already being sent may still arrive. The worker locks/rechecks a queued row before sending, so cancellation cannot be overwritten by a stale queue selection. Delivery is still at-least-once: an upstream timeout or a process/database failure after Telegram accepted a message can result in an uncertain delivery. Cancelled logs expire after 90 days under the retention policy.
 - **All Projects → Sort Projects:** drag the list or use its move buttons, then Save Order. Cancel discards the draft. The saved order is global for all users, up to 2000 projects. A stale list is rejected with a conflict; cancel and refresh before retrying. Existing projects initially retain alphabetical order; newly created projects appear ahead of manually ordered projects until the next save.
-- **Settings → Admin Management:** existing admins can list and create full-access admins. Creation requires the acting admin's current password and a new 15–128 character password with confirmation. Email addresses are unique and normalized to lowercase. Passwords are stored using the existing scrypt hashing mechanism and never returned in API responses or audit metadata. Share initial credentials securely; the new admin can change their password through Settings → Change Password. Creation is limited to five requests per admin per 15 minutes. No restricted/sub-admin role management is included.
+- **Settings → Teams:** admins can create full admins or permission-scoped sub-admins and edit sub-admin permissions. Creation requires the acting admin's current password and a new 8–128 character password with confirmation. Emails are unique and normalized; passwords are hashed with scrypt and never returned or audited. Account creation is limited to five requests per admin per 15 minutes. See Teams And Sub-Admin Permissions below.
 
 These actions are enforced as admin-only on the backend; writes also require CSRF protection and create audit records. New API contracts are `GET/POST /api/v1/admins`, `PUT /api/v1/projects/order` (`ordered_ids`, `expected_ids`), and `POST /api/v1/agents/:agent_id/telegram-deliveries/cancel-pending` (`confirm: true`). Admin creation accepts only `email`, `password`, and `current_password`; callers cannot select a role. All new endpoints reject extra query/body inputs as documented in their route JSDoc.
 
@@ -83,6 +83,28 @@ Do not describe this build as production-ready until the pending MySQL and deplo
 MariaDB is not used as a test substitute for MySQL. The XAMPP installation visible in the development environment provides MariaDB 10.4, so database-integrated tests require a separate local MySQL 8 test instance.
 
 ## Central installation
+
+### Teams And Sub-Admin Permissions
+
+Admins can **Disable** or **Enable** sub-admins from the Teams list after confirmation. Disabling preserves account data/grants/passwords but revokes all current sessions and blocks sign-in. Re-enabling requires a fresh sign-in; old sessions stay revoked. Full admins cannot be targeted by the status endpoint. Status changes are admin-only, CSRF-protected, rate-limited, and audited. Deployment requires migration `011_sub_admin_status.sql` after `010`; both are applied locally. The isolated MySQL integration test includes disable/re-enable checks but remains unrun without `.env.test`.
+
+New passwords must contain 8–128 characters with at least one uppercase letter, one lowercase letter, one number, and one non-whitespace symbol. This applies to Teams account creation, the initial admin CLI, and password changes. Existing passwords remain valid for sign-in. Selecting Admin in the creation form explicitly explains its full access.
+
+The initial administrator script still creates an **Admin**. All existing admins retain full access. In **Teams → Add Member**, an admin can create another Admin or a **Sub-Admin**. Sub-admins start with no grants; admins can later use **Edit Permissions** to replace their grants. Team creation/permission changes require the acting admin's current password, CSRF protection, and are audited. Sub-admins cannot access Teams or grant permissions, even when all checkboxes are selected. Everyone can change their own password.
+
+| Permission | Allowed Features |
+|---|---|
+| View All Projects & Agents | All project/agent details, metrics, incidents, and delivery logs |
+| Manage Global Settings | Telegram settings, bot link/chat lookup, and test sending |
+| Create & Edit Projects | Create, rename, update settings, and sort projects |
+| Register & Edit Agents | Register agents with their first script, edit settings, and cancel pending Telegram items |
+| Delete Projects | Delete projects, including their contained agents through the existing confirmed workflow |
+| Delete Agents | Delete individual agents |
+| Rotate Agent Secrets | Replace an existing agent secret and generate its replacement script |
+
+Project/agent action grants require **View All Projects & Agents**, which the checkbox form selects automatically. Edit grants never imply delete or secret rotation. Backend permissions are loaded from the database on every authenticated request rather than trusting JWT role claims. The UI refreshes session permissions on focus and every minute, hides unavailable controls, and redirects unauthorized pages. A sub-admin with no view grant can access only their password page and any explicitly granted global settings. Legacy operator accounts retain read-only project access.
+
+Deployment requires `010_sub_admin_permissions.sql` before running the new backend. It adds nullable permission JSON and the sub_admin role without changing existing admins. The local development migration was applied. Dedicated MySQL 8 integration is provided in `tests/integration/team-permissions.test.ts`; run it only with the documented isolated `.env.test` configuration. This test was not run in the current environment because that configuration is absent. Focused authorization/UI tests use synthetic mocks and do not mutate real user accounts.
 
 ### Monitoring Charts
 
