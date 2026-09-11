@@ -19,7 +19,7 @@ These instructions apply to all work inside this repository and supplement highe
 - Make surgical changes and avoid unrelated refactors, formatting, or cleanup.
 - Stop once the requested behavior and its focused verification are complete unless additional work is required for correctness or safety.
 - For a small, well-scoped request, perform only the minimum discovery needed and begin the implementation immediately.
-- Complete the requested behavior and its targeted verification before doing implementation-log or documentation maintenance.
+- Complete the requested behavior and its targeted verification before doing documentation maintenance.
 - If a targeted test or verification command has not completed within 30 seconds, immediately tell the user what is still running and check whether it is progressing or actually hung.
 - Never describe a test as hung unless its process state or repeated lack of progress confirms that diagnosis.
 - Keep progress updates short and do not leave the user waiting silently during implementation or verification.
