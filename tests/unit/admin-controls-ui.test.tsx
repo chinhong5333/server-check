@@ -12,26 +12,36 @@ beforeEach(() => { api.mockReset(); api.mockResolvedValue([]); });
 afterEach(cleanup);
 
 describe("admin control interfaces", () => {
+  it("explains that admins have full access when the Admin role is selected", async () => {
+    render(<AdminManagement />);
+    fireEvent.click(screen.getByRole("button", {name:"Add Member"}));
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Role"), {target:{value:"admin"}});
+    expect(screen.getByRole("note")).toHaveTextContent("Full Admin Access — Cannot Be Undone");
+    expect(screen.getByRole("note")).toHaveTextContent("Once created, it cannot be suspended or changed to a sub-admin through Teams.");
+    expect(screen.getByRole("note")).toHaveTextContent("This action cannot be undone through Teams.");
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
   it("shows a structured team list with roles, joined dates, and member count", async () => {
     api.mockResolvedValue([{id:"one",email:"admin@example.test",created_at:1_788_252_000_000}]);
     render(<AdminManagement />);
     expect(await screen.findByRole("table",{name:"Team Members"})).toBeInTheDocument();
-    expect(screen.getAllByRole("columnheader").map(header=>header.textContent)).toEqual(["Email Address","Role","Joined"]);
+    expect(screen.getAllByRole("columnheader").map(header=>header.textContent)).toEqual(["Email Address","Role","Permissions","Joined","Actions"]);
     expect(screen.getByText("Total 1 Member")).toBeInTheDocument();
-    expect(screen.getByText("Full Access Admin")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Admin Email")).not.toBeInTheDocument();
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Member Email")).not.toBeInTheDocument();
   });
   it("cancels admin creation, clears entered values, and restores focus", async () => {
     render(<AdminManagement />);
-    const trigger=screen.getByRole("button",{name:"Add Admin"});fireEvent.click(trigger);
-    fireEvent.change(screen.getByLabelText("Admin Email"),{target:{value:"discard@example.test"}});
-    fireEvent.change(screen.getByLabelText("New Admin Password"),{target:{value:"discard synthetic password"}});
+    const trigger=screen.getByRole("button",{name:"Add Member"});fireEvent.click(trigger);
+    fireEvent.change(screen.getByLabelText("Member Email"),{target:{value:"discard@example.test"}});
+    fireEvent.change(screen.getByLabelText("New Password"),{target:{value:"discard synthetic password"}});
     fireEvent.click(screen.getByRole("button",{name:"Cancel"}));
     await waitFor(()=>expect(trigger).toHaveFocus());
     expect(api.mock.calls.filter(([,init])=>init?.method==="POST")).toHaveLength(0);
     fireEvent.click(trigger);
-    expect(screen.getByLabelText("Admin Email")).toHaveValue("");
-    expect(screen.getByLabelText("New Admin Password")).toHaveValue("");
+    expect(screen.getByLabelText("Member Email")).toHaveValue("");
+    expect(screen.getByLabelText("New Password")).toHaveValue("");
   });
   it("requires both confirmation steps before cancelling agent messages", async () => {
     api.mockResolvedValue({cancelled_count:3}); const done = vi.fn();
@@ -77,19 +87,19 @@ describe("admin control interfaces", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
   it("creates an admin only with matching confirmation and clears passwords afterward", async () => {
-    render(<AdminManagement />); await screen.findByText("Add Admin");
-    fireEvent.click(screen.getByRole("button",{name:"Add Admin"}));
-    fireEvent.change(screen.getByLabelText("Admin Email"),{target:{value:"new@example.test"}});
-    fireEvent.change(screen.getByLabelText("New Admin Password"),{target:{value:"synthetic password new"}});
-    fireEvent.change(screen.getByLabelText("Confirm Admin Password"),{target:{value:"wrong synthetic password"}});
+    render(<AdminManagement />); await screen.findByText("Add Member");
+    fireEvent.click(screen.getByRole("button",{name:"Add Member"}));
+    fireEvent.change(screen.getByLabelText("Member Email"),{target:{value:"new@example.test"}});
+    fireEvent.change(screen.getByLabelText("New Password"),{target:{value:"SyntheticNew1!"}});
+    fireEvent.change(screen.getByLabelText("Confirm Password"),{target:{value:"wrong synthetic password"}});
     fireEvent.change(screen.getByLabelText("Your Current Password"),{target:{value:"synthetic current"}});
-    fireEvent.click(screen.getByText("Create Admin"));
+    fireEvent.click(screen.getByText("Create Member"));
     expect(screen.getByRole("alert")).toHaveTextContent("do not match");
     expect(api.mock.calls.filter(([,init])=>init?.method==="POST")).toHaveLength(0);
-    fireEvent.change(screen.getByLabelText("Confirm Admin Password"),{target:{value:"synthetic password new"}});
-    fireEvent.click(screen.getByText("Create Admin"));
-    await screen.findByText(/full-access admin account was created/);
-    expect(screen.queryByLabelText("New Admin Password")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Confirm Password"),{target:{value:"SyntheticNew1!"}});
+    fireEvent.click(screen.getByText("Create Member"));
+    await screen.findByText(/team member was created/);
+    expect(screen.queryByLabelText("New Password")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Your Current Password")).not.toBeInTheDocument();
   });
 });

@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const state = vi.hoisted(() => ({ role: "admin", api: vi.fn() }));
-vi.mock("../../src/client/auth/AuthProvider", () => ({ useAuth: () => ({ status:"authenticated", user:{role:state.role,email:"admin@example.test"},logout:vi.fn(),restore:vi.fn() }) }));
+const state = vi.hoisted(() => ({ role: "admin", permissions: [] as string[], api: vi.fn() }));
+vi.mock("../../src/client/auth/AuthProvider", () => ({ useAuth: () => ({ status:"authenticated", user:{role:state.role,permissions:state.permissions,email:"admin@example.test"},logout:vi.fn(),restore:vi.fn() }) }));
 vi.mock("../../src/client/projects/ProjectProvider", () => ({
   ProjectProvider: ({children}:{children:ReactNode}) => children,
   useProjects: () => ({ projects:[], selectedProject:null,status:"success",reloadProjects:vi.fn() })
@@ -14,8 +14,21 @@ vi.mock("../../src/client/api", async (original) => ({...await original<typeof i
 import { App } from "../../src/client/App";
 import { ToastProvider } from "../../src/client/components/ToastProvider";
 function open(path:string) { render(<MemoryRouter initialEntries={[path]}><ToastProvider><App /></ToastProvider></MemoryRouter>); }
-beforeEach(()=>{state.role="admin";state.api.mockReset();state.api.mockImplementation(async (path:string)=>path==="/api/v1/admins"?[]:{telegram_bot_configured:false,telegram_chat_id:null});vi.spyOn(window,"scrollTo").mockImplementation(()=>{});});
+beforeEach(()=>{state.role="admin";state.permissions=[];state.api.mockReset();state.api.mockImplementation(async (path:string)=>path==="/api/v1/admins"?[]:{telegram_bot_configured:false,telegram_chat_id:null});vi.spyOn(window,"scrollTo").mockImplementation(()=>{});});
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
+it("allows global settings for an authorized sub-admin but never Teams", async () => {
+  state.role="sub_admin";state.permissions=["edit_global_settings"];
+  open("/settings/telegram");
+  expect(await screen.findByRole("heading",{level:1,name:"Telegram"})).toBeInTheDocument();
+  expect(screen.queryByRole("link",{name:"Teams"})).not.toBeInTheDocument();
+  expect(screen.queryByRole("link",{name:"Back To Projects"})).not.toBeInTheDocument();
+});
+it("redirects sub-admins without view permission away from project pages", async () => {
+  state.role="sub_admin";open("/projects");
+  expect(await screen.findByRole("heading",{level:1,name:"Change Password"})).toBeInTheDocument();
+  expect(screen.queryByRole("heading",{name:"Projects"})).not.toBeInTheDocument();
+  expect(state.api).not.toHaveBeenCalled();
+});
 it("opens the settings section from the gear and separates each feature",async()=>{
   open("/projects"); fireEvent.click(screen.getByRole("link",{name:"Settings",exact:true}));
   expect(await screen.findByRole("heading",{level:1,name:"Telegram"})).toBeInTheDocument();
@@ -24,11 +37,11 @@ it("opens the settings section from the gear and separates each feature",async()
   fireEvent.click(screen.getByRole("link",{name:"Teams",exact:true}));
   expect(await screen.findByRole("heading",{level:1,name:"Teams"})).toBeInTheDocument();
   expect(screen.queryByLabelText("Telegram Chat ID")).not.toBeInTheDocument();
-  expect(screen.getByRole("button",{name:"Add Admin"})).toBeInTheDocument();
-  expect(screen.queryByLabelText("Admin Email")).not.toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"Add Member"})).toBeInTheDocument();
+  expect(screen.queryByLabelText("Member Email")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("link",{name:"Change Password",exact:true}));
   expect(await screen.findByRole("heading",{level:1,name:"Change Password"})).toBeInTheDocument();
-  expect(screen.queryByLabelText("Admin Email")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Member Email")).not.toBeInTheDocument();
   expect(screen.getByLabelText("Current Password")).toBeInTheDocument();
 });
 it("redirects the old account URL to the dedicated password page",async()=>{

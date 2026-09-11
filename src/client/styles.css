@@ -2,6 +2,23 @@
   box-sizing: border-box;
 }
 
+[hidden] { display: none !important; }
+.form-section.permission-list { display: grid; gap: var(--space-2xs) var(--space-md); }
+.permission-list > label { display: flex; align-items: center; gap: var(--space-xs); min-height: 36px; cursor: pointer; }
+@media (pointer: coarse) { .permission-list > label { min-height: 44px; } }
+.permission-list input[type="checkbox"] { width: 1.125rem; height: 1.125rem; min-height: 0; flex-shrink: 0; accent-color: var(--color-accent); }
+.member-permission-summary { min-height: 44px; white-space: nowrap; padding-inline: var(--space-sm); font-size: var(--text-sm); }
+.member-actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.member-actions .button { font-size: var(--text-xs); padding-inline: var(--space-xs); }
+.member-status { display: block; margin-block-start: var(--space-2xs); font-size: var(--text-xs); }
+.member-status--enabled { color: var(--color-success); }
+.member-status--disabled { color: var(--color-error); }
+.member-permission-details { display: grid; gap: var(--space-md); padding: var(--space-lg); }
+.member-permission-details ul { list-style: none; display: grid; gap: var(--space-xs); padding: 0; margin: 0; }
+.member-permission-details li { display: flex; align-items: start; gap: var(--space-xs); padding-block: var(--space-xs); }
+.member-permission-details li svg { flex-shrink: 0; width: 1rem; height: 1rem; color: var(--color-success); }
+@media (min-width: 48rem) { .member-permission-details ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 html,
 body {
   min-width: 20rem;
@@ -2686,11 +2703,18 @@ button.back-link {
 .team-member-role { color: var(--color-muted); font-size: var(--text-sm); white-space: nowrap; }
 @media (min-width: 60rem) {
   .teams-table { table-layout: fixed; }
-  .teams-table th:first-child { width: 55%; }
-  .teams-table th:nth-child(2) { width: 25%; }
-  .teams-table th:nth-child(3) { width: 20%; }
+  .teams-table th:first-child { width: 25%; }
+  .teams-table th:nth-child(2) { width: 12%; }
+  .teams-table th:nth-child(3) { width: 25%; }
+  .teams-table th:nth-child(4) { width: 16%; }
+  .teams-table th:nth-child(5) { width: 22%; }
 }
 .admin-management .field { align-content: start; }
+.team-dialog { width: min(48rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
+@media (min-width: 48rem) {
+  .team-dialog .permission-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .team-dialog .permission-list > p { grid-column: 1 / -1; }
+}
 .telegram-delivery-state--cancelled { color: var(--color-muted); border-color: var(--color-rule); }
 .telegram-log-heading { flex-wrap: wrap; }
 .telegram-log-heading > div:first-child { flex: 1 1 18rem; }
@@ -2772,5 +2796,3 @@ button.back-link {
 @media (max-width: 59.999rem) {
   .telegram-log-heading { padding: var(--space-md); gap: var(--space-sm); }
 }
-
-[hidden] { display: none !important; }
