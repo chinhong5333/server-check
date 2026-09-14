@@ -11,6 +11,7 @@ import { CreateProjectForm } from "./CreateProjectPage";
 import { ProjectSortMode } from "../components/ProjectSortMode";
 import { ProjectCard } from "../components/ProjectCard";
 import { useAuth } from "../auth/AuthProvider";
+import { NotificationGroupBar } from "../components/NotificationGroup";
 
 
 export function ProjectsPage() {
@@ -43,6 +44,7 @@ export function ProjectsPage() {
 
   return (
     <div className="page-stack projects-page">
+      <NotificationGroupBar />
       <header className="page-header">
         <div>
           <h1>Projects</h1>

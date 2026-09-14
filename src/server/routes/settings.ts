@@ -30,8 +30,61 @@ interface PlatformTelegramRow extends RowDataPacket {
 
 export function createSettingsRouter(config: AppConfig): Router {
   const router = Router();
+  let cachedBotLink: { encrypted: string; url: string; expires: number } | null = null;
   router.use(authenticate(config));
+
+  /**
+   * GET /api/v1/settings/telegram/group-link
+   * Returns global visibility and the group URL to authenticated team members.
+   * Resolves the existing Telegram Bot Link when enabled; no manually entered URL is used.
+   * @param {import("express").Request} request Query and body must be empty.
+   * @param {import("express").Response} response Object containing nullable telegram_group_url and boolean telegram_group_enabled.
+   * @returns {Promise<void>} Resolves after reading the saved group link.
+   */
+  router.get("/telegram/group-link", asyncHandler(async (request, response) => {
+    emptyObjectSchema.parse(request.query);
+    emptyObjectSchema.parse(request.body ?? {});
+    const [rows] = await getPool(config).execute<RowDataPacket[]>(
+      "SELECT telegram_bot_token_encrypted, telegram_group_enabled FROM platform_telegram_settings WHERE scope_key = ? AND is_delete = 0 LIMIT 1", [PLATFORM_SCOPE_KEY]);
+    const enabled = Boolean(rows[0]?.telegram_group_enabled);
+    let url: string | null = null;
+    const encrypted = rows[0]?.telegram_bot_token_encrypted;
+    if (enabled && encrypted) {
+      if (!cachedBotLink || cachedBotLink.encrypted !== encrypted || cachedBotLink.expires < Date.now()) {
+        const link = await getTelegramBotLink(decryptPlatformTelegramBotToken(config.jwt.secret, encrypted));
+        cachedBotLink = { encrypted, url: link.url, expires: Date.now() + 300000 };
+      }
+      url = cachedBotLink.url;
+    }
+    response.setHeader("Cache-Control", "no-store");
+    response.json({ telegram_group_url: url, telegram_group_enabled: enabled });
+  }));
   router.use(requirePermission("edit_global_settings"));
+
+  /**
+   * PATCH /api/v1/settings/telegram/group-link
+   * Saves global bot-link bar visibility; requires global-settings permission and CSRF protection.
+   * @param {import("express").Request} request Query must be empty.
+   * @param {boolean} request.body.telegram_group_enabled Whether the existing bot link is visible to all signed-in team members.
+   * @param {import("express").Response} response Empty success response.
+   * @returns {Promise<void>} Resolves after saving the link and audit record atomically.
+   */
+  router.patch("/telegram/group-link", requireCsrf, asyncHandler(async (request, response) => {
+    emptyObjectSchema.parse(request.query);
+    const body = z.object({ telegram_group_enabled: z.boolean() }).strict().parse(request.body);
+    const now = Date.now();
+    await withTransaction(config, async connection => {
+      await connection.execute(`INSERT INTO platform_telegram_settings
+        (scope_key, telegram_group_enabled, created_at, updated_at, is_delete) VALUES (?, ?, ?, ?, 0)
+        ON DUPLICATE KEY UPDATE telegram_group_enabled = VALUES(telegram_group_enabled), updated_at = VALUES(updated_at), is_delete = 0`,
+        [PLATFORM_SCOPE_KEY, body.telegram_group_enabled ? 1 : 0, now, now]);
+      await connection.execute(`INSERT INTO audit_events
+        (user_id, project_id, action, entity_type, entity_id, metadata_json, created_at, updated_at, is_delete)
+        VALUES (?, NULL, 'platform.telegram.group_link.update', 'platform_setting', ?, ?, ?, ?, 0)`,
+        [request.auth!.userInternalId, PLATFORM_SCOPE_KEY, JSON.stringify({ enabled: body.telegram_group_enabled }), now, now]);
+    });
+    response.sendStatus(204);
+  }));
 
   /**
    * GET /api/v1/settings/telegram

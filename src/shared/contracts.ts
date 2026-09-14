@@ -265,6 +265,14 @@ export interface ProjectSummary {
   stale_agents: number;
 }
 
+export const telegramGroupUrlSchema = z.string().trim().max(2048).url().refine(value => {
+  try {
+  const url = new URL(value);
+  return url.protocol === "https:" && url.hostname === "t.me" && !url.port && !url.username && !url.password
+    && !url.search && !url.hash && /^\/(?:[A-Za-z0-9_]+|\+[A-Za-z0-9_-]+|joinchat\/[A-Za-z0-9_-]+)\/?$/.test(url.pathname);
+  } catch { return false; }
+}, "Use an HTTPS t.me group or invite link.");
+
 export interface PlatformTelegramSettings {
   telegram_bot_configured: boolean;
   telegram_chat_id: string | null;

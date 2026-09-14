@@ -1,5 +1,9 @@
 # Server Check
 
+### Notification Group Link
+
+Apply pending migrations with `npm run migrate` after building the server. Under the existing **Telegram Bot Link**, use **Show Notification Bar** to control visibility for all signed-in team members on Projects and Agent Detail. The URL is resolved automatically from the configured bot; no link entry is required. Visibility defaults to off, and open pages refresh within 30 seconds. Only accounts with global-settings permission can change it. The link opens the bot chat, not a group invitation. Bot credentials are never exposed to team members.
+
 ## Admin Controls
 
 ### Recurring Telegram Alerts

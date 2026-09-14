@@ -1,4 +1,5 @@
 import { hasPermission } from "../../shared/permissions";
+import { NotificationGroupBar } from "../components/NotificationGroup";
 import { ArrowLeft, CircleHelp, ExternalLink, Link2, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -254,6 +255,7 @@ export function AgentDetailPage() {
 
   return (
     <div className="page-stack">
+      <NotificationGroupBar />
       <div className="agent-page-intro">
       <Link className="back-link" to={overviewHref}>
         <ArrowLeft aria-hidden="true" />

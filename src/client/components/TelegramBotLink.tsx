@@ -1,7 +1,8 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api";
 import { InlineLoader } from "./Feedback";
+import { NotificationGroupSettings } from "./NotificationGroup";
 
 /** Displays only the public bot URL; saved credentials are resolved by the admin-only backend. */
 export function TelegramBotLink() {
@@ -23,11 +24,12 @@ export function TelegramBotLink() {
     return () => controller.abort();
   }, [attempt]);
   return <div className="telegram-bot-link">
-    <span className="field__label">Telegram Bot Link</span>
+    <span className="field__label telegram-bot-link__label"><Send aria-hidden="true" />Telegram Bot Link</span>
     {link ? <a href={link.url} target="_blank" rel="noopener noreferrer" title={link.url}
-      aria-label={`Open Telegram Bot @${link.username} In A New Tab`}><span>{link.url}</span><ExternalLink aria-hidden="true" /></a>
+      className="telegram-bot-link__destination" aria-label={`Open Telegram Bot @${link.username} In A New Tab`}><span>{link.url}</span><ExternalLink aria-hidden="true" /></a>
       : error ? <div><p className="field__help field__help--error" role="status">{error}</p>
         <button type="button" className="button button--secondary" onClick={() => setAttempt(value => value + 1)}>Retry Bot Link</button></div>
         : <span role="status"><InlineLoader label="Loading Bot Link" /></span>}
+    {link && <NotificationGroupSettings />}
   </div>;
 }
