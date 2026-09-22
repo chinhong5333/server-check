@@ -219,7 +219,11 @@ Discovery reads at most 100 pending updates, not the bot's complete membership l
 5. Generate and immediately save the one-time `.sh` script.
 6. Copy it to the monitored server, apply `chmod 700`, run it once, and add the generated crontab line.
 
-The agent is one persistent shell file. It requires no Node.js, npm, Python, container, daemon, `.env`, or companion module. It may use temporary lock/error files during a run, and removes them when it exits.
+The agent is one persistent shell file. Core monitoring requires no Node.js, npm, Python, container, daemon, `.env`, or companion module. It may use temporary lock/error files during a run, and removes them when it exits.
+
+### Optional Database Health Telemetry
+
+Agent `1.4.0` reads the optional top-level `db` object from a successful Middleware API JSON response when either `node` or `python3` is available on the monitored server. It reports validated connection counts, running threads, peak connections, long queries, database size, status, and message. The size-limited raw `db` object is retained with the same metric sample and is available to authenticated project viewers through **View Raw DB Response**; the modal does not call the middleware again. The Agent Detail database section is hidden when `db` is absent, malformed, or cannot be parsed; non-`alive` status displays the middleware message without changing existing middleware incident or Telegram rules. Existing agents remain compatible but must install a newly generated or rotated script to begin reporting database data. Apply `015_database_health_telemetry.sql` with `npm run migrate` before starting the updated backend.
 
 The first lines of every generated script include non-executable `# Project:` and `# Agent:` comments for operator reference. Runtime authentication and ownership continue to use the embedded agent identifier and credential.
 
