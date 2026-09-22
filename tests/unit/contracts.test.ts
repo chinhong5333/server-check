@@ -55,7 +55,35 @@ const validPayload = {
 
 describe("telemetry contract", () => {
   it("treats an unhealthy application result as valid telemetry", () => {
-    expect(telemetryPayloadSchema.safeParse(validPayload).success).toBe(true);
+    const parsed = telemetryPayloadSchema.safeParse(validPayload);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.database_health).toBeNull();
+  });
+
+  it("accepts canonical optional database telemetry", () => {
+    const parsed = telemetryPayloadSchema.safeParse({
+      ...validPayload,
+      database_health: {
+        status: "alive", message: "", connection_count: 58, connection_max: 150,
+        threads_running: 1, peak_connections: 67, long_queries: 0, db_size_mb: 8329.7,
+        raw: { status: "alive", fragmented_mb: "46.0" }
+      }
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.database_health?.raw).toEqual({ status: "alive", fragmented_mb: "46.0" });
+  });
+
+  it("rejects unsafe raw database response depth", () => {
+    let raw: Record<string, unknown> = { value: true };
+    for (let index = 0; index < 11; index += 1) raw = { nested: raw };
+    const result = telemetryPayloadSchema.safeParse({
+      ...validPayload,
+      database_health: {
+        status: "alive", message: "", connection_count: 1, connection_max: 10,
+        threads_running: 1, peak_connections: 1, long_queries: 0, db_size_mb: 1, raw
+      }
+    });
+    expect(result.success).toBe(false);
   });
 
   it("rejects guessed aliases and unknown fields", () => {

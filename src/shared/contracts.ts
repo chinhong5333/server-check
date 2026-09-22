@@ -166,6 +166,40 @@ export const healthProbeSchema = z
     value.http_status_code === null && value.latency_ms === null && value.error_code === null && value.error_message === null
   ), { message: "Disabled checks must not include HTTP results." });
 
+const databaseCountSchema = z.number().int().nonnegative().max(10_000_000).nullable();
+const databaseSizeSchema = z.number().nonnegative().finite().max(1_000_000_000_000_000).nullable();
+
+function isSafeDatabaseRaw(value: unknown, depth = 0): boolean {
+  if (value === null || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value === "string") return value.length <= 4_000;
+  if (depth >= 10) return false;
+  if (Array.isArray(value)) return value.length <= 100 && value.every((item) => isSafeDatabaseRaw(item, depth + 1));
+  if (typeof value !== "object") return false;
+  const entries = Object.entries(value);
+  return entries.length <= 100 && entries.every(([key, item]) => key.length <= 120 && isSafeDatabaseRaw(item, depth + 1));
+}
+
+export const databaseRawSchema = z.record(z.string().max(120), z.unknown()).superRefine((value, context) => {
+  if (!isSafeDatabaseRaw(value) || JSON.stringify(value).length > 32_768) {
+    context.addIssue({ code: "custom", message: "Raw database response exceeds the safe structure or size limit." });
+  }
+});
+
+export const databaseHealthSchema = z.object({
+  status: z.string().trim().min(1).max(40),
+  message: z.string().max(500),
+  connection_count: databaseCountSchema,
+  connection_max: databaseCountSchema,
+  threads_running: databaseCountSchema,
+  peak_connections: databaseCountSchema,
+  long_queries: databaseCountSchema,
+  db_size_mb: databaseSizeSchema,
+  // Optional for compatibility with database snapshots collected before raw-response support.
+  raw: databaseRawSchema.optional()
+}).strict();
+export type DatabaseHealthSnapshot = z.infer<typeof databaseHealthSchema>;
+
 const nullableMetric = z.number().nonnegative().finite().nullable();
 
 export const hostMetricsSchema = z
@@ -218,6 +252,8 @@ export const telemetryPayloadSchema = z
     observed_at: z.number().int().nonnegative(),
     agent_version: z.string().min(1).max(40),
     health_probe: healthProbeSchema,
+    // Rolling-upgrade compatibility: agents before 1.4 do not report database health.
+    database_health: databaseHealthSchema.nullable().optional().default(null),
     metrics: hostMetricsSchema,
     filesystems: z.array(filesystemMetricSchema).max(32),
     top_processes: z.array(processMetricSchema).max(10),

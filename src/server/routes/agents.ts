@@ -1,7 +1,7 @@
 import { Router, type Request } from "express";
 import type { RowDataPacket } from "mysql2/promise";
 import { z } from "zod";
-import { agentHealthSnapshotSchema } from "../../shared/contracts.js";
+import { agentHealthSnapshotSchema, databaseHealthSchema } from "../../shared/contracts.js";
 import { readAgentChecks } from "../services/check-configuration.js";
 import type {
   AgentIncidentLog,
@@ -47,6 +47,7 @@ interface AgentRow extends RowDataPacket {
   latest_storage_total_bytes: string | null;
   latest_storage_available_bytes: string | null;
   latest_storage_mount_point: string | null;
+  latest_database_health_json: unknown;
 }
 
 interface MetricBucketRow extends RowDataPacket {
@@ -111,6 +112,18 @@ function parseIncidentDetails(value: unknown): unknown {
   }
 }
 
+/** Returns a validated database snapshot, or null when the optional stored value is absent or corrupt. */
+function parseDatabaseHealth(value: unknown) {
+  if (value == null) return null;
+  try {
+    const decoded = typeof value === "string" ? JSON.parse(value) as unknown : value;
+    const parsed = databaseHealthSchema.safeParse(decoded);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createAgentsRouter(config: AppConfig): Router {
   const router = Router();
   router.use(authenticate(config));
@@ -127,6 +140,8 @@ export function createAgentsRouter(config: AppConfig): Router {
    * filesystem mounted at `/`; used is total minus available.
    * agent.middleware_failure_count and agent.middleware_failure_threshold expose the current
    * persisted middleware streak so the UI can distinguish a suppressed warning from an alert.
+   * latest_database_health contains the optional validated database snapshot and size-limited raw
+   * `db` object from the latest metric sample, or null for older agents, missing responses, and corrupt stored values.
    * Authorization: full admin or a sub-admin with view_projects.
    * @param {object} request.body No request body is accepted by this read-only endpoint.
    * @param {Request<{agent_id: string}, {}, {}, {from: string, to: string, bucket_seconds: string}>} request Authenticated history request.
@@ -157,6 +172,7 @@ export function createAgentsRouter(config: AppConfig): Router {
                 latest.load_5 AS latest_load_5,
                 latest.memory_total_bytes AS latest_ram_total_bytes,
                 latest.memory_available_bytes AS latest_ram_available_bytes,
+                latest.database_health_json AS latest_database_health_json,
                 fs.total_bytes AS latest_storage_total_bytes,
                 fs.available_bytes AS latest_storage_available_bytes,
                 fs.mount_point AS latest_storage_mount_point
@@ -213,6 +229,7 @@ export function createAgentsRouter(config: AppConfig): Router {
       const diskByBucket = new Map(
         filesystemRows.map((row) => [Number(row.bucket_at), Number(row.disk_available_percent)])
       );
+      response.setHeader("Cache-Control", "no-store");
       response.status(200).json({
         agent: {
           id: agent.public_id,
@@ -237,6 +254,7 @@ export function createAgentsRouter(config: AppConfig): Router {
         bucket_seconds: query.bucket_seconds,
         latest_load_5: agent.latest_load_5 == null ? null : Number(agent.latest_load_5),
         latest_resources: latestResources,
+        latest_database_health: parseDatabaseHealth(agent.latest_database_health_json),
         points: metricRows.map((row) => ({
           at: Number(row.bucket_at),
           ram_available_percent:

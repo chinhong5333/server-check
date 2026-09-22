@@ -51,7 +51,9 @@ describe.runIf(shell)("generated agent execution", () => {
   it("probes a synthetic health API and reports one valid payload", async () => {
     const healthServer = createServer((_request, response) => {
       response.writeHead(200, { "content-type": "application/json" });
-      response.end('{"status":"ok"}');
+      response.end(JSON.stringify({ status: "ok", db: { status: "alive", message: "", connection_count: 58,
+        connection_max: 150, threads_running: 1, peak_connections: 67, long_queries: 0,
+        db_size_mb: "8329.7", fragmented_mb: "46.0" } }));
     });
     servers.push(healthServer);
     const healthPort = await listen(healthServer);
@@ -92,7 +94,11 @@ describe.runIf(shell)("generated agent execution", () => {
     const payload = JSON.parse(receivedBody) as unknown;
     const parsed = telemetryPayloadSchema.safeParse(payload);
     expect(parsed.success, parsed.success ? "" : JSON.stringify(parsed.error.flatten())).toBe(true);
-    if (parsed.success) expect(parsed.data.health_probe.outcome).toBe("healthy");
+    if (parsed.success) {
+      expect(parsed.data.health_probe.outcome).toBe("healthy");
+      expect(parsed.data.database_health).toMatchObject({ status: "alive", connection_count: 58, db_size_mb: 8329.7,
+        raw: { status: "alive", fragmented_mb: "46.0" } });
+    }
   }, 20_000);
 
   it("prints collected statistics without calling the central API in dry-run mode", async () => {
@@ -133,6 +139,7 @@ describe.runIf(shell)("generated agent execution", () => {
     expect(parsed.success, parsed.success ? "" : JSON.stringify(parsed.error.flatten())).toBe(true);
     if (parsed.success) {
       expect(parsed.data.health_probe.outcome).toBe("healthy");
+      expect(parsed.data.database_health).toBeNull();
       expect(parsed.data.metrics?.cpu_count).toBeTypeOf("number");
       expect(Array.isArray(parsed.data.filesystems)).toBe(true);
     }

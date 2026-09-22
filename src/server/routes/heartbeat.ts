@@ -82,6 +82,16 @@ export function createHeartbeatRouter(config: AppConfig): Router {
    * @param {Request<{}, {}, Buffer>} request Agent request authenticated by Authorization Bearer credential; body may be empty or JSON telemetry.
    * @param {object} request.body.service_checks Apache and optional legacy-compatible Nginx service results; each contains service_name and status (active, inactive, unknown, disabled).
    * @param {object} request.body.health_probe Middleware API result; disabled outcomes must have null HTTP, latency, and error fields. Configured enabled states must match the payload.
+   * @param {object|null} [request.body.database_health=null] Optional validated database snapshot extracted from the middleware API `db` object by agent 1.4 or newer.
+   * @param {string} request.body.database_health.status Normalized database status, limited to 40 characters.
+   * @param {string} request.body.database_health.message Database diagnostic message, limited to 500 characters.
+   * @param {number|null} request.body.database_health.connection_count Current database connection count.
+   * @param {number|null} request.body.database_health.connection_max Configured maximum database connections.
+   * @param {number|null} request.body.database_health.threads_running Currently running database threads.
+   * @param {number|null} request.body.database_health.peak_connections Peak observed database connections.
+   * @param {number|null} request.body.database_health.long_queries Reported long-query count.
+   * @param {number|null} request.body.database_health.db_size_mb Database size reported in MiB-compatible units.
+   * @param {object} [request.body.database_health.raw] Exact size-limited `db` object returned by the middleware API.
    * @param {import("express").Response} response Heartbeat and telemetry acceptance state.
    * @returns {Promise<void>} Resolves after heartbeat persistence and optional incident evaluation.
    */
@@ -226,9 +236,9 @@ export function createHeartbeatRouter(config: AppConfig): Router {
              cpu_count, load_1, load_5, load_15, memory_total_bytes,
              memory_available_bytes, swap_total_bytes, swap_free_bytes, uptime_seconds,
              health_checked_at, health_outcome, health_http_status_code, health_latency_ms,
-             health_error_code, health_error_message, top_processes_json,
+             health_error_code, health_error_message, database_health_json, top_processes_json,
              created_at, updated_at, is_delete)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
           [
             agent.project_id,
             agent.id,
@@ -259,6 +269,7 @@ export function createHeartbeatRouter(config: AppConfig): Router {
             payload.health_probe.latency_ms,
             payload.health_probe.error_code,
             payload.health_probe.error_message,
+            payload.database_health === null ? null : JSON.stringify(payload.database_health),
             JSON.stringify(payload.top_processes),
             now,
             now

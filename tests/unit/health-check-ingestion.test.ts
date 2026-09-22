@@ -15,6 +15,9 @@ const credential = `ag_${id}.synthetic-secret`;
 const body = {
   sequence_id: 1, observed_at: 1, agent_version: "1.3.0",
   health_probe: { checked_at: 1, outcome: "healthy", http_status_code: 200, latency_ms: 18, error_code: null, error_message: null },
+  database_health: { status: "alive", message: "", connection_count: 58, connection_max: 150,
+    threads_running: 1, peak_connections: 67, long_queries: 0, db_size_mb: 8329.7,
+    raw: { status: "alive", fragmented_mb: "46.0" } },
   metrics: { cpu_count: 1, load_1: 0, load_5: 0, load_15: 0, memory_total_bytes: 100,
     memory_available_bytes: 80, swap_total_bytes: 0, swap_free_bytes: 0, uptime_seconds: 100 },
   filesystems: [], top_processes: [], service_checks: {
@@ -44,6 +47,9 @@ describe("Health result persistence", () => {
       .post("/").set("authorization", `Bearer ${credential}`).send(body);
     expect(response.status).toBe(202);
     expect(response.body.telemetry_accepted).toBe(true);
+    const metricInsert = execute.mock.calls.find(([sql]) => sql.includes("INSERT INTO metric_samples"));
+    expect(metricInsert?.[0]).toContain("database_health_json");
+    expect(metricInsert?.[1]).toContain(JSON.stringify(body.database_health));
     expect(execute.mock.calls.filter(([sql]) => sql.includes("INSERT INTO service_check_samples"))).toHaveLength(2);
     const update = execute.mock.calls.find(([sql]) => sql.includes("last_service_checks_json = ?"));
     const snapshot = JSON.parse(update?.[1][11]);

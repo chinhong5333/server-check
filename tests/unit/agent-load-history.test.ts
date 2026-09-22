@@ -32,6 +32,9 @@ describe("raw load history", () => {
         middleware_failure_count: 1, middleware_failure_threshold: 2, latest_load_5: latest,
         latest_ram_total_bytes: "8000000000", latest_ram_available_bytes: "3860000000",
         latest_storage_total_bytes: "100000000000", latest_storage_available_bytes: "60000000000", latest_storage_mount_point: "/",
+        latest_database_health_json: JSON.stringify({ status: "alive", message: "", connection_count: 58,
+          connection_max: 150, threads_running: 1, peak_connections: 67, long_queries: 0, db_size_mb: 8329.7,
+          raw: { status: "alive", fragmented_mb: "46.0" } }),
         ...resourceOverrides
       }], []];
       if (sql.includes("FROM metric_samples")) return [[{
@@ -57,6 +60,8 @@ describe("raw load history", () => {
       ram: { used_bytes: 4140000000, total_bytes: 8000000000, utilization_percent: 51.75 },
       storage: { used_bytes: 40000000000, total_bytes: 100000000000, utilization_percent: 40, mount_point: "/" }
     });
+    expect(result.body.latest_database_health).toMatchObject({ status: "alive", connection_count: 58,
+      db_size_mb: 8329.7, raw: { status: "alive", fragmented_mb: "46.0" } });
     expect(execute.mock.calls[0][0]).toContain("f.metric_sample_id = latest.id");
     expect(execute.mock.calls[0][0]).toContain("f.mount_point = '/'");
     expect(execute.mock.calls[0][0]).toContain("ORDER BY f.id ASC");
