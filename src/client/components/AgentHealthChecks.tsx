@@ -1,6 +1,7 @@
 import { CircleCheck, CircleDashed, CircleHelp, CircleX, Clock3 } from "lucide-react";
-import type { AgentChecks, AgentHealthSnapshot } from "../../shared/contracts";
+import type { AgentChecks, AgentHealthSnapshot, DatabaseHealthSnapshot } from "../../shared/contracts";
 import { formatDateTime, formatLatency } from "../lib/format";
+import { AgentDatabaseHealth } from "./AgentDatabaseHealth";
 
 export function checkPresentation(enabled: boolean, status: string | undefined, stale: boolean) {
   if (!enabled) return { label: "Not Monitored", tone: "new", Icon: CircleDashed };
@@ -11,9 +12,10 @@ export function checkPresentation(enabled: boolean, status: string | undefined, 
   return { label: "Unknown", tone: "warning", Icon: CircleHelp };
 }
 
-export function AgentHealthChecks({ checks, snapshot, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale }: {
+export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale }: {
   checks: AgentChecks; snapshot: AgentHealthSnapshot | null; lastMetricsAt: number | null;
-  lastHeartbeatAt: number | null; intervalSeconds: number; telemetryStale: boolean;
+  databaseHealth?: DatabaseHealthSnapshot | null; lastHeartbeatAt: number | null;
+  intervalSeconds: number; telemetryStale: boolean;
 }) {
   const expired = telemetryStale || lastMetricsAt === null || lastHeartbeatAt === null
     || Date.now() >= lastMetricsAt + intervalSeconds * 1000
@@ -45,6 +47,7 @@ export function AgentHealthChecks({ checks, snapshot, lastMetricsAt, lastHeartbe
           </div>;
         })}
       </div>
+      <AgentDatabaseHealth snapshot={databaseHealth} stale={expired} monitored={checks.middleware_api} />
     </section>
   );
 }

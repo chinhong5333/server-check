@@ -3,7 +3,7 @@ import { NotificationGroupBar } from "../components/NotificationGroup";
 import { ArrowLeft, CircleHelp, ExternalLink, Link2, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { DEFAULT_AGENT_CHECKS, type AgentChecks, type AgentHealthSnapshot, type AgentIncidentLog, type TelegramDeliverySummary } from "../../shared/contracts";
+import { DEFAULT_AGENT_CHECKS, type AgentChecks, type AgentHealthSnapshot, type AgentIncidentLog, type DatabaseHealthSnapshot, type TelegramDeliverySummary } from "../../shared/contracts";
 import { AgentHealthChecks } from "../components/AgentHealthChecks";
 import { CopyButton } from "../components/CopyButton";
 import { ManageAgentButton } from "../components/ManageAgentButton";
@@ -64,6 +64,7 @@ interface HistoryResponse {
   points: HistoryPoint[];
   latest_load_5: number | null;
   latest_resources: AgentLatestResources;
+  latest_database_health: DatabaseHealthSnapshot | null;
 }
 
 
@@ -324,6 +325,7 @@ export function AgentDetailPage() {
       </ModalDialog>
 
       <AgentHealthChecks checks={agent.checks ?? DEFAULT_AGENT_CHECKS} snapshot={agent.service_health ?? null}
+        databaseHealth={resource.data.latest_database_health ?? null}
         lastMetricsAt={agent.last_metrics_at} lastHeartbeatAt={agent.last_heartbeat_at}
         intervalSeconds={agent.heartbeat_interval_seconds} telemetryStale={agent.status === "stale"} />
 
