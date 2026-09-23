@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const { api } = vi.hoisted(()=>({api:vi.fn()}));
@@ -12,11 +12,28 @@ function show(onFinished=vi.fn()){
     agentId="agent-1" projectId="project-1" agentName="Atlas" healthApiUrl="https://example.test/health" onFinished={onFinished} /></MemoryRouter>);
   fireEvent.click(screen.getByRole("button",{name:"Rotate Secret"}));return onFinished;
 }
-beforeEach(()=>{api.mockReset();api.mockResolvedValue(result);});
-afterEach(cleanup);
+function unlockRotation(){
+  for(let second=0;second<3;second+=1) act(()=>vi.advanceTimersByTime(1000));
+  vi.useRealTimers();
+}
+beforeEach(()=>{vi.useFakeTimers();api.mockReset();api.mockResolvedValue(result);});
+afterEach(()=>{vi.useRealTimers();cleanup();});
+it("delays secret rotation for three seconds whenever the modal opens",()=>{
+  show();
+  expect(screen.getByRole("button",{name:"Rotate Available In 3s"})).toBeDisabled();
+  fireEvent.click(screen.getByRole("button",{name:"Rotate Available In 3s"}));
+  expect(api).not.toHaveBeenCalled();
+  act(()=>vi.advanceTimersByTime(1000));
+  expect(screen.getByRole("button",{name:"Rotate Available In 2s"})).toBeDisabled();
+  act(()=>vi.advanceTimersByTime(1000));
+  expect(screen.getByRole("button",{name:"Rotate Available In 1s"})).toBeDisabled();
+  act(()=>vi.advanceTimersByTime(1000));
+  expect(screen.getByRole("button",{name:"Rotate And Generate Script"})).toBeEnabled();
+});
 it("confirms and displays the replacement script without leaving Agent Detail",async()=>{
   const finished=show();expect(api).not.toHaveBeenCalled();
   expect(screen.getByRole("dialog")).toHaveTextContent("old script");
+  unlockRotation();
   fireEvent.click(screen.getByRole("button",{name:"Rotate And Generate Script"}));
   await screen.findByRole("heading",{name:"Access Secret Rotated"});
   expect(screen.getByTestId("location")).toHaveTextContent("/projects/project-1/agents/agent-1");
@@ -35,10 +52,12 @@ it("confirms and displays the replacement script without leaving Agent Detail",a
 });
 it("does not rotate when cancelled and returns focus to the trigger",async()=>{
   show();fireEvent.click(screen.getByRole("button",{name:"Cancel"}));
+  vi.useRealTimers();
   await waitFor(()=>expect(screen.getByRole("button",{name:"Rotate Secret"})).toHaveFocus());expect(api).not.toHaveBeenCalled();
 });
 it("retains the confirmation on request failure and allows retry",async()=>{
   api.mockRejectedValueOnce(new Error("Connection failed"));show();
+  unlockRotation();
   fireEvent.click(screen.getByRole("button",{name:"Rotate And Generate Script"}));
   expect(await screen.findByRole("alert")).toHaveTextContent("Connection failed");
   expect(screen.getByTestId("location")).toHaveTextContent("/projects/project-1/agents/agent-1");

@@ -4,7 +4,10 @@ import { DEFAULT_AGENT_CHECKS, generateAgentScriptBodySchema, type AgentChecks, 
 import { apiFetch } from "../api";
 import { AgentScriptChecks } from "./AgentScriptChecks";
 import { CopyButton } from "./CopyButton";
+import { InlineLoader } from "./Feedback";
 import { ModalDialog } from "./ModalDialog";
+
+const ROTATION_ARM_SECONDS = 3;
 
 export function RotateAgentSecretButton({ agentId, projectId, agentName, checks, healthApiUrl, onFinished }: {
   agentId: string; projectId: string; agentName: string; checks?: AgentChecks;
@@ -17,6 +20,7 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
   const [error, setError] = useState<string | null>(null);
   const [installation, setInstallation] = useState<AgentInstallationResponse | null>(null);
   const [leaveStep, setLeaveStep] = useState(0);
+  const [armingSeconds, setArmingSeconds] = useState(0);
   const trigger = useRef<HTMLButtonElement>(null);
   const closeTrigger = useRef<HTMLButtonElement>(null);
 
@@ -28,13 +32,19 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
     return () => window.removeEventListener("beforeunload", warn);
   }, [installation, busy]);
 
+  useEffect(() => {
+    if (!open || installation || armingSeconds <= 0) return;
+    const timer = window.setTimeout(() => setArmingSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [open, installation, armingSeconds]);
+
   function close() {
     if (busy) return;
     if (installation) setLeaveStep(1);
-    else setOpen(false);
+    else { setArmingSeconds(0); setOpen(false); }
   }
   async function rotate() {
-    if (busy || installation) return;
+    if (busy || installation || armingSeconds > 0) return;
     const input = generateAgentScriptBodySchema.safeParse({ checks: draftChecks, health_api_url: draftChecks.middleware_api ? url : null });
     if (!input.success) { setError("Enter a valid Middleware API URL or disable its check."); return; }
     setBusy(true); setError(null);
@@ -55,7 +65,7 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
   }
   return <>
     <button ref={trigger} className="button button--secondary" type="button" aria-haspopup="dialog" aria-controls="detail-rotate-secret"
-      onClick={() => { setDraftChecks({ ...(checks ?? DEFAULT_AGENT_CHECKS) }); setUrl(healthApiUrl ?? ""); setError(null); setOpen(true); }}><KeyRound aria-hidden="true" />Rotate Secret</button>
+      onClick={() => { setDraftChecks({ ...(checks ?? DEFAULT_AGENT_CHECKS) }); setUrl(healthApiUrl ?? ""); setError(null); setArmingSeconds(ROTATION_ARM_SECONDS); setOpen(true); }}><KeyRound aria-hidden="true" />Rotate Secret</button>
     <ModalDialog id="detail-rotate-secret" open={open} labelledBy="detail-rotate-title" describedBy="detail-rotate-description"
       dialogClassName={installation ? "agent-dialog--agent-form" : undefined}
       surfaceClassName={installation ? "agent-dialog__surface form-surface" : "agent-dialog__surface agent-rotation-confirmation"} restoreFocusTo={trigger.current}>
@@ -79,7 +89,11 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
           <input id="detail-rotation-url" type="url" value={url} disabled={busy} onChange={(event) => setUrl(event.target.value)} /></div>}
         {error && <p role="alert" className="field__help field__help--error">{error}</p>}
         <div className="action-row"><button className="button button--secondary" type="button" disabled={busy} onClick={close}>Cancel</button>
-          <button className="button button--danger" type="button" disabled={busy} onClick={() => void rotate()}>{busy ? "Rotating Secret…" : "Rotate And Generate Script"}</button></div>
+          <button className="button button--danger" type="button" disabled={busy || armingSeconds > 0} onClick={() => void rotate()}>
+            {busy ? "Rotating Secret…" : armingSeconds > 0
+              ? <InlineLoader label={`Rotate Available In ${armingSeconds}s`} />
+              : "Rotate And Generate Script"}
+          </button></div>
       </>}
     </ModalDialog>
     <ModalDialog id="detail-leave-secret" open={leaveStep > 0} labelledBy="detail-leave-title" describedBy="detail-leave-description"
