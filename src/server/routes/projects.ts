@@ -12,6 +12,7 @@ import {
   updateAgentBodySchema,
   updateProjectBodySchema,
   type AgentInstallationResponse,
+  type ProjectAgentPreview,
   type AgentSummary,
   type IncidentSummary,
   type ProjectSummary
@@ -40,6 +41,13 @@ interface ProjectRow extends RowDataPacket {
   warning_agents: number;
   critical_agents: number;
   stale_agents: number;
+}
+
+interface ProjectAgentPreviewRow extends RowDataPacket {
+  project_id: string;
+  public_id: string;
+  server_name: string;
+  status: ProjectAgentPreview["status"];
 }
 
 interface AgentRow extends RowDataPacket {
@@ -146,15 +154,21 @@ export function createProjectsRouter(config: AppConfig): Router {
 
   /**
    * GET /api/v1/projects
-   * Lists active monitoring projects with separate current counts for healthy, new, warning, critical, and stale agents.
+   * Lists active monitoring projects with condition counts and up to six agent previews per project.
+   * Previews place critical, warning, and stale agents first, then new and healthy agents;
+   * registration recency breaks ties within a condition.
    * Authorization: full admin or a sub-admin with view_projects.
-   * @param {Request} request Authenticated request; request body and query must be empty.
-   * @param {import("express").Response<ProjectSummary[]>} response Project summaries.
-   * @returns {Promise<void>} Resolves after project aggregation.
+   * @param {Request} request Authenticated request.
+   * @param {object} request.body Empty request body; no fields are accepted.
+   * @param {object} request.query Empty query object; no fields are accepted.
+   * @param {import("express").Response<ProjectSummary[]>} response Project summaries with agents_preview entries containing id, server_name, and status.
+   * @returns {Promise<void>} Resolves after project aggregation and bounded agent preview lookup.
    */
   router.get(
     "/",
-    asyncHandler(async (_request, response) => {
+    asyncHandler(async (request, response) => {
+      z.object({}).strict().parse(request.query);
+      z.object({}).strict().parse(request.body ?? {});
       const [rows] = await getPool(config).query<ProjectRow[]>(
         `SELECT
            p.id, p.public_id, p.name, p.slug,
@@ -170,10 +184,37 @@ export function createProjectsRouter(config: AppConfig): Router {
          ORDER BY p.sort_order ASC, p.name ASC, p.id ASC`
       );
 
+      const previewsByProject = new Map<string, ProjectAgentPreview[]>();
+      if (rows.length > 0) {
+        const [previewRows] = await getPool(config).query<ProjectAgentPreviewRow[]>(
+          `SELECT project_id, public_id, server_name, status
+           FROM (
+             SELECT a.project_id, a.public_id, a.server_name, a.status,
+                    ROW_NUMBER() OVER (PARTITION BY a.project_id ORDER BY
+                      CASE a.status
+                        WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 WHEN 'stale' THEN 2
+                        WHEN 'new' THEN 3 WHEN 'healthy' THEN 4 ELSE 5 END,
+                      a.created_at DESC, a.id DESC) AS preview_rank
+             FROM agents a
+             INNER JOIN projects p ON p.id = a.project_id AND p.is_delete = 0
+             WHERE a.is_delete = 0
+           ) ranked
+           WHERE preview_rank <= 6
+           ORDER BY project_id, preview_rank`
+        );
+        for (const row of previewRows) {
+          const projectId = String(row.project_id);
+          const previews = previewsByProject.get(projectId) ?? [];
+          previews.push({ id: row.public_id, server_name: row.server_name, status: row.status });
+          previewsByProject.set(projectId, previews);
+        }
+      }
+
       const projects: ProjectSummary[] = rows.map((row) => ({
         id: row.public_id,
         name: row.name,
         slug: row.slug,
+        agents_preview: previewsByProject.get(String(row.id)) ?? [],
         healthy_agents: Number(row.healthy_agents),
         new_agents: Number(row.new_agents),
         warning_agents: Number(row.warning_agents),

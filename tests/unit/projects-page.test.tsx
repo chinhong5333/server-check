@@ -59,6 +59,7 @@ afterEach(cleanup);
 describe("Projects collection flow", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    apiFetchMock.mockResolvedValue({ telegram_group_url: null, telegram_group_enabled: false });
     reloadProjectsMock.mockReset();
   });
 

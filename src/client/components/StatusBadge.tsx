@@ -1,6 +1,6 @@
 import { AlertTriangle, CircleCheck, CircleDashed, CircleX, Radio } from "lucide-react";
 
-const statusConfig = {
+export const statusConfig = {
   healthy: { label: "Healthy", icon: CircleCheck },
   warning: { label: "Warning", icon: AlertTriangle },
   critical: { label: "Critical", icon: CircleX },

@@ -1869,6 +1869,99 @@ pre,
   overflow-wrap: anywhere;
 }
 
+/* Project card roster: compact preview with a full directory on demand. */
+.project-card--with-agents { height: auto; grid-template-rows: auto auto auto auto; }
+.project-card--with-agents .project-card__body { min-height: 0; }
+.project-card__roster { min-width: 0; border-block-start: var(--rule-thin) solid var(--color-rule); }
+.project-card__roster-heading { padding: var(--space-sm) var(--space-md) var(--space-xs); }
+.project-card__roster-heading h4 { margin: 0; font-size: var(--text-sm); }
+.project-card__agent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: 0 var(--space-md) var(--space-sm);
+  list-style: none;
+}
+.project-card__agent-grid li {
+  min-width: 0;
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border: var(--rule-thin) solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-2);
+  color: var(--color-ink-2);
+  font-size: var(--text-xs);
+}
+.project-card__agent-grid li > svg { width: .875rem; height: .875rem; flex: none; }
+.project-card__agent-grid li[data-status="healthy"] > svg { color: var(--color-success); }
+.project-card__agent-grid li[data-status="warning"] > svg { color: var(--color-warning); }
+.project-card__agent-grid li[data-status="critical"] > svg { color: var(--color-error); }
+.project-card__agent-grid li[data-status="stale"] > svg,
+.project-card__agent-grid li[data-status="new"] > svg { color: var(--color-muted); }
+.project-card__agent-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-card__agent-grid li.project-card__view-all-item {
+  padding: 0;
+  background: var(--color-info-surface);
+  border-color: var(--color-rule-strong);
+}
+.project-card__view-all {
+  width: 100%;
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font: 500 var(--text-xs) var(--font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.project-card__view-all:hover { background: var(--color-paper-2); }
+.project-card__view-all:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.project-card__view-all svg { width: .875rem; height: .875rem; flex: none; }
+@media (pointer: coarse) { .project-card__view-all { min-height: 44px; } }
+
+.project-agent-dialog__surface { padding: 0; overflow: hidden; }
+.project-agent-dialog__surface > .section-heading { margin: 0; padding: var(--space-md); }
+.project-agent-dialog__surface .project-agent-dialog__project {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  color: var(--color-ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.project-agent-dialog__project svg { width: 1rem; height: 1rem; flex: none; margin-block-start: .125rem; color: var(--color-accent); }
+.project-agent-dialog__list {
+  max-height: min(60dvh, 30rem);
+  overflow: auto;
+  margin: 0;
+  padding: 0 var(--space-md);
+  list-style: none;
+}
+.project-agent-dialog__list li {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+}
+.project-agent-dialog__list li + li { border-block-start: var(--rule-thin) solid var(--color-rule); }
+.project-agent-dialog__list strong { min-width: 0; overflow-wrap: anywhere; color: var(--color-ink); font-size: var(--text-sm); }
+.project-agent-dialog__list .status { flex: none; }
+.project-agent-dialog__message { min-height: 9rem; display: grid; align-content: center; justify-items: center; gap: var(--space-sm); margin: 0; padding: var(--space-lg); text-align: center; }
+.project-agent-dialog__message p { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 22rem) { .project-agent-dialog__list li { align-items: flex-start; } }
+
 @container project-card (min-width: 24rem) {
   .project-card__header { grid-template-columns: minmax(0, 1fr) auto; }
 

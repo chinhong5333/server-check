@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { ProjectSummary } from "../../shared/contracts";
 import { formatCount } from "../lib/format";
+import { ProjectCardAgents } from "./ProjectCardAgents";
 
 /** The same project card is used for browsing and arranging projects. */
 export function ProjectCard({ project, sortingControls }: { project: ProjectSummary; sortingControls?: ReactNode }) {
@@ -15,7 +16,7 @@ export function ProjectCard({ project, sortingControls }: { project: ProjectSumm
       : total === 0
         ? { state: "empty", label: "No Agents", Icon: CircleDashed, description: "Register an agent to begin monitoring." }
         : { state: "healthy", label: "Healthy", Icon: CircleCheck, description: "All registered agents are healthy." };
-  return <article className={`project-card project-card--${health.state}`} aria-labelledby={`project-card-${project.id}`}>
+  return <article className={`project-card project-card--${health.state}${!sortingControls && project.agents_preview?.length ? " project-card--with-agents" : ""}`} aria-labelledby={`project-card-${project.id}`}>
     <div className="project-card__header">
       <div className="project-card__identity"><FolderKanban aria-hidden="true" />
         <h3 id={`project-card-${project.id}`} title={project.name}>{project.name}</h3></div>
@@ -25,6 +26,7 @@ export function ProjectCard({ project, sortingControls }: { project: ProjectSumm
       <div className="project-card__agent-count" aria-label={`Total Agents: ${total}`}><span>Total Agents</span><strong className="numeric">{formatCount(total)}</strong></div>
       <p>{health.description}</p>
     </div>
+    {!sortingControls && <ProjectCardAgents project={project} total={total} />}
     <div className="project-card__actions">{sortingControls ?? <Link className="button button--secondary" to={`/projects/${encodeURIComponent(project.id)}`}>Manage<ArrowRight aria-hidden="true" /></Link>}</div>
   </article>;
 }

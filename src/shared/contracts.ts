@@ -286,6 +286,8 @@ export interface ProjectSummary {
   id: string;
   name: string;
   slug: string;
+  /** Up to six active agents, ordered by condition severity then registration recency. */
+  agents_preview?: ProjectAgentPreview[];
   /** @deprecated Monitoring policy is agent-scoped. */
   ram_available_threshold_percent?: number;
   /** @deprecated Monitoring policy is agent-scoped. */
@@ -299,6 +301,12 @@ export interface ProjectSummary {
   warning_agents: number;
   critical_agents: number;
   stale_agents: number;
+}
+
+export interface ProjectAgentPreview {
+  id: string;
+  server_name: string;
+  status: "new" | "healthy" | "warning" | "critical" | "stale";
 }
 
 export const telegramGroupUrlSchema = z.string().trim().max(2048).url().refine(value => {
