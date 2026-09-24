@@ -1731,10 +1731,15 @@ pre,
 .project-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(21rem, 100%), 1fr));
+  grid-auto-rows: 1fr;
   gap: var(--space-lg);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+@media (max-width: 39.999rem) {
+  .project-card-grid { grid-auto-rows: auto; }
 }
 
 .project-card-grid > li {
@@ -1870,7 +1875,7 @@ pre,
 }
 
 /* Project card roster: compact preview with a full directory on demand. */
-.project-card--with-agents { height: auto; grid-template-rows: auto auto auto auto; }
+.project-card--with-agents { grid-template-rows: auto auto minmax(0, 1fr) auto; }
 .project-card--with-agents .project-card__body { min-height: 0; }
 .project-card__roster { min-width: 0; border-block-start: var(--rule-thin) solid var(--color-rule); }
 .project-card__roster-heading { padding: var(--space-sm) var(--space-md) var(--space-xs); }
