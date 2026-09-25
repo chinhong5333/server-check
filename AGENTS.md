@@ -28,6 +28,17 @@ These instructions apply to all work inside this repository and supplement highe
 - Never describe a test as hung unless its process state or repeated lack of progress confirms that diagnosis.
 - Keep progress updates short and do not leave the user waiting silently during implementation or verification.
 
+## Focused Execution Loop
+
+- For every task, identify the smallest observable success check before broad investigation. For a reported UI defect, measure the specific failing geometry or interaction once, fix its owner, then repeat that same check.
+- When the user names a screen, component, file, or error, inspect that path and its immediate dependencies first. Do not turn a small fix into a repository-wide audit, optional redesign, or unrelated cleanup. Required skills still apply; load only task-relevant references and searches.
+- Start the smallest safe implementation as soon as the cause is established. Do not wait for a parallel research task if local evidence already resolves the question; keep any required delegation narrow and independent.
+- If the user adds a related requirement while work is in progress, extend the current acceptance checks. Do not restart discovery or reread instructions already loaded for that same task unless the new scope requires it.
+- Batch independent verification. For UI work, use one browser session and one viewport/state sweep to cover the required desktop, tablet, mobile, helper-text, error, control-spacing, and alignment checks. Capture representative images; use `getBoundingClientRect()` for exact alignment. Do not launch a separate browser workflow for each measurement.
+- Run the selected focused tests once after the change, then proportionate type checking or build. If a check fails, fix that failure and rerun only the affected check, counting reruns toward the 10-case limit. Do not repeat a full verification pass after a small follow-up edit unless its scope requires it.
+- If a small task is still ongoing after five minutes, tell the user the exact remaining blocker and next action, then cut optional work. The time target never overrides correctness, safety, required skills, or mandatory UI verification.
+- Keep backend and frontend running while the user is previewing. Use live reload during edits; after the task is finished, restart only a service that actually needs it and verify its readiness. Do not restart merely because a file changed.
+
 ## Preserve UI Design Intent
 
 - Treat an existing designed screen as an established product artifact. Fix the reported defect while preserving its visual identity, content hierarchy, brand character, and useful composition.
