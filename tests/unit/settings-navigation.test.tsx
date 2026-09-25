@@ -14,7 +14,7 @@ vi.mock("../../src/client/api", async (original) => ({...await original<typeof i
 import { App } from "../../src/client/App";
 import { ToastProvider } from "../../src/client/components/ToastProvider";
 function open(path:string) { render(<MemoryRouter initialEntries={[path]}><ToastProvider><App /></ToastProvider></MemoryRouter>); }
-beforeEach(()=>{state.role="admin";state.permissions=[];state.api.mockReset();state.api.mockImplementation(async (path:string)=>path==="/api/v1/admins"?[]:{telegram_bot_configured:false,telegram_chat_id:null});vi.spyOn(window,"scrollTo").mockImplementation(()=>{});});
+beforeEach(()=>{state.role="admin";state.permissions=[];state.api.mockReset();state.api.mockImplementation(async (path:string)=>path==="/api/v1/admins"?[]:{telegram_bot_configured:false,telegram_chat_id:null,telegram_group_url:null});vi.spyOn(window,"scrollTo").mockImplementation(()=>{});});
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
 it("allows global settings for an authorized sub-admin but never Teams", async () => {
   state.role="sub_admin";state.permissions=["edit_global_settings"];

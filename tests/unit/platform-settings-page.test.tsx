@@ -20,7 +20,8 @@ import { ToastProvider } from "../../src/client/components/ToastProvider";
 
 const settings: PlatformTelegramSettings = {
   telegram_bot_configured: false,
-  telegram_chat_id: null
+  telegram_chat_id: null,
+  telegram_group_url: null
 };
 
 describe("platform Setting page", () => {
@@ -33,19 +34,23 @@ describe("platform Setting page", () => {
 
   afterEach(cleanup);
 
-  it("displays the saved bot link and refreshes it after saving a replacement token", async () => {
-    let username = "OriginalMonitorBot";
+  it("edits the saved group link without detecting a bot link", async () => {
     apiFetchMock.mockImplementation(async (path, init) => {
-      if (init?.method === "PATCH") { username = "ReplacementMonitorBot"; return; }
-      if (path === "/api/v1/settings/telegram/bot-link") return { username, url: `https://t.me/${username}` };
-      return { telegram_bot_configured: true, telegram_chat_id: null };
+      if (init?.method === "PATCH") return;
+      if (path === "/api/v1/settings/telegram/group-link") return { telegram_group_url: null, telegram_group_enabled: false };
+      return { telegram_bot_configured: true, telegram_chat_id: "-1001234567890", telegram_group_url: "https://t.me/old_group" };
     });
     render(<ToastProvider><MemoryRouter><PlatformSettingsPage /></MemoryRouter></ToastProvider>);
-    expect(await screen.findByRole("link", { name: "Open Telegram Bot @OriginalMonitorBot In A New Tab" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Telegram Bot Token"), { target: { value: `123456789:${"a".repeat(35)}` } });
-    expect(screen.queryByRole("link", { name: /Open Telegram Bot/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Save Platform Sender" }));
-    expect(await screen.findByRole("link", { name: "Open Telegram Bot @ReplacementMonitorBot In A New Tab" })).toHaveAttribute("href", "https://t.me/ReplacementMonitorBot");
+    const input = await screen.findByLabelText("Telegram Group Link");
+    expect(input).toHaveValue("https://t.me/old_group");
+    expect(screen.queryByText("Telegram Bot Link")).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "https://t.me/+newinvite" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Alert Destination" }));
+    await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith("/api/v1/settings/telegram", {
+      method: "PATCH",
+      body: JSON.stringify({ telegram_chat_id: "-1001234567890", telegram_group_url: "https://t.me/+newinvite" })
+    }));
+    expect(apiFetchMock.mock.calls.some(([path]) => path === "/api/v1/settings/telegram/bot-link" || path === "/api/v1/settings/telegram/destination-link")).toBe(false);
   });
 
   it("saves one platform Telegram destination for all incidents", async () => {
@@ -72,8 +77,8 @@ describe("platform Setting page", () => {
     expect(saveDestinationButton).not.toHaveAttribute("aria-describedby");
     const testMessageButton = within(destinationGroup).getByRole("button", { name: "Send Test Message" });
     const destinationControlRow = screen.getByLabelText("Telegram Chat ID").closest(".telegram-control-row");
-    expect(destinationControlRow).toContainElement(saveDestinationButton);
     expect(destinationControlRow).toContainElement(testMessageButton);
+    expect(screen.getByLabelText("Telegram Group Link").closest(".telegram-control-row")).toContainElement(saveDestinationButton);
     expect(testMessageButton).toBeDisabled();
     expect(within(destinationGroup).getByText("Disabled: Configure Platform Sender first.")).toBeInTheDocument();
 
@@ -109,7 +114,7 @@ describe("platform Setting page", () => {
     await waitFor(() =>
       expect(apiFetchMock).toHaveBeenCalledWith("/api/v1/settings/telegram", {
         method: "PATCH",
-        body: JSON.stringify({ telegram_chat_id: "@ops_alerts" })
+        body: JSON.stringify({ telegram_chat_id: "@ops_alerts", telegram_group_url: null })
       })
     );
     expect(
@@ -148,5 +153,10 @@ describe("platform Setting page", () => {
       await screen.findByText("Use a numeric Chat ID or a channel username beginning with @.")
     ).toBeInTheDocument();
     expect(input).toHaveAttribute("aria-invalid", "true");
+    const groupUrl = screen.getByLabelText("Telegram Group Link");
+    fireEvent.change(groupUrl, { target: { value: "https://evil.test/invite" } });
+    fireEvent.blur(groupUrl);
+    expect(groupUrl).toHaveAttribute("aria-invalid", "true");
+    expect(await screen.findByText("Use an HTTPS t.me group or invite link.")).toBeInTheDocument();
   });
 });

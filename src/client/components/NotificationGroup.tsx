@@ -20,12 +20,12 @@ export function NotificationGroupBar() {
   }, []);
   if (!url) return null;
   return <aside className="notification-group-bar" aria-label="Telegram Notifications">
-    <span><Send aria-hidden="true" />Access our notification bot on Telegram.</span>
-    <a href={url} target="_blank" rel="noopener noreferrer"><Send className="notification-group-bar__mobile-icon" aria-hidden="true" />Open Telegram Bot<ExternalLink aria-hidden="true" /></a>
+    <span><Send aria-hidden="true" />Access our Telegram alert destination.</span>
+    <a href={url} target="_blank" rel="noopener noreferrer"><Send className="notification-group-bar__mobile-icon" aria-hidden="true" />Open Telegram Alerts<ExternalLink aria-hidden="true" /></a>
   </aside>;
 }
 
-export function NotificationGroupSettings() {
+export function NotificationGroupSettings({ linkAvailable }: { linkAvailable: boolean }) {
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -51,9 +51,9 @@ export function NotificationGroupSettings() {
   }
   if (!loaded) return null;
   return <div className="bot-link-visibility" aria-busy={saving || loading}>
-    <button id="bot-visibility-switch" className="bot-visibility-switch" type="button" role="switch"
-      aria-label="Show on notification bar" title="Show This Bot Link To All Team Members" aria-checked={enabled}
-      disabled={loading || saving || !loaded} onClick={() => void toggle()}><span /></button>
-    <label htmlFor="bot-visibility-switch">Show on notification bar</label>
+    <button id="group-visibility-switch" className="bot-visibility-switch" type="button" role="switch"
+      aria-label="Show on Notification Bar" title="Show Alert Destination Link To All Team Members" aria-checked={enabled}
+      disabled={loading || saving || !loaded || (!linkAvailable && !enabled)} onClick={() => void toggle()}><span /></button>
+    <label htmlFor="group-visibility-switch">Show on Notification Bar</label>
   </div>;
 }

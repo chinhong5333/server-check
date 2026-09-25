@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   telegramBotTokenSchema,
   telegramChatIdSchema,
+  telegramGroupUrlSchema,
   updatePlatformTelegramBodySchema,
   type PlatformTelegramSettings
 } from "../../shared/contracts";
@@ -10,7 +11,7 @@ import { ApiError, apiFetch } from "../api";
 import { InlineLoader } from "./Feedback";
 import { useToast } from "./ToastProvider";
 import { TelegramChatPicker } from "./TelegramChatPicker";
-import { TelegramBotLink } from "./TelegramBotLink";
+import { NotificationGroupSettings } from "./NotificationGroup";
 
 export function TelegramSettingsForm({
   settings
@@ -21,13 +22,15 @@ export function TelegramSettingsForm({
   const [telegramBotToken, setTelegramBotToken] = useState("");
   const [telegramChatId, setTelegramChatId] = useState(settings.telegram_chat_id ?? "");
   const [savedChatId, setSavedChatId] = useState(settings.telegram_chat_id);
+  const [telegramGroupUrl, setTelegramGroupUrl] = useState(settings.telegram_group_url ?? "");
+  const [savedGroupUrl, setSavedGroupUrl] = useState(settings.telegram_group_url);
   const [botConfigured, setBotConfigured] = useState(settings.telegram_bot_configured);
-  const [senderRevision, setSenderRevision] = useState(0);
   const [savingSection, setSavingSection] = useState<"sender" | "destination" | null>(null);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [tokenTouched, setTokenTouched] = useState(false);
   const [chatTouched, setChatTouched] = useState(false);
+  const [groupUrlTouched, setGroupUrlTouched] = useState(false);
   const previousSettingsRef = useRef(settings);
   const [chatPickerOpen, setChatPickerOpen] = useState(false);
   const chatPickerTriggerRef = useRef<HTMLButtonElement>(null);
@@ -38,14 +41,17 @@ export function TelegramSettingsForm({
     setTelegramBotToken("");
     setTelegramChatId(settings.telegram_chat_id ?? "");
     setSavedChatId(settings.telegram_chat_id);
+    setTelegramGroupUrl(settings.telegram_group_url ?? "");
+    setSavedGroupUrl(settings.telegram_group_url);
     setBotConfigured(settings.telegram_bot_configured);
-    setSenderRevision(value => value + 1);
     setTokenTouched(false);
     setChatTouched(false);
+    setGroupUrlTouched(false);
   }, [settings]);
 
   const normalizedBotToken = telegramBotToken.trim();
   const normalizedChatId = telegramChatId.trim() || null;
+  const normalizedGroupUrl = telegramGroupUrl.trim() || null;
   const tokenValidation =
     normalizedBotToken.length === 0
       ? { success: true as const }
@@ -54,6 +60,9 @@ export function TelegramSettingsForm({
     normalizedChatId === null
       ? { success: true as const }
       : telegramChatIdSchema.safeParse(normalizedChatId);
+  const groupUrlValidation = normalizedGroupUrl === null
+    ? { success: true as const }
+    : telegramGroupUrlSchema.safeParse(normalizedGroupUrl);
   const tokenError =
     tokenTouched && !tokenValidation.success
       ? "Use the bot token supplied by BotFather."
@@ -62,6 +71,9 @@ export function TelegramSettingsForm({
     chatTouched && !chatValidation.success
       ? "Use a numeric Chat ID or a channel username beginning with @."
       : null;
+  const groupUrlError = groupUrlTouched && !groupUrlValidation.success
+    ? "Use an HTTPS t.me group or invite link."
+    : null;
 
   const savePlatformSender = async (event: FormEvent) => {
     event.preventDefault();
@@ -83,7 +95,6 @@ export function TelegramSettingsForm({
         body: JSON.stringify(validation.data)
       });
       setBotConfigured(true);
-      setSenderRevision(value => value + 1);
       setTelegramBotToken("");
       setMessage(null);
       showToast({ tone: "success", message: "Platform sender saved." });
@@ -99,9 +110,13 @@ export function TelegramSettingsForm({
   const saveAlertDestination = async (event: FormEvent) => {
     event.preventDefault();
     setChatTouched(true);
-    const validation = updatePlatformTelegramBodySchema.safeParse({ telegram_chat_id: normalizedChatId });
-    if (!chatValidation.success || !validation.success) {
-      showToast({ tone: "error", message: "Enter a valid Telegram Chat ID." });
+    setGroupUrlTouched(true);
+    const validation = updatePlatformTelegramBodySchema.safeParse({
+      telegram_chat_id: normalizedChatId,
+      telegram_group_url: normalizedGroupUrl
+    });
+    if (!chatValidation.success || !groupUrlValidation.success || !validation.success) {
+      showToast({ tone: "error", message: !chatValidation.success ? "Enter a valid Telegram Chat ID." : "Enter a valid Telegram Group Link." });
       return;
     }
 
@@ -113,6 +128,7 @@ export function TelegramSettingsForm({
         body: JSON.stringify(validation.data)
       });
       setSavedChatId(normalizedChatId);
+      setSavedGroupUrl(normalizedGroupUrl);
       setMessage(null);
       showToast({ tone: "success", message: "Alert destination saved." });
     } catch (cause) {
@@ -127,19 +143,20 @@ export function TelegramSettingsForm({
   const deliveryConfigured = botConfigured && savedChatId !== null;
   const destinationConfigured = savedChatId !== null;
   const hasUnsavedSender = normalizedBotToken.length > 0;
-  const hasUnsavedDestination = normalizedChatId !== savedChatId;
-  const hasUnsavedChanges = hasUnsavedSender || hasUnsavedDestination;
+  const hasUnsavedGroupUrl = normalizedGroupUrl !== savedGroupUrl;
+  const hasUnsavedDestination = normalizedChatId !== savedChatId || hasUnsavedGroupUrl;
+  const hasUnsavedDeliveryChanges = hasUnsavedSender || normalizedChatId !== savedChatId;
   const saving = savingSection !== null;
   const senderSaveDisabled = saving || testing || !hasUnsavedSender || !tokenValidation.success;
-  const destinationSaveDisabled = saving || testing || !hasUnsavedDestination || !chatValidation.success;
-  const testMessageDisabled = saving || testing || !deliveryConfigured || hasUnsavedChanges;
+  const destinationSaveDisabled = saving || testing || !hasUnsavedDestination || !chatValidation.success || !groupUrlValidation.success;
+  const testMessageDisabled = saving || testing || !deliveryConfigured || hasUnsavedDeliveryChanges;
   const testMessageDisabledReason = saving
     ? "Disabled: Wait for the current save to finish."
     : testing
       ? "Sending the test message."
       : hasUnsavedSender
         ? "Disabled: Save Platform Sender changes first."
-        : hasUnsavedDestination
+      : normalizedChatId !== savedChatId
           ? "Disabled: Save Alert Destination changes first."
           : !botConfigured
             ? "Disabled: Configure Platform Sender first."
@@ -148,7 +165,7 @@ export function TelegramSettingsForm({
               : null;
 
   const sendTestMessage = async () => {
-    if (!deliveryConfigured || hasUnsavedChanges) return;
+    if (!deliveryConfigured || hasUnsavedDeliveryChanges) return;
     setTesting(true);
     setMessage(null);
     try {
@@ -210,7 +227,6 @@ export function TelegramSettingsForm({
               </button>
             </div>
           </div>
-          {botConfigured && !hasUnsavedSender ? <TelegramBotLink key={senderRevision} /> : null}
           </fieldset>
         </form>
 
@@ -226,7 +242,7 @@ export function TelegramSettingsForm({
                 title={!botConfigured || hasUnsavedSender ? "Save Platform Sender First" : "Select Telegram Chat"}
                 onClick={() => setChatPickerOpen(true)}><List aria-hidden="true" />Select Telegram Chat</button>
             </div>
-            <div className="telegram-control-row telegram-control-row--destination">
+            <div className="telegram-control-row telegram-control-row--chat">
               <div className="telegram-control-feedback">
                 <input
                   id="platform-telegram-chat-id"
@@ -242,13 +258,6 @@ export function TelegramSettingsForm({
                   {chatError ?? "Use the channel username or the numeric ID of the prepared group."}
                 </span>
               </div>
-              <button
-                className="button button--primary telegram-section-action"
-                type="submit"
-                disabled={destinationSaveDisabled}
-              >
-                {savingSection === "destination" ? <InlineLoader label="Saving Alert Destination" /> : "Save Alert Destination"}
-              </button>
               <div className="telegram-action-feedback">
                 <button
                   className="button button--secondary telegram-section-action"
@@ -268,6 +277,24 @@ export function TelegramSettingsForm({
                 ) : null}
               </div>
             </div>
+          </div>
+          <div className="field telegram-group-link-field">
+            <label htmlFor="platform-telegram-group-url">Telegram Group Link</label>
+            <div className="telegram-control-row telegram-control-row--sender">
+              <div className="telegram-control-feedback">
+                <input id="platform-telegram-group-url" type="url" inputMode="url" autoComplete="off" spellCheck={false}
+                  value={telegramGroupUrl} onChange={event => setTelegramGroupUrl(event.target.value)}
+                  onBlur={() => setGroupUrlTouched(true)} placeholder="https://t.me/your_group or https://t.me/+invite"
+                  aria-invalid={groupUrlError ? "true" : undefined} aria-describedby="platform-telegram-group-url-help" />
+                <span id="platform-telegram-group-url-help" className={`field__help${groupUrlError ? " field__help--error" : ""}`}>
+                  {groupUrlError ?? (savedGroupUrl ? "Shown to signed-in team members when enabled. This does not change where alerts are sent." : "Save a group link to make it available on the notification bar. Alert delivery uses the Chat ID above.")}
+                </span>
+              </div>
+              <button className="button button--primary telegram-section-action" type="submit" disabled={destinationSaveDisabled}>
+                {savingSection === "destination" ? <InlineLoader label="Saving Alert Destination" /> : "Save Alert Destination"}
+              </button>
+            </div>
+            {savedGroupUrl ? <NotificationGroupSettings key={savedGroupUrl} linkAvailable={!hasUnsavedGroupUrl} /> : null}
           </div>
           </fieldset>
         </form>

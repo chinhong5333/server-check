@@ -2,7 +2,7 @@
 
 ### Notification Group Link
 
-Apply pending migrations with `npm run migrate` after building the server. Under the existing **Telegram Bot Link**, use **Show Notification Bar** to control visibility for all signed-in team members on Projects and Agent Detail. The URL is resolved automatically from the configured bot; no link entry is required. Visibility defaults to off, and open pages refresh within 30 seconds. Only accounts with global-settings permission can change it. The link opens the bot chat, not a group invitation. Bot credentials are never exposed to team members.
+Apply pending migrations with `npm run migrate` after building the server. Under **Alert Destination**, enter and save an HTTPS `t.me` group/channel or invite link, then enable **Show on Notification Bar** to share it with signed-in team members on Projects and Agent Detail. The URL is entered manually, independently of the Bot Token and delivery Chat ID. Visibility defaults to off, and open pages refresh within 30 seconds. Only accounts with global-settings permission can edit the URL or visibility. Clearing the URL turns visibility off. Bot credentials are never exposed to team members.
 
 ## Admin Controls
 
@@ -105,7 +105,7 @@ The initial administrator script still creates an **Admin**. All existing admins
 | Permission | Allowed Features |
 |---|---|
 | View All Projects & Agents | All project/agent details, metrics, incidents, and delivery logs |
-| Manage Global Settings | Telegram settings, bot link/chat lookup, and test sending |
+| Manage Global Settings | Telegram settings, manual group link, chat lookup, and test sending |
 | Create & Edit Projects | Create, rename, update settings, and sort projects |
 | Register & Edit Agents | Register agents with their first script, edit settings, and cancel pending Telegram items |
 | Delete Projects | Delete projects, including their contained agents through the existing confirmed workflow |
@@ -120,9 +120,9 @@ Deployment requires `010_sub_admin_permissions.sql` before running the new backe
 
 All four agent-detail graphs use TradingView Lightweight Charts (self-hosted npm package) with our existing authenticated history API. They retain independent 1m/5m/30m/1h controls and latest readings. Native mouse/horizontal-touch dragging is enabled; wheel, pinch, and axis zoom are disabled. Each chart initially displays about 60 samples and pans through its loaded seven-day history without fetching on pointer release. Non-default intervals refresh once per minute; the default 30m series reuses the page history. Historical viewing position is preserved during updates, and updates arriving during a pointer drag are deferred until release. Hover details appear in a bounded floating tooltip; the bottom caption shows only the visible date range. The TradingView attribution remains visible; see THIRD_PARTY_NOTICES.md. No agent-script or database migration is required.
 
-### Telegram Bot Link
+### Telegram Notification Group Link
 
-The Telegram page displays **Telegram Bot Link** under **Platform Sender** when a bot token has been saved. The admin-only `GET /api/v1/settings/telegram/bot-link` endpoint accepts no body or query fields, resolves the saved credential through Telegram `getMe`, and returns only `{ username, url }`. The link opens the bot's chat, not the alert group. Saving a replacement token refreshes it; unsaved token edits hide the old link. Lookup failures offer an inline retry without blocking settings. Requests are limited to six per minute per admin, responses are not cached, and raw upstream errors/tokens are never returned. No chat updates are read, messages sent, or database migrations required.
+Global-settings managers save `telegram_group_url` through `PATCH /api/v1/settings/telegram` with the canonical `telegram_chat_id` field. The API accepts a valid HTTPS `t.me` group or invite URL, or `null` to clear it; omitting the URL preserves the saved value. Manager-only `GET /api/v1/settings/telegram` returns the saved URL alongside delivery configuration. `PATCH /api/v1/settings/telegram/group-link` controls visibility and refuses to enable it without a saved valid link. Authenticated team members receive the URL from `GET /api/v1/settings/telegram/group-link` only while visibility is enabled. Neither endpoint contacts Telegram to detect a bot or group link. Migration `016_telegram_group_url.sql` adds a nullable column and resets previous auto-link visibility to off; existing token, Chat ID, and alert delivery are unchanged. Existing installations need to enter the group link and explicitly enable visibility once after migration. No agent-script change is required.
 
 ### 1. Select Node.js 24 with nvm
 

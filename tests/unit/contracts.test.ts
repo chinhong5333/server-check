@@ -184,6 +184,8 @@ describe("platform Telegram contract", () => {
       updatePlatformTelegramBodySchema.safeParse({ telegram_chat_id: "ops alerts" }).success
     ).toBe(false);
     expect(updatePlatformTelegramBodySchema.safeParse({ telegram_chat_id: "" }).success).toBe(false);
+    expect(updatePlatformTelegramBodySchema.safeParse({ telegram_chat_id: null, telegram_group_url: "https://evil.test/group" }).success).toBe(false);
+    expect(updatePlatformTelegramBodySchema.safeParse({ telegram_chat_id: null, telegram_group_url: "https://t.me/+groupinvite" }).success).toBe(true);
     expect(
       updatePlatformTelegramBodySchema.safeParse({
         telegram_bot_token: "not-a-telegram-token",

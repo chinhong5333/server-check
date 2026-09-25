@@ -6,7 +6,7 @@ vi.mock("../../src/client/api", async original => ({ ...await original<typeof im
 import { TelegramSettingsForm } from "../../src/client/components/TelegramSettingsForm";
 import { ToastProvider } from "../../src/client/components/ToastProvider";
 const discovery = { bot_username: "MonitorTestBot", chats: [{ id: "-1001234567890", name: "Operations Alerts", type: "supergroup" }] };
-function renderForm(configured = true) { render(<ToastProvider><TelegramSettingsForm settings={{ telegram_bot_configured: configured, telegram_chat_id: null }} /></ToastProvider>); }
+function renderForm(configured = true) { render(<ToastProvider><TelegramSettingsForm settings={{ telegram_bot_configured: configured, telegram_chat_id: null, telegram_group_url: null }} /></ToastProvider>); }
 describe("Telegram chat picker", () => {
   beforeEach(() => { api.mockReset(); }); afterEach(cleanup);
   it("shows the direct first-message guide and fills the ID without saving", async () => {

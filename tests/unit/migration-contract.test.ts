@@ -52,6 +52,14 @@ describe("database table contract", () => {
     expect(block!.indexOf("updated_at BIGINT")).toBeLessThan(block!.indexOf("is_delete TINYINT"));
   });
 
+  it("adds a nullable manual Telegram group URL without changing existing alert delivery fields", async () => {
+    const sql = await readFile(path.resolve("migrations/016_telegram_group_url.sql"), "utf8");
+    expect(sql).toContain("ALTER TABLE platform_telegram_settings");
+    expect(sql).toContain("ADD COLUMN telegram_group_url VARCHAR(2048) NULL AFTER telegram_group_enabled");
+    expect(sql).toContain("SET telegram_group_enabled = 0");
+    expect(sql).not.toContain("DROP");
+  });
+
   it("moves monitoring policy to agents and backfills existing rows", async () => {
     const sql = await readFile(path.resolve("migrations/004_agent_monitoring_policy.sql"), "utf8");
 
