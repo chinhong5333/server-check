@@ -17,7 +17,7 @@ export function MemberPermissionSummary({ member }: {
       aria-label={`View Permissions For ${member.email}`} aria-haspopup="dialog"
       onClick={() => setOpen(true)}><Eye aria-hidden="true" />{granted.length} {granted.length === 1 ? "Permission" : "Permissions"}</button>
     <ModalDialog id={`member-permissions-${member.id}`} open={open} labelledBy={titleId}
-      restoreFocusTo={trigger.current} surfaceClassName="agent-dialog__surface form-surface team-dialog">
+      restoreFocusTo={trigger.current} dialogClassName="team-dialog" surfaceClassName="agent-dialog__surface form-surface">
       <div className="section-heading"><div><h2 id={titleId}>Assigned Permissions</h2><p>{member.email}</p></div>
         <button data-dialog-initial-focus className="icon-button" type="button" aria-label="Close Permissions View" onClick={() => setOpen(false)}><X aria-hidden="true" /></button></div>
       <div className="member-permission-details">

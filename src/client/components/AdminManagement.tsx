@@ -73,7 +73,7 @@ export function AdminManagement() {
         </table></div>)}
     </div>
     <ModalDialog id="add-admin-dialog" open={open} labelledBy="add-admin-title" describedBy="add-admin-description"
-      restoreFocusTo={trigger.current} surfaceClassName="agent-dialog__surface form-surface admin-management team-dialog">
+      restoreFocusTo={trigger.current} dialogClassName="team-dialog" surfaceClassName="agent-dialog__surface form-surface admin-management">
       <div className="section-heading"><div><h2 id="add-admin-title">Add Member</h2>
         <p id="add-admin-description">Choose an account role and access. Confirm with your current password.</p></div>
         <button className="icon-button" type="button" aria-label="Close Member Creation" disabled={busy} onClick={close}><X aria-hidden="true" /></button></div>

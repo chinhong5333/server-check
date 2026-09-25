@@ -24,7 +24,8 @@ export function EditMemberPermissions({ member, onSaved }: {
   }
   return <>
     <button ref={trigger} className="button button--secondary" type="button" aria-haspopup="dialog" onClick={() => { setPermissions(member.permissions); setOpen(true); }}><Settings aria-hidden="true" />Edit Permissions</button>
-    <ModalDialog id={`permissions-${member.id}`} open={open} labelledBy={`permissions-title-${member.id}`} restoreFocusTo={trigger.current} surfaceClassName="agent-dialog__surface form-surface team-dialog">
+    <ModalDialog id={`permissions-${member.id}`} open={open} labelledBy={`permissions-title-${member.id}`} restoreFocusTo={trigger.current}
+      dialogClassName="team-dialog" surfaceClassName="agent-dialog__surface form-surface">
       <div className="section-heading"><div><h2 id={`permissions-title-${member.id}`}>Edit Permissions</h2><p>{member.email}</p></div>
         <button type="button" className="icon-button" aria-label="Close Permissions" disabled={busy} onClick={close}><X aria-hidden="true" /></button></div>
       <form className="form-grid" onSubmit={submit}>

@@ -31,6 +31,17 @@ describe("admin control interfaces", () => {
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.queryByLabelText("Member Email")).not.toBeInTheDocument();
   });
+  it("places team permissions on the viewport dialog and keeps member actions together", async () => {
+    api.mockResolvedValue([{ id: "sub-1", email: "sub@example.test", role: "sub_admin", enabled: true, permissions: [], created_at: 1_788_252_000_000 }]);
+    render(<AdminManagement />);
+    const edit = await screen.findByRole("button", { name: "Edit Permissions" });
+    const actions = edit.closest(".member-actions");
+    expect(actions).toContainElement(screen.getByRole("button", { name: "Disable sub@example.test" }));
+    fireEvent.click(edit);
+    const dialog = screen.getByRole("dialog", { name: "Edit Permissions" });
+    expect(dialog).toHaveClass("agent-dialog", "team-dialog");
+    expect(dialog.firstElementChild).not.toHaveClass("team-dialog");
+  });
   it("cancels admin creation, clears entered values, and restores focus", async () => {
     render(<AdminManagement />);
     const trigger=screen.getByRole("button",{name:"Add Member"});fireEvent.click(trigger);
