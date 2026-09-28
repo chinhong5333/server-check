@@ -1,5 +1,9 @@
 # Server Check
 
+### Central Healthcheck
+
+Unauthenticated `GET /healthcheck` returns `{ uptime, message: "OK", timestamp, db }` with HTTP 200. The `db` object always contains `status` (`alive` or `fail`), `message`, `connection_count`, `connection_max`, `threads_running`, `peak_connections`, `long_queries`, `db_size_mb`, and `fragmented_mb`; unavailable metrics are `null`. The database probe has a two-second deadline, queries running longer than five seconds are counted, and database-size metrics are cached for one minute. A failed database probe appears in `db.status` rather than the HTTP status, so consumers must inspect the JSON body. Existing `/api/v1/health/live` and `/api/v1/health/ready` keep their separate liveness/readiness semantics. No migration or agent-script change is needed. The backend currently requires a database connection at startup, so it cannot serve this endpoint if MySQL was already unavailable before launch. The endpoint exposes database capacity counters publicly; restrict it at the reverse proxy if that is not appropriate for a deployment.
+
 ### Notification Group Link
 
 Apply pending migrations with `npm run migrate` after building the server. Under **Alert Destination**, enter and save an HTTPS `t.me` group/channel or invite link, then enable **Show on Notification Bar** to share it with signed-in team members on Projects and Agent Detail. The URL is entered manually, independently of the Bot Token and delivery Chat ID. Visibility defaults to off, and open pages refresh within 30 seconds. Only accounts with global-settings permission can edit the URL or visibility. Clearing the URL turns visibility off. Bot credentials are never exposed to team members.

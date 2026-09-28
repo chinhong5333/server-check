@@ -5,7 +5,7 @@ import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import type { AppConfig } from "./config.js";
-import { verifyDatabaseConnection } from "./db.js";
+import { getPool, verifyDatabaseConnection, type RowDataPacket } from "./db.js";
 import { AppError, asyncHandler, errorHandler } from "./errors.js";
 import { createLogger } from "./logger.js";
 import { createAgentsRouter } from "./routes/agents.js";
@@ -14,6 +14,7 @@ import { createHeartbeatRouter } from "./routes/heartbeat.js";
 import { createProjectsRouter } from "./routes/projects.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createAdminsRouter } from "./routes/admins.js";
+import { createDatabaseHealthProbe, type DatabaseHealth } from "./services/database-health.js";
 
 export function createApp(config: AppConfig) {
   const app = express();
@@ -43,6 +44,24 @@ export function createApp(config: AppConfig) {
     customLogLevel: (_request, response, error) => error || response.statusCode >= 500 ? "error" : "silent"
   }));
   app.use(cookieParser());
+
+  const checkDatabaseHealth = createDatabaseHealthProbe(async (sql) => {
+    const [rows] = await getPool(config).query<RowDataPacket[]>({ sql, timeout: 2000 });
+    return rows;
+  }, (message) => logger.warn({ message }, "Health check DB probe failed"));
+
+  /**
+   * GET /healthcheck
+   * Reports process liveness and the configured MySQL database state without requiring authentication.
+   * @param {import("express").Request<{}, {}, Record<string, never>, Record<string, never>>} request No path, query, or body fields are used.
+   * @param {import("express").Response<{uptime: number, message: "OK", timestamp: number, db: DatabaseHealth}>} response HTTP 200 with the stable health payload, including db.status when MySQL fails.
+   * @returns {Promise<void>} Resolves after a read-only database probe and best-effort metrics lookup.
+   */
+  app.get("/healthcheck", asyncHandler(async (_request, response) => {
+    const db: DatabaseHealth = await checkDatabaseHealth();
+    response.setHeader("Cache-Control", "no-store");
+    response.status(200).json({ uptime: process.uptime(), message: "OK", timestamp: Date.now(), db });
+  }));
 
   /**
    * GET /api/v1/health/live
