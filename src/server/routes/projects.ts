@@ -23,6 +23,7 @@ import { AppError, asyncHandler } from "../errors.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { readAgentChecks } from "../services/check-configuration.js";
+import { preferredMaintenance, readMaintenanceIndicators } from "../services/maintenance.js";
 import { createAgentCredential, sha256 } from "../security/crypto.js";
 import {
   APACHE_AUTO_DETECT_LABEL,
@@ -44,6 +45,7 @@ interface ProjectRow extends RowDataPacket {
 }
 
 interface ProjectAgentPreviewRow extends RowDataPacket {
+  id: string;
   project_id: string;
   public_id: string;
   server_name: string;
@@ -161,7 +163,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {Request} request Authenticated request.
    * @param {object} request.body Empty request body; no fields are accepted.
    * @param {object} request.query Empty query object; no fields are accepted.
-   * @param {import("express").Response<ProjectSummary[]>} response Project summaries with agents_preview entries containing id, server_name, and status.
+   * @param {import("express").Response<ProjectSummary[]>} response Project summaries with bounded agents_preview and nullable maintenance {status, scope} on projects/previews; active wins over scheduled, and agents inherit project windows.
    * @returns {Promise<void>} Resolves after project aggregation and bounded agent preview lookup.
    */
   router.get(
@@ -169,6 +171,7 @@ export function createProjectsRouter(config: AppConfig): Router {
     asyncHandler(async (request, response) => {
       z.object({}).strict().parse(request.query);
       z.object({}).strict().parse(request.body ?? {});
+      const now = Date.now();
       const [rows] = await getPool(config).query<ProjectRow[]>(
         `SELECT
            p.id, p.public_id, p.name, p.slug,
@@ -185,11 +188,12 @@ export function createProjectsRouter(config: AppConfig): Router {
       );
 
       const previewsByProject = new Map<string, ProjectAgentPreview[]>();
+      const maintenance = await readMaintenanceIndicators(getPool(config), rows.map(row => String(row.id)), now);
       if (rows.length > 0) {
         const [previewRows] = await getPool(config).query<ProjectAgentPreviewRow[]>(
-          `SELECT project_id, public_id, server_name, status
+          `SELECT id, project_id, public_id, server_name, status
            FROM (
-             SELECT a.project_id, a.public_id, a.server_name, a.status,
+             SELECT a.id, a.project_id, a.public_id, a.server_name, a.status,
                     ROW_NUMBER() OVER (PARTITION BY a.project_id ORDER BY
                       CASE a.status
                         WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 WHEN 'stale' THEN 2
@@ -205,7 +209,8 @@ export function createProjectsRouter(config: AppConfig): Router {
         for (const row of previewRows) {
           const projectId = String(row.project_id);
           const previews = previewsByProject.get(projectId) ?? [];
-          previews.push({ id: row.public_id, server_name: row.server_name, status: row.status });
+          previews.push({ id: row.public_id, server_name: row.server_name, status: row.status,
+            maintenance: preferredMaintenance(maintenance.inherited.get(projectId) ?? null, maintenance.agents.get(String(row.id)) ?? null) });
           previewsByProject.set(projectId, previews);
         }
       }
@@ -214,6 +219,7 @@ export function createProjectsRouter(config: AppConfig): Router {
         id: row.public_id,
         name: row.name,
         slug: row.slug,
+        maintenance: maintenance.projects.get(String(row.id)) ?? null,
         agents_preview: previewsByProject.get(String(row.id)) ?? [],
         healthy_agents: Number(row.healthy_agents),
         new_agents: Number(row.new_agents),
@@ -557,14 +563,19 @@ export function createProjectsRouter(config: AppConfig): Router {
    * Includes latest_load_5 as raw five-minute load from the current heartbeat, or null
    * when unavailable. Existing load_5_per_core and alert thresholds remain normalized.
    * Authorization: full admin or a sub-admin with view_projects.
-   * @param {Request<{project_id: string}>} request Authenticated request with canonical params.project_id.
+   * @param {Request<{project_id: string}>} request Authenticated request with canonical params.project_id; body and query must be empty.
+   * @param {string} request.params.project_id Active project's public UUID.
    * @param {import("express").Response<AgentSummary[]>} response Agent summaries ordered by severity.
    * @param {object} response.body.checks Saved Apache, Nginx, and middleware_api selections for each agent.
+   * @param {object|null} response.body.maintenance Effective {status, scope}, including inherited project maintenance; active wins over scheduled.
    * @returns {Promise<void>} Resolves after agent lookup.
    */
   router.get(
     "/:project_id/agents",
     asyncHandler(async (request: Request<{ project_id: string }>, response) => {
+      z.object({}).strict().parse(request.query);
+      z.object({}).strict().parse(request.body ?? {});
+      const now = Date.now();
       const project = await findProject(config, request.params.project_id);
       const [rows] = await getPool(config).execute<AgentRow[]>(
         `SELECT id, public_id, server_name, health_api_url, check_configuration_json, status, probable_cause,
@@ -583,9 +594,11 @@ export function createProjectsRouter(config: AppConfig): Router {
          ORDER BY FIELD(status, 'critical', 'warning', 'stale', 'new', 'healthy'), server_name ASC`,
         [project.id]
       );
+      const maintenance = await readMaintenanceIndicators(getPool(config), [String(project.id)], now);
       const agents: AgentSummary[] = rows.map((row) => ({
         id: row.public_id,
         server_name: row.server_name,
+        maintenance: preferredMaintenance(maintenance.inherited.get(String(project.id)) ?? null, maintenance.agents.get(String(row.id)) ?? null),
         health_api_url: row.health_api_url,
         checks: readAgentChecks(row.check_configuration_json),
         status: row.status,

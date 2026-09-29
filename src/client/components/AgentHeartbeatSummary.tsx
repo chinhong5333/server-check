@@ -102,7 +102,7 @@ function statusNotice(agent: SummaryAgent, summary: ReturnType<typeof heartbeatS
   };
 }
 
-export function AgentHeartbeatSummary({ agent, help }: { agent: SummaryAgent; help: ReactNode }) {
+export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false }: { agent: SummaryAgent; help: ReactNode; notificationsMuted?: boolean }) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const tick = () => setNow(Date.now());
@@ -111,7 +111,8 @@ export function AgentHeartbeatSummary({ agent, help }: { agent: SummaryAgent; he
   }, []);
   const summary = heartbeatSummary(agent, now);
   const notice = statusNotice(agent, summary);
-  const statusAnnouncement = [summary.status, summary.qualifier, notice?.title, notice?.message, notice?.delivery]
+  const delivery = notificationsMuted ? "TG Muted During Maintenance" : notice?.delivery;
+  const statusAnnouncement = [summary.status, summary.qualifier, notice?.title, notice?.message, delivery]
     .filter(Boolean).join(". ");
   return (
     <section className="agent-heartbeat-summary" aria-label="Agent Status Summary">
@@ -137,7 +138,7 @@ export function AgentHeartbeatSummary({ agent, help }: { agent: SummaryAgent; he
             <p>{notice.message}</p>
             {notice.diagnostic ? <span>{notice.diagnostic}</span> : null}
           </div>
-          <span className="agent-heartbeat-summary__delivery">{notice.delivery}</span>
+          <span className="agent-heartbeat-summary__delivery">{delivery}</span>
         </div>
       ) : null}
       <div className="agent-heartbeat-summary__metrics">

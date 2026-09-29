@@ -106,6 +106,22 @@ describe("per-agent Telegram delivery cooldown", () => {
     );
     expect(delayedUpdate?.[1]).toEqual([now + 900_000, now, "2"]);
   });
+  it("rechecks maintenance after queue selection and suppresses delivery without retrying", async () => {
+    const original = executeMock.getMockImplementation()!;
+    executeMock.mockImplementation(async (sql: string) => sql.includes("FROM maintenance_windows") ? [[{ id: "maintenance" }]] : original(sql));
+    await deliverTelegram(config);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(executeMock.mock.calls.some(([sql]) => String(sql).includes("Suppressed during maintenance"))).toBe(true);
+    expect(executeMock.mock.calls.some(([sql]) => String(sql).includes("attempt_count = ?"))).toBe(false);
+  });
+  it("holds expired maintenance delivery until the resume transition is completed", async () => {
+    const original = executeMock.getMockImplementation()!;
+    executeMock.mockImplementation(async (sql: string) => sql.includes("FROM maintenance_windows")
+      ? [sql.includes("completed_at IS NULL") ? [{ id: "expired" }] : []] : original(sql));
+    await deliverTelegram(config);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(executeMock.mock.calls.some(([sql]) => String(sql).includes("SET status = 'sent'"))).toBe(false);
+  });
   it("does not send a row cancelled after initial queue selection", async () => {
     const original = executeMock.getMockImplementation()!;
     executeMock.mockImplementation(async (sql: string) => sql.includes("FROM notification_outbox") && sql.includes("FOR UPDATE") ? [[], []] : original(sql));

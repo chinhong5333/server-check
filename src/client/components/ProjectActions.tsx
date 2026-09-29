@@ -1,7 +1,7 @@
 import { useAuth } from "../auth/AuthProvider";
 import { hasPermission } from "../../shared/permissions";
 import { Settings, ShieldAlert, Trash2, X } from "lucide-react";
-import { useRef, useState, type FormEvent, type MouseEvent } from "react";
+import { useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { updateProjectBodySchema, type ProjectSummary } from "../../shared/contracts";
 import { ApiError, apiFetch } from "../api";
@@ -14,7 +14,7 @@ function agentCountFor(project: ProjectSummary): number {
   return project.healthy_agents + project.new_agents + project.warning_agents + project.critical_agents + project.stale_agents;
 }
 
-export function ProjectActions({ project }: { project: ProjectSummary }) {
+export function ProjectActions({ project, children }: { project: ProjectSummary; children?: ReactNode }) {
   const { user } = useAuth();
   const { reloadProjects } = useProjects();
   const { showToast } = useToast();
@@ -132,6 +132,7 @@ export function ProjectActions({ project }: { project: ProjectSummary }) {
         onClick={(event) => openRenameDialog(project, event)}>
         <Settings aria-hidden="true" /> Rename Project
       </button>
+      {children}
       <button className="button button--secondary project-delete-action" type="button"
         hidden={!hasPermission(user, "delete_projects")} aria-haspopup="dialog" aria-controls="delete-project-dialog"
         onClick={(event) => openDeleteDialog(project, event)}>

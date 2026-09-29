@@ -21,7 +21,8 @@ export function alertKey(eventType: "opened" | "resolved", payload: Record<strin
 }
 
 /**
- * Collects a notification without applying delivery cooldown. Caller must hold the agent row lock.
+ * Collects a notification without applying delivery cooldown. Active maintenance suppresses collection.
+ * Caller must hold the agent row lock.
  * Existing identical pending messages are refreshed, never duplicated or rescheduled.
  * @param {PoolConnection} connection Caller-owned transaction holding the agent lock.
  * @param {string} projectId Internal project identifier.
@@ -33,6 +34,16 @@ export function alertKey(eventType: "opened" | "resolved", payload: Record<strin
  */
 export async function queueTelegramNotification(connection: PoolConnection, projectId: string, incidentId: string | number,
   eventType: "opened" | "resolved", payload: Record<string, unknown>, now: number): Promise<void> {
+  const [maintenance] = await connection.execute<RowDataPacket[]>(
+    `SELECT w.id FROM maintenance_windows w INNER JOIN incidents i ON i.project_id = w.project_id
+     WHERE i.id = ? AND w.is_delete = 0 AND w.ended_at IS NULL
+       AND (w.agent_id IS NULL OR w.agent_id = i.agent_id) AND w.starts_at <= ? AND w.ends_at > ? LIMIT 1`, [incidentId, now, now]);
+  if (maintenance.length > 0) {
+    await connection.execute(
+      `UPDATE notification_outbox SET status = 'cancelled', last_error = 'Suppressed during maintenance', updated_at = ?
+       WHERE incident_id = ? AND channel = 'telegram' AND status = 'pending' AND is_delete = 0`, [now, incidentId]);
+    return;
+  }
   if (eventType === "resolved") await cancelIncidentAlerts(connection, incidentId, now);
   const key = alertKey(eventType, payload);
   const [pending] = await connection.execute<RowDataPacket[]>(

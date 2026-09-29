@@ -8,6 +8,7 @@ interface ModalDialogProps {
   dialogClassName?: string;
   surfaceClassName: string;
   restoreFocusTo: HTMLElement | null;
+  onDismiss?: () => void;
   children: ReactNode;
 }
 
@@ -19,6 +20,7 @@ export function ModalDialog({
   dialogClassName,
   surfaceClassName,
   restoreFocusTo,
+  onDismiss,
   children
 }: ModalDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -54,7 +56,9 @@ export function ModalDialog({
       aria-describedby={describedBy}
       onCancel={(event) => {
         event.preventDefault();
+        onDismiss?.();
       }}
+      onClick={(event) => { if (event.target === event.currentTarget) onDismiss?.(); }}
     >
       {open ? <div className={surfaceClassName}>{children}</div> : null}
     </dialog>

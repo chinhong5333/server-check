@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import type { ProjectSummary } from "../../shared/contracts";
 import { formatCount } from "../lib/format";
 import { ProjectCardAgents } from "./ProjectCardAgents";
+import { MaintenanceIcon } from "./MaintenanceIcon";
 
 /** The same project card is used for browsing and arranging projects. */
 export function ProjectCard({ project, sortingControls }: { project: ProjectSummary; sortingControls?: ReactNode }) {
@@ -19,7 +20,7 @@ export function ProjectCard({ project, sortingControls }: { project: ProjectSumm
   return <article className={`project-card project-card--${health.state}${!sortingControls && project.agents_preview?.length ? " project-card--with-agents" : ""}`} aria-labelledby={`project-card-${project.id}`}>
     <div className="project-card__header">
       <div className="project-card__identity"><FolderKanban aria-hidden="true" />
-        <h3 id={`project-card-${project.id}`} title={project.name}>{project.name}</h3></div>
+        <h3 id={`project-card-${project.id}`} title={project.name}>{project.name}</h3><MaintenanceIcon maintenance={project.maintenance} /></div>
       <span className={`project-health project-health--${health.state}`}><health.Icon aria-hidden="true" />{health.label}</span>
     </div>
     <div className="project-card__body">

@@ -13,6 +13,7 @@ import { apiFetch } from "../api";
 import { useAuth } from "../auth/AuthProvider";
 import { AgentIncidentHistory } from "../components/AgentIncidentHistory";
 import { AgentHeartbeatSummary } from "../components/AgentHeartbeatSummary";
+import { MaintenanceControl } from "../components/MaintenanceControl";
 import { CHART_INTERVALS, useChartInterval } from "../hooks/useChartInterval";
 import { TradingViewMetricChart } from "../components/TradingViewMetricChart";
 import { AgentTelegramDeliveryLog } from "../components/AgentTelegramDeliveryLog";
@@ -184,6 +185,7 @@ export function AgentDetailPage() {
   const { agentId, projectId } = useParams<{ agentId: string; projectId: string }>();
   const [activeHistoryTab, setActiveHistoryTab] = useState<HistoryTabId>("incidents");
   const [serverStateHelpOpen, setServerStateHelpOpen] = useState(false);
+  const [maintenanceActive, setMaintenanceActive] = useState(false);
   const serverStateHelpTriggerRef = useRef<HTMLButtonElement>(null);
   const load = useCallback(
     () => {
@@ -268,15 +270,19 @@ export function AgentDetailPage() {
           <h1>{agent.server_name}</h1>
           <p>Current status, seven-day metric trends, and historical records for this monitored server.</p>
         </div>
-        {(hasPermission(user, "edit_agent_settings") || hasPermission(user, "rotate_agent_secrets")) && <div className="agent-detail-actions">
+        <div className="agent-detail-actions" hidden={!hasPermission(user, "edit_agent_settings") && !hasPermission(user, "rotate_agent_secrets")}>
           {hasPermission(user, "edit_agent_settings") && <ManageAgentButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name} onSaved={resource.reload} />}
+          <MaintenanceControl key={`maintenance:${agent.id}`} endpoint={`/api/v1/projects/${encodeURIComponent(agent.project_id)}/agents/${encodeURIComponent(agent.id)}/maintenance`}
+            scope="Agent" detailsTargetId="agent-maintenance-details" canManage={hasPermission(user, "edit_agent_settings")} onChanged={resource.reload} onActiveChange={setMaintenanceActive} />
           {hasPermission(user, "rotate_agent_secrets") && <RotateAgentSecretButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name}
             checks={agent.checks} healthApiUrl={agent.health_api_url} onFinished={resource.reload} />}
-        </div>}
+        </div>
       </header>
       </div>
 
-      <AgentHeartbeatSummary agent={agent} help={
+      <div id="agent-maintenance-details" className="maintenance-details-slot" />
+
+      <AgentHeartbeatSummary agent={agent} notificationsMuted={maintenanceActive} help={
           <button
             ref={serverStateHelpTriggerRef}
             className="icon-button"

@@ -8,6 +8,8 @@ import { sendTelegramMessage } from "./services/telegram.js";
 import { lockAgentAlerts } from "./services/alert-queue.js";
 import { recordAgentCondition, resolveAgentCondition } from "./services/incidents.js";
 import { purgeExpiredHistory, RETENTION_INTERVAL_MS } from "./services/retention.js";
+import { agentAwaitingMaintenanceResume, agentInMaintenance, cancelMaintenanceNotifications } from "./services/maintenance.js";
+import { processMaintenanceWindows } from "./services/maintenance-lifecycle.js";
 
 interface StaleAgentRow extends RowDataPacket {
   id: string;
@@ -111,6 +113,11 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
     await withTransaction(config, async (connection) => {
       const currentAgent = await lockAgentAlerts(connection, row.agent_id);
       if (!currentAgent) return;
+      if (await agentInMaintenance(connection, row.agent_id, Date.now())) {
+        await cancelMaintenanceNotifications(connection, row.agent_id, Date.now());
+        return;
+      }
+      if (await agentAwaitingMaintenanceResume(connection, row.agent_id, Date.now())) return;
       const [sentRows] = await connection.execute<RowDataPacket[]>(
         `SELECT MAX(o.sent_at) AS last_sent_at FROM notification_outbox o
          INNER JOIN incidents i ON i.id = o.incident_id
@@ -196,6 +203,7 @@ function recurringTask(
 
 export function startWorkers(config: AppConfig, logger: Logger): () => void {
   const timers = [
+    recurringTask("maintenance-transitions", 5_000, logger, () => processMaintenanceWindows(config)),
     recurringTask("heartbeat-expiry", 5_000, logger, () => scanMissedHeartbeats(config)),
     recurringTask("telegram-outbox", 10_000, logger, () => deliverTelegram(config)),
     recurringTask("history-retention", RETENTION_INTERVAL_MS, logger, () => purgeExpiredHistory(config, logger))

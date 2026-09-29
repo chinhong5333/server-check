@@ -18,6 +18,8 @@ import { AgentStateDisplay } from "../components/AgentStateDisplay";
 import { CopyButton } from "../components/CopyButton";
 import { EmptyState, ErrorState, InlineLoader, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
+import { MaintenanceControl } from "../components/MaintenanceControl";
+import { MaintenanceIcon } from "../components/MaintenanceIcon";
 import { ProjectActions } from "../components/ProjectActions";
 import { MetricValue } from "../components/MetricValue";
 import { useToast } from "../components/ToastProvider";
@@ -480,7 +482,11 @@ export function InstallAgentPage() {
         </button>
       </header>
 
-      <ProjectActions key={selectedProject.id} project={selectedProject} />
+      <ProjectActions key={selectedProject.id} project={selectedProject}>
+        <MaintenanceControl endpoint={`${projectApiBase}/maintenance`} scope="Project" detailsTargetId="project-maintenance-details"
+          canManage={hasPermission(user, "edit_project_settings")} onChanged={agents.reload} />
+      </ProjectActions>
+      <div id="project-maintenance-details" className="maintenance-details-slot" />
 
       <ModalDialog
         id="register-agent"
@@ -763,7 +769,7 @@ export function InstallAgentPage() {
                 {registeredAgents.map((agent) => (
                   <tr key={agent.id}>
                     <th scope="row" data-label="Agent Name" className="server-cell">
-                      <strong>{agent.server_name}</strong>
+                      <span className="entity-name"><strong>{agent.server_name}</strong><MaintenanceIcon maintenance={agent.maintenance} /></span>
                       <small>{agent.agent_version ? `Agent ${agent.agent_version}` : "Version Pending"}</small>
                     </th>
                     <td data-label="Resource Use">

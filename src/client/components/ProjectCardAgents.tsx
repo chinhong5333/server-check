@@ -4,8 +4,9 @@ import type { AgentSummary, ProjectSummary } from "../../shared/contracts";
 import { apiFetch } from "../api";
 import { ModalDialog } from "./ModalDialog";
 import { StatusBadge, statusConfig } from "./StatusBadge";
+import { MaintenanceIcon } from "./MaintenanceIcon";
 
-type DirectoryAgent = Pick<AgentSummary, "id" | "server_name" | "status">;
+type DirectoryAgent = Pick<AgentSummary, "id" | "server_name" | "status" | "maintenance">;
 
 export function ProjectCardAgents({ project, total }: { project: ProjectSummary; total: number }) {
   const [open, setOpen] = useState(false);
@@ -34,7 +35,7 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
       const result = await apiFetch<AgentSummary[]>(`/api/v1/projects/${encodeURIComponent(project.id)}/agents`, {
         signal: controller.signal
       });
-      if (!controller.signal.aborted) setAgents(result.map(({ id, server_name, status }) => ({ id, server_name, status })));
+      if (!controller.signal.aborted) setAgents(result.map(({ id, server_name, status, maintenance }) => ({ id, server_name, status, maintenance })));
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load agents.");
     } finally {
@@ -59,6 +60,7 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
           return <li key={agent.id} data-status={agent.status}
             aria-label={`${agent.server_name}: ${config.label}`} title={`${agent.server_name} · ${config.label}`}>
             <Icon aria-hidden="true" /><span className="project-card__agent-name">{agent.server_name}</span>
+            <MaintenanceIcon maintenance={agent.maintenance} />
           </li>;
         })}
         {showAll && <li className="project-card__view-all-item">
@@ -87,7 +89,7 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
           <p>{error}</p><button className="button button--secondary" type="button" onClick={() => void loadAgents()}>Retry Loading Agents</button>
         </div>
         : agents?.length ? <ul className="project-agent-dialog__list">
-          {agents.map((agent) => <li key={agent.id}><strong>{agent.server_name}</strong><StatusBadge status={agent.status} /></li>)}
+          {agents.map((agent) => <li key={agent.id}><span className="entity-name"><strong>{agent.server_name}</strong><MaintenanceIcon maintenance={agent.maintenance} /></span><StatusBadge status={agent.status} /></li>)}
         </ul>
         : <p className="project-agent-dialog__message" role="status">No Agents Registered</p>}
     </ModalDialog>}

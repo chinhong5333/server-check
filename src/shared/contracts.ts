@@ -295,6 +295,8 @@ export interface ProjectSummary {
   id: string;
   name: string;
   slug: string;
+  /** Active maintenance takes priority over scheduled project/agent windows. */
+  maintenance?: MaintenanceIndicator | null;
   /** Up to six active agents, ordered by condition severity then registration recency. */
   agents_preview?: ProjectAgentPreview[];
   /** @deprecated Monitoring policy is agent-scoped. */
@@ -316,6 +318,33 @@ export interface ProjectAgentPreview {
   id: string;
   server_name: string;
   status: "new" | "healthy" | "warning" | "critical" | "stale";
+  maintenance?: MaintenanceIndicator | null;
+}
+
+export interface MaintenanceIndicator {
+  status: "scheduled" | "active";
+  scope: "project" | "agent";
+}
+
+export const createMaintenanceBodySchema = z.object({
+  starts_at: z.number().int().nonnegative().safe().nullable(),
+  ends_at: z.number().int().positive().safe(),
+  reason: z.string().trim().min(3).max(500)
+}).strict();
+
+export interface MaintenanceWindow {
+  id: string;
+  scope: "project" | "agent";
+  starts_at: number;
+  ends_at: number;
+  reason: string;
+  status: "scheduled" | "active";
+}
+
+export interface MaintenanceState {
+  own: MaintenanceWindow | null;
+  inherited: MaintenanceWindow | null;
+  server_time: number;
 }
 
 export interface PlatformTelegramSettings {
@@ -338,6 +367,8 @@ export interface TelegramChatDiscovery {
 export interface AgentSummary {
   id: string;
   server_name: string;
+  /** Includes inherited project maintenance; active takes priority over scheduled. */
+  maintenance?: MaintenanceIndicator | null;
   health_api_url: string | null;
   /** Optional during rolling upgrades from the pre-1.3 API. */
   checks?: AgentChecks;

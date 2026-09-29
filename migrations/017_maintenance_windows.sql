@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS maintenance_windows (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  public_id CHAR(36) NOT NULL,
+  project_id BIGINT UNSIGNED NOT NULL,
+  agent_id BIGINT UNSIGNED NULL,
+  starts_at BIGINT UNSIGNED NOT NULL,
+  ends_at BIGINT UNSIGNED NOT NULL,
+  reason VARCHAR(500) NOT NULL,
+  created_by_user_id BIGINT UNSIGNED NOT NULL,
+  ended_at BIGINT UNSIGNED NULL,
+  activated_at BIGINT UNSIGNED NULL,
+  completed_at BIGINT UNSIGNED NULL,
+  created_at BIGINT UNSIGNED NOT NULL,
+  updated_at BIGINT UNSIGNED NOT NULL,
+  is_delete TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_maintenance_public_id (public_id),
+  KEY idx_maintenance_scope (project_id, agent_id, is_delete, ended_at, ends_at),
+  KEY idx_maintenance_transition (is_delete, completed_at, starts_at),
+  CONSTRAINT fk_maintenance_project FOREIGN KEY (project_id) REFERENCES projects (id),
+  CONSTRAINT fk_maintenance_agent FOREIGN KEY (agent_id) REFERENCES agents (id),
+  CONSTRAINT fk_maintenance_actor FOREIGN KEY (created_by_user_id) REFERENCES internal_users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
