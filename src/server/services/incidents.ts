@@ -123,6 +123,14 @@ function conditionsForPayload(
     });
   }
 
+  if (payload.health_probe.outcome !== "disabled" && payload.database_health && payload.database_health.status.trim().toLowerCase() !== "alive") {
+    conditions.push({ type: "database_not_alive", severity: "critical",
+      probableCause: "The database did not report alive",
+      details: { database_status: payload.database_health.status, database_message: payload.database_health.message,
+        connection_count: payload.database_health.connection_count, connection_max: payload.database_health.connection_max,
+        threads_running: payload.database_health.threads_running, long_queries: payload.database_health.long_queries } });
+  }
+
   for (const name of ["apache", "nginx"] as const) {
     const service = payload.service_checks[name];
     if (!service || service.status === "disabled" || service.status === "active") continue;
@@ -215,6 +223,8 @@ export async function evaluateTelemetryIncidents(
     }
   }
   const activeTypes = new Set(conditions.map((condition) => condition.type));
+  const unconfirmedDatabase = payload.health_probe.outcome !== "disabled" && payload.database_health === null && openByType.has("database_not_alive");
+  if (unconfirmedDatabase) activeTypes.add("database_not_alive");
 
   for (const condition of conditions) {
     if (condition.type === "health_api_unhealthy" && policy.middlewareFailures) {
@@ -238,6 +248,10 @@ export async function evaluateTelemetryIncidents(
        WHERE id = ?`,
       [now, now, incident.id]
     );
+    if (incident.incident_type === "database_not_alive" && payload.health_probe.outcome === "disabled") {
+      await cancelIncidentAlerts(connection, incident.id, now);
+      continue;
+    }
     await queueNotification(
       connection,
       policy.projectInternalId,
@@ -263,8 +277,9 @@ export async function evaluateTelemetryIncidents(
 
   return {
     ...snapshot,
-    status: primary?.severity ?? "healthy",
-    probableCause: primary?.probableCause ?? null
+    status: unconfirmedDatabase ? "critical" : primary?.severity ?? "healthy",
+    probableCause: unconfirmedDatabase && primary?.severity !== "critical"
+      ? "Database recovery is unconfirmed; no database status was reported" : primary?.probableCause ?? null
   };
 }
 

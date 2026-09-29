@@ -77,7 +77,8 @@ export function telegramText(payload: Record<string, unknown>): string {
   const details = (payload.details ?? {}) as Record<string, unknown>;
   const diagnostics = [details.http_status_code == null ? null : `HTTP ${details.http_status_code}`,
     details.error_code, details.validation_error].filter(Boolean).join(" · ");
-  return `[${severity}] ${serverName}\nProject: ${projectName}\nProbable cause: ${cause}${diagnostics ? `\nDetails: ${diagnostics}` : ""}`.slice(0, 4096);
+  const databaseDiagnostics = details.database_status == null ? "" : `DB ${details.database_status}${details.database_message ? `: ${details.database_message}` : ""}`;
+  return `[${severity}] ${serverName}\nProject: ${projectName}\nProbable cause: ${cause}${diagnostics ? `\nDetails: ${diagnostics}` : ""}${databaseDiagnostics ? `\nDatabase: ${databaseDiagnostics}` : ""}`.slice(0, 4096);
 }
 
 export async function deliverTelegram(config: AppConfig): Promise<void> {

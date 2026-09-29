@@ -87,7 +87,7 @@ const serverStateDefinitions = [
   },
   {
     status: "critical",
-    description: "A heartbeat is overdue, the middleware API has a confirmed unhealthy incident, or a monitored Apache/Nginx service is inactive."
+    description: "A heartbeat is overdue, the middleware API has a confirmed unhealthy incident, a reported database status is not alive, or a monitored Apache/Nginx service is inactive."
   },
   {
     status: "stale",

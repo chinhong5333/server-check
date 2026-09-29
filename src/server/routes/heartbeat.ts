@@ -83,7 +83,7 @@ export function createHeartbeatRouter(config: AppConfig): Router {
    * @param {object} request.body.service_checks Apache and optional legacy-compatible Nginx service results; each contains service_name and status (active, inactive, unknown, disabled).
    * @param {object} request.body.health_probe Middleware API result; disabled outcomes must have null HTTP, latency, and error fields. Configured enabled states must match the payload.
    * @param {object|null} [request.body.database_health=null] Optional validated database snapshot extracted from the middleware API `db` object by agent 1.4 or newer.
-   * @param {string} request.body.database_health.status Normalized database status, limited to 40 characters.
+   * @param {string} request.body.database_health.status Database status, limited to 40 characters; non-alive reports open a critical DB incident immediately, while absent optional data cannot confirm recovery.
    * @param {string} request.body.database_health.message Database diagnostic message, limited to 500 characters.
    * @param {number|null} request.body.database_health.connection_count Current database connection count.
    * @param {number|null} request.body.database_health.connection_max Configured maximum database connections.
