@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const { api } = vi.hoisted(()=>({api:vi.fn()}));
 vi.mock("../../src/client/api",()=>({apiFetch:api}));
 import { RotateAgentSecretButton } from "../../src/client/components/RotateAgentSecretButton";
-const result={agent_id:"agent-1",script_filename:"synthetic.sh",script:"#!/bin/sh\n# synthetic replacement",crontab_entry:"* * * * * /synthetic.sh",credential_shown_once:true};
+const result={agent_id:"agent-1",script_filename:"synthetic.sh",script:"#!/bin/sh\n# synthetic replacement",crontab_entry:"* * * * * /bin/sh '/opt/server-check/synthetic.sh'",credential_shown_once:true};
 function Location(){return <output data-testid="location">{useLocation().pathname}</output>;}
 function show(onFinished=vi.fn()){
   render(<MemoryRouter initialEntries={["/projects/project-1/agents/agent-1"]}><Location /><RotateAgentSecretButton
@@ -37,8 +37,11 @@ it("confirms and displays the replacement script without leaving Agent Detail",a
   fireEvent.click(screen.getByRole("button",{name:"Rotate And Generate Script"}));
   await screen.findByRole("heading",{name:"Access Secret Rotated"});
   expect(screen.getByTestId("location")).toHaveTextContent("/projects/project-1/agents/agent-1");
-  expect(screen.getByLabelText("Replacement Agent Script")).toHaveTextContent("synthetic replacement");
   expect(screen.getByRole("button",{name:"Download Script"})).toBeInTheDocument();
+  fireEvent.click(screen.getByText("View Script"));
+  expect(screen.getByLabelText("Replacement Agent Script")).toHaveTextContent("synthetic replacement");
+  fireEvent.click(screen.getByRole("button",{name:"Next: Run Setup"}));
+  expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent(/&& \/bin\/sh '\/opt\/server-check\/synthetic.sh'$/);
   expect(finished).not.toHaveBeenCalled();
   expect(api.mock.calls[0][0]).toBe("/api/v1/projects/project-1/agents/agent-1/credential-rotation");
   expect(JSON.parse(api.mock.calls[0][1].body)).toEqual({health_api_url:"https://example.test/health",checks:{apache:true,nginx:false,middleware_api:true}});

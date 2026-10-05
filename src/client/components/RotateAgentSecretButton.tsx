@@ -1,9 +1,9 @@
-import { Download, KeyRound, X } from "lucide-react";
+import { KeyRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_AGENT_CHECKS, generateAgentScriptBodySchema, type AgentChecks, type AgentInstallationResponse } from "../../shared/contracts";
 import { apiFetch } from "../api";
 import { AgentScriptChecks } from "./AgentScriptChecks";
-import { CopyButton } from "./CopyButton";
+import { AgentScriptSetup } from "./AgentScriptSetup";
 import { InlineLoader } from "./Feedback";
 import { ModalDialog } from "./ModalDialog";
 
@@ -57,33 +57,19 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
       setError(`${cause instanceof Error ? cause.message : "Could not rotate the secret."} If the response was lost, retry rotation to obtain a new replacement script.`);
     } finally { setBusy(false); }
   }
-  function download() {
-    if (!installation) return;
-    const objectUrl = URL.createObjectURL(new Blob([installation.script], { type: "text/x-shellscript" }));
-    const link = document.createElement("a"); link.href = objectUrl; link.download = installation.script_filename; link.click();
-    URL.revokeObjectURL(objectUrl);
-  }
   return <>
     <button ref={trigger} className="button button--secondary" type="button" aria-haspopup="dialog" aria-controls="detail-rotate-secret"
       onClick={() => { setDraftChecks({ ...(checks ?? DEFAULT_AGENT_CHECKS) }); setUrl(healthApiUrl ?? ""); setError(null); setArmingSeconds(ROTATION_ARM_SECONDS); setOpen(true); }}><KeyRound aria-hidden="true" />Rotate Secret</button>
     <ModalDialog id="detail-rotate-secret" open={open} labelledBy="detail-rotate-title" describedBy="detail-rotate-description"
-      dialogClassName={installation ? "agent-dialog--agent-form" : undefined}
-      surfaceClassName={installation ? "agent-dialog__surface form-surface" : "agent-dialog__surface agent-rotation-confirmation"} restoreFocusTo={trigger.current}>
-      <div className={installation ? "section-heading" : undefined}>
+      dialogClassName={installation ? "agent-dialog--script-setup" : undefined}
+      surfaceClassName={installation ? "agent-dialog__surface agent-setup-surface" : "agent-dialog__surface agent-rotation-confirmation"} restoreFocusTo={trigger.current} onDismiss={installation ? close : undefined}>
+      <div className={installation ? "agent-setup-dialog-heading" : undefined}>
         {!installation && <KeyRound aria-hidden="true" />}
         <div><h2 id="detail-rotate-title">{installation ? "Access Secret Rotated" : `Rotate Access Secret For ${agentName}?`}</h2>
           <p id="detail-rotate-description">{installation ? "The old secret is revoked. Save and install this replacement before closing; it cannot be retrieved again." : "Choose checks for the replacement script. Confirming immediately stops the old script from authenticating."}</p></div>
         <button ref={closeTrigger} className="icon-button" type="button" data-dialog-initial-focus aria-label="Close Secret Rotation" disabled={busy} onClick={close}><X aria-hidden="true" /></button>
       </div>
-      {installation ? <div className="form-grid">
-        <div className="field--wide rotation-result"><p>Replace the installed script, protect it with <code>chmod 700</code>, run it once, then replace its crontab entry.</p>
-          <div className="action-row"><CopyButton value={installation.script} label="Copy Script" /><button className="button button--secondary" type="button" onClick={download}><Download aria-hidden="true" />Download Script</button></div>
-          <h3>{installation.script_filename}</h3>
-          <pre tabIndex={0} className="rotation-script-preview" aria-label="Replacement Agent Script"><code>{installation.script}</code></pre>
-          <h3>Crontab Entry</h3><pre tabIndex={0} className="rotation-script-preview"><code>{installation.crontab_entry}</code></pre>
-          <CopyButton value={installation.crontab_entry} label="Copy Crontab Entry" />
-        </div>
-      </div> : <>
+      {installation ? <AgentScriptSetup key={installation.agent_id} installation={installation} compact /> : <>
         <AgentScriptChecks value={draftChecks} onChange={setDraftChecks} disabled={busy} />
         {draftChecks.middleware_api && <div className="field"><label htmlFor="detail-rotation-url">Middleware API URL</label>
           <input id="detail-rotation-url" type="url" value={url} disabled={busy} onChange={(event) => setUrl(event.target.value)} /></div>}

@@ -1,5 +1,5 @@
 import { hasPermission } from "../../shared/permissions";
-import { ArrowLeft, ArrowRight, Download, KeyRound, Pencil, Plus, ShieldAlert, TerminalSquare, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, KeyRound, Pencil, Plus, ShieldAlert, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -15,7 +15,7 @@ import { ApiError, apiFetch } from "../api";
 import { AgentScriptChecks } from "../components/AgentScriptChecks";
 import { AgentForm } from "../components/AgentForm";
 import { AgentStateDisplay } from "../components/AgentStateDisplay";
-import { CopyButton } from "../components/CopyButton";
+import { AgentScriptSetup } from "../components/AgentScriptSetup";
 import { EmptyState, ErrorState, InlineLoader, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
 import { MaintenanceControl } from "../components/MaintenanceControl";
@@ -103,6 +103,13 @@ export function InstallAgentPage() {
   useEffect(() => {
     if (installationExitStep === 2) installationExitActionRef.current?.focus();
   }, [installationExitStep]);
+
+  useEffect(() => {
+    if (!installation) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [installation]);
 
   useEffect(() => {
     if (registrationOpen && registrationStep === "script") {
@@ -315,16 +322,6 @@ export function InstallAgentPage() {
     }
   };
 
-  const download = () => {
-    if (!installation) return;
-    const url = URL.createObjectURL(new Blob([installation.script], { type: "text/x-shellscript" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = installation.script_filename;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   const returnToOverview = () => {
     setInstallation(null);
     setInstallationProjectName(null);
@@ -340,59 +337,24 @@ export function InstallAgentPage() {
     const rotated = installationOperation === "rotated";
     return (
       <div className="page-stack">
-        <button
-          ref={installationBackButtonRef}
-          className="back-link"
-          type="button"
-          aria-haspopup="dialog"
-          aria-controls="leave-access-secret"
-          onClick={() => setInstallationExitStep(1)}
-        >
-          <ArrowLeft aria-hidden="true" />
-          Back To Overview
-        </button>
         <header className="page-header">
           <div>
             <p className="page-context">{installationProjectName ?? selectedProject.name}</p>
-            <h1>{rotated ? "Access Secret Rotated" : "Agent Registered"}</h1>
-            <p>
-              {installationAgentName ?? "This agent"} belongs to {installationProjectName ?? selectedProject.name}.
-              {rotated
-                ? " Install the replacement script now; the previous credential no longer works."
-                : " Save its one-time script before leaving this page."}
-            </p>
+            <h1>Operations Overview</h1>
+            <p>Save and install the generated agent script before returning to the overview.</p>
           </div>
-          <KeyRound aria-hidden="true" />
         </header>
-        <section className="form-banner form-banner--warning" role="status">
-          {rotated ? "The previous access secret is revoked. " : "The access secret is shown only in this response. "}
-          Save the script now and protect it with <code>chmod 700</code>.
-        </section>
-        <ol className="installation-steps">
-          <li><span>1</span><div><h2>{rotated ? "Save The Replacement" : "Save One File"}</h2><p>Copy or download the generated shell script.</p></div></li>
-          <li><span>2</span><div><h2>{rotated ? "Replace And Test" : "Run It Once"}</h2><p>Protect it with <code>chmod 700</code>, then verify one heartbeat manually.</p></div></li>
-          <li><span>3</span><div><h2>{rotated ? "Replace Cron" : "Add Cron"}</h2><p>Use the exact crontab entry shown below.</p></div></li>
-        </ol>
-        <section className="code-surface">
-          <div className="code-surface__header">
-            <div><TerminalSquare aria-hidden="true" /><strong>{installation.script_filename}</strong></div>
-            <div className="action-row">
-              <CopyButton value={installation.script} label="Copy Script" />
-              <button className="button button--secondary" type="button" onClick={download}>
-                <Download aria-hidden="true" />
-                Download .sh
-              </button>
-            </div>
+        <ModalDialog id="agent-script-setup" open labelledBy="agent-script-setup-title" describedBy="agent-script-setup-description"
+          dialogClassName="agent-dialog--script-setup" surfaceClassName="agent-dialog__surface agent-setup-surface"
+          restoreFocusTo={registrationButtonRef.current} onDismiss={() => setInstallationExitStep(1)}>
+          <div className="agent-setup-dialog-heading">
+            <div><h2 id="agent-script-setup-title">{rotated ? "Access Secret Rotated" : "Agent Registered"}</h2>
+              <p className="agent-setup-context">{installationAgentName ?? "This Agent"} · {installationProjectName ?? selectedProject.name}</p>
+              <p id="agent-script-setup-description">{rotated ? "The old secret is revoked. Save this replacement before closing; it cannot be retrieved again." : "Save this one-time script before closing; it cannot be retrieved again."}</p></div>
+            <button ref={installationBackButtonRef} data-dialog-initial-focus className="icon-button" type="button" aria-label="Close Agent Setup" onClick={() => setInstallationExitStep(1)}><X aria-hidden="true" /></button>
           </div>
-          <pre tabIndex={0}><code>{installation.script}</code></pre>
-        </section>
-        <section className="code-surface code-surface--compact">
-          <div className="code-surface__header">
-            <strong>Crontab Entry</strong>
-            <CopyButton value={installation.crontab_entry} label="Copy Crontab" />
-          </div>
-          <pre tabIndex={0}><code>{installation.crontab_entry}</code></pre>
-        </section>
+          <AgentScriptSetup key={installation.agent_id} installation={installation} compact={rotated} />
+        </ModalDialog>
         <ModalDialog
           id="leave-access-secret"
           open={installationExitStep > 0}

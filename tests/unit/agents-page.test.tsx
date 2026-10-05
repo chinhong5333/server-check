@@ -355,13 +355,13 @@ describe("project-scoped agents page", () => {
         }
       )
     );
-    expect(await screen.findByRole("heading", { level: 1, name: "Agent Registered" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Agent Registered" })).toBeInTheDocument();
     expect(
       within(screen.getByRole("region", { name: "Notifications" })).getByRole("status")
     ).toHaveTextContent("Agent registered. Save the generated script.");
   });
 
-  it("places the overview action first and requires two confirmations before discarding the one-time secret", async () => {
+  it("opens the two-step setup modal and requires two confirmations before discarding the one-time secret", async () => {
     apiFetchMock.mockImplementation((_path, init) =>
       init?.method === "POST" ? Promise.resolve(replacementInstallation) : Promise.resolve(agents)
     );
@@ -376,9 +376,12 @@ describe("project-scoped agents page", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Generate Script" }));
 
-    const pageHeading = await screen.findByRole("heading", { level: 1, name: "Agent Registered" });
-    const backButton = screen.getByRole("button", { name: "Back To Overview" });
-    expect(backButton.compareDocumentPosition(pageHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: "Agent Registered" })).toBeInTheDocument();
+    const backButton = screen.getByRole("button", { name: "Close Agent Setup" });
+    expect(screen.queryByRole("textbox", { name: "Script Path" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next: Run Setup" }));
+    expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("chmod 700 '/opt/server-check/server-check-atlas-web-renamed.sh'");
+    expect(screen.getByRole("button", { name: "Copy Setup Command" })).toBeInTheDocument();
 
     fireEvent.click(backButton);
     expect(screen.getByRole("dialog", { name: "Leave the Access Secret Page?" })).toBeInTheDocument();
@@ -390,7 +393,7 @@ describe("project-scoped agents page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Close Page And Return To Overview" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Operations Overview" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { level: 1, name: "Agent Registered" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Agent Registered" })).not.toBeInTheDocument();
   });
 
   it("updates agent settings without rotating its secret", async () => {
@@ -497,8 +500,8 @@ describe("project-scoped agents page", () => {
         }
       )
     );
-    expect(await screen.findByRole("heading", { level: 1, name: "Access Secret Rotated" })).toBeInTheDocument();
-    expect(screen.getByText(/previous access secret is revoked/i)).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Access Secret Rotated" })).toBeInTheDocument();
+    expect(screen.getByText(/old secret is revoked/i)).toBeInTheDocument();
     expect(
       within(screen.getByRole("region", { name: "Notifications" })).getByRole("status")
     ).toHaveTextContent("Access secret rotated. Install the replacement script.");

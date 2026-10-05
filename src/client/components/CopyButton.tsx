@@ -20,9 +20,9 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
   };
 
   return (
-    <button className="button button--secondary copy-button" type="button" onClick={copy}>
+    <button className="button button--secondary copy-button" type="button" onClick={copy} aria-label={state === "idle" ? label : undefined}>
       {state === "copied" ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-      {state === "copied" ? "Copied" : state === "error" ? "Copy Failed" : label}
+      {state === "copied" ? "Copied" : state === "error" ? "Copy Failed" : "Copy"}
     </button>
   );
 }

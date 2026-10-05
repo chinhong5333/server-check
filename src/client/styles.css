@@ -3256,6 +3256,58 @@ button.back-link {
 .maintenance-form input { min-width: 0; }
 .maintenance-form .field { align-content: start; }
 .maintenance-details-slot:empty { display: none; }
+.agent-script-setup { display: grid; gap: var(--space-md); min-width: 0; }
+.agent-setup-command > pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-setup-note { margin: 0; padding: var(--space-sm) var(--space-md); font-size: var(--text-sm); color: inherit; border-block-start: var(--rule-thin) solid var(--color-rule); }
+.agent-script-setup .agent-setup-command > .agent-setup-note { width: 100%; max-width: none; }
+.agent-script-setup .code-surface__header > div { min-width: 0; }
+.agent-script-setup .code-surface__header strong { min-width: 0; overflow-wrap: anywhere; }
+/* Hallmark · existing Cobalt workbench · compact progressive-disclosure installation */
+.agent-dialog.agent-dialog--script-setup { width: min(46rem, calc(100% - var(--space-lg))); }
+.agent-setup-surface { padding: 0; background: var(--color-surface-raised); border: var(--rule-thin) solid var(--color-rule-strong); border-radius: var(--radius-lg); }
+.agent-setup-dialog-heading { display: flex; align-items: start; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); border-block-end: var(--rule-thin) solid var(--color-rule); }
+.agent-setup-dialog-heading > div { min-width: 0; }
+.agent-setup-dialog-heading h2 { margin: 0; font-size: var(--text-xl); }
+.agent-setup-dialog-heading p { margin-block: var(--space-2xs) 0; color: var(--color-muted); font-size: var(--text-sm); }
+.agent-setup-dialog-heading .agent-setup-context { color: var(--color-ink); overflow-wrap: anywhere; }
+.agent-setup-surface > .agent-script-setup { padding: var(--space-sm) var(--space-md); }
+.agent-script-setup { gap: var(--space-sm); }
+.agent-setup-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); list-style: none; margin: 0; padding: 0; }
+.agent-setup-steps li { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-2xs) var(--space-xs); border-block-end: 2px solid var(--color-rule); font-size: var(--text-sm); color: var(--color-muted); }
+.agent-setup-steps li[aria-current="step"] { border-color: var(--color-accent); color: var(--color-accent); }
+.agent-setup-steps span { flex: none; font-family: var(--font-mono); }
+.agent-setup-heading h3 { margin: 0; font-size: var(--text-lg); }
+.agent-setup-heading p, .agent-setup-footer p { margin-block: var(--space-2xs) 0; color: var(--color-muted); font-size: var(--text-sm); }
+.agent-setup-download { display: grid; gap: var(--space-xs); padding: var(--space-sm); border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-md); }
+.agent-setup-file { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+.agent-setup-file svg { flex: none; width: 1.25rem; height: 1.25rem; color: var(--color-accent); }
+.agent-setup-file strong { overflow-wrap: anywhere; min-width: 0; font-size: var(--text-sm); }
+.agent-setup-download p { margin: 0; max-width: none; font-size: var(--text-xs); color: var(--color-muted); overflow-wrap: anywhere; }
+.agent-setup-download code { color: var(--color-ink); }
+.agent-setup-disclosure { min-width: 0; }
+.agent-setup-disclosure summary { display: list-item; min-height: var(--control-height); padding: var(--space-xs); font-size: var(--text-sm); font-weight: 500; cursor: pointer; border-radius: var(--radius-md); }
+.agent-setup-disclosure summary:hover { background: var(--color-paper-2); }
+.agent-script-setup .code-surface__header { padding: var(--space-xs) var(--space-sm); gap: var(--space-xs); }
+.agent-script-setup .code-surface__header strong { font-size: var(--text-sm); }
+.agent-script-setup .code-surface pre { max-height: 8rem; padding: var(--space-xs) var(--space-sm); }
+.agent-script-setup .agent-setup-command > pre { max-height: 6rem; }
+.agent-script-setup .agent-setup-note { padding: var(--space-xs) var(--space-sm); font-size: var(--text-xs); }
+.agent-setup-separate { display: grid; gap: var(--space-xs); }
+.agent-setup-separate pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-script-setup .agent-setup-separate pre { max-height: 4rem; }
+.agent-setup-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding-block-start: var(--space-sm); border-block-start: var(--rule-thin) solid var(--color-rule); }
+.agent-setup-footer p { margin: 0; }
+.agent-setup-footer .button { flex-shrink: 0; }
+@media (max-width: 40rem) {
+  .agent-setup-dialog-heading, .agent-setup-surface > .agent-script-setup { padding: var(--space-sm); }
+  .agent-setup-dialog-heading h2 { font-size: var(--text-lg); }
+  .agent-setup-footer { flex-wrap: wrap; }
+  .agent-setup-footer > p { flex-basis: 100%; }
+  .agent-setup-footer .button { width: 100%; }
+  .agent-setup-download .action-row > .button { flex: 1 1 auto; }
+  .agent-script-setup .code-surface__header { align-items: stretch; }
+  .agent-script-setup .code-surface__header .copy-button { width: 100%; }
+}
 .maintenance-form .action-row { justify-content: flex-end; align-items: center; }
 .maintenance-form .action-row .button { padding-inline: var(--space-sm); font-size: var(--text-sm); }
 @media (min-width: 48rem) { .maintenance-time-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
