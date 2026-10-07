@@ -4,7 +4,7 @@ import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 /** Serializes collection, recovery, cancellation, and delivery for one active agent. */
 export async function lockAgentAlerts(connection: PoolConnection, agentId: string): Promise<RowDataPacket | undefined> {
   const [rows] = await connection.execute<RowDataPacket[]>(
-    `SELECT id, last_heartbeat_at, created_at, heartbeat_interval_seconds, telegram_alert_cooldown_seconds
+    `SELECT id, last_heartbeat_at, created_at, heartbeat_interval_seconds, telegram_alert_cooldown_seconds, telegram_recovery_cooldown_seconds
      FROM agents WHERE id = ? AND is_delete = 0 FOR UPDATE`, [agentId]
   );
   return rows[0];
@@ -21,7 +21,8 @@ export function alertKey(eventType: "opened" | "resolved", payload: Record<strin
 }
 
 /**
- * Collects a notification without applying delivery cooldown. Active maintenance suppresses collection.
+ * Collects issue notifications immediately, or a delayed recovery only after a delivered issue alert.
+ * Active maintenance suppresses collection. Delivery also rechecks eligibility and independent cooldowns.
  * Caller must hold the agent row lock.
  * Existing identical pending messages are refreshed, never duplicated or rescheduled.
  * @param {PoolConnection} connection Caller-owned transaction holding the agent lock.
@@ -44,7 +45,22 @@ export async function queueTelegramNotification(connection: PoolConnection, proj
        WHERE incident_id = ? AND channel = 'telegram' AND status = 'pending' AND is_delete = 0`, [now, incidentId]);
     return;
   }
-  if (eventType === "resolved") await cancelIncidentAlerts(connection, incidentId, now);
+  let nextAttemptAt = now;
+  if (eventType === "resolved") {
+    await cancelIncidentAlerts(connection, incidentId, now);
+    const [eligibility] = await connection.execute<RowDataPacket[]>(
+      `SELECT a.telegram_recovery_cooldown_seconds FROM incidents i INNER JOIN agents a ON a.id = i.agent_id
+       WHERE i.id = ? AND i.is_delete = 0 AND a.is_delete = 0 AND EXISTS (
+         SELECT 1 FROM notification_outbox o WHERE o.incident_id = i.id AND o.channel = 'telegram'
+         AND o.event_type = 'opened' AND o.status = 'sent' AND o.is_delete = 0)`, [incidentId]);
+    if (!eligibility[0]) {
+      await connection.execute(
+        `UPDATE notification_outbox SET status = 'cancelled', last_error = 'Issue alert was not delivered', updated_at = ?
+         WHERE incident_id = ? AND event_type = 'resolved' AND channel = 'telegram' AND status = 'pending' AND is_delete = 0`, [now, incidentId]);
+      return;
+    }
+    nextAttemptAt += Number(eligibility[0].telegram_recovery_cooldown_seconds) * 1000;
+  }
   const key = alertKey(eventType, payload);
   const [pending] = await connection.execute<RowDataPacket[]>(
     `SELECT id FROM notification_outbox WHERE incident_id = ? AND channel = 'telegram'
@@ -61,8 +77,17 @@ export async function queueTelegramNotification(connection: PoolConnection, proj
       (project_id, incident_id, channel, event_type, destination, payload_json, alert_key,
        status, attempt_count, next_attempt_at, sent_at, last_error, created_at, updated_at, is_delete)
      VALUES (?, ?, 'telegram', ?, NULL, ?, ?, 'pending', 0, ?, NULL, NULL, ?, ?, 0)`,
-    [projectId, incidentId, eventType, JSON.stringify(payload), key, now, now, now]
+    [projectId, incidentId, eventType, JSON.stringify(payload), key, nextAttemptAt, now, now]
   );
+}
+
+/** Cancels queued recovery for a condition observed failing again; caller holds the agent lock. */
+export async function cancelConditionRecoveries(connection: PoolConnection, agentId: string, incidentType: string, now: number): Promise<void> {
+  await connection.execute(
+    `UPDATE notification_outbox o INNER JOIN incidents i ON i.id = o.incident_id
+     SET o.status = 'cancelled', o.last_error = 'Condition failed again', o.updated_at = ?
+     WHERE i.agent_id = ? AND i.incident_type = ? AND i.is_delete = 0 AND o.channel = 'telegram'
+       AND o.event_type = 'resolved' AND o.status = 'pending' AND o.is_delete = 0`, [now, agentId, incidentType]);
 }
 
 /** Retains obsolete queued alerts as cancelled logs when a condition recovers or is superseded. */

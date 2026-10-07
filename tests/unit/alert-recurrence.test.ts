@@ -15,6 +15,12 @@ function store() {
   const incidents: Array<{id:string;public_id:string;agent_id:string;incident_type:string;status:string}> = [];
   const messages: Array<{id:string;incident_id:string;event:string;status:string;key:string|null;payload:Record<string,unknown>}> = [];
   const execute = vi.fn(async (sql:string, values:unknown[] = []) => {
+    if (sql.includes("FROM maintenance_windows")) return [[]];
+    if (sql.includes("SELECT a.telegram_recovery_cooldown_seconds")) return [messages.some(m=>m.incident_id===String(values[0])&&m.event==="opened"&&m.status==="sent")?[{telegram_recovery_cooldown_seconds:30}]:[]];
+    if (sql.includes("UPDATE notification_outbox o INNER JOIN incidents")) {
+      messages.filter(m=>m.event==="resolved"&&m.status==="pending"&&incidents.some(i=>i.id===m.incident_id&&i.agent_id===String(values[1])&&i.incident_type===values[2])).forEach(m=>m.status="cancelled");
+      return [{affectedRows:1}];
+    }
     if (sql.startsWith("SELECT") && sql.includes("FROM incidents")) return [incidents.filter(i=>i.agent_id===String(values[0])&&i.status==="open"&&(!sql.includes("incident_type = ?")||i.incident_type===values[1]))];
     if (sql.includes("INSERT INTO incidents")) {const id=String(incidents.length+1);incidents.push({id,public_id:String(values[0]),agent_id:String(values[2]),incident_type:String(values[3]),status:"open"});return [{insertId:Number(id)}];}
     if (sql.includes("UPDATE incidents")) {if(sql.includes("status = 'resolved'")) incidents.find(i=>i.id===String(values[2]))!.status="resolved";return [{affectedRows:1}];}
@@ -109,7 +115,7 @@ describe("recurring condition collection",()=>{
     expect(s.messages).toHaveLength(2);
     await evaluateTelemetryIncidents(s.connection,policy,healthy,10);
     expect(s.incidents.every(i=>i.status==="resolved")).toBe(true);
-    expect(s.messages.filter(m=>m.event==="resolved")).toHaveLength(2);
+    expect(s.messages.filter(m=>m.event==="resolved")).toHaveLength(0);
   });
   it("does not merge equal errors from different agents",async()=>{
     const s=store();const condition={type:"heartbeat_missed",severity:"critical" as const,probableCause:"Heartbeat overdue",details:{}};

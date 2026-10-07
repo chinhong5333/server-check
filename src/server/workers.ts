@@ -1,10 +1,11 @@
-import type { RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import type { Logger } from "pino";
 import type { AppConfig } from "./config.js";
 import { getPool, withTransaction } from "./db.js";
 import { decryptPlatformTelegramBotToken } from "./security/telegram-secrets.js";
 import { heartbeatDeadline, isHeartbeatOverdue } from "./services/heartbeat-deadline.js";
-import { sendTelegramMessage } from "./services/telegram.js";
+import { sendTelegramMessage, TelegramDeliveryError } from "./services/telegram.js";
+import { lockTelegramDelivery, TELEGRAM_MIN_DELIVERY_GAP_MS } from "./services/telegram-delivery-state.js";
 import { lockAgentAlerts } from "./services/alert-queue.js";
 import { recordAgentCondition, resolveAgentCondition } from "./services/incidents.js";
 import { purgeExpiredHistory, RETENTION_INTERVAL_MS } from "./services/retention.js";
@@ -78,9 +79,24 @@ export function telegramText(payload: Record<string, unknown>): string {
   const diagnostics = [details.http_status_code == null ? null : `HTTP ${details.http_status_code}`,
     details.error_code, details.validation_error].filter(Boolean).join(" · ");
   const databaseDiagnostics = details.database_status == null ? "" : `DB ${details.database_status}${details.database_message ? `: ${details.database_message}` : ""}`;
+  if (severity === "RECOVERY") {
+    const type = String(payload.incident_type ?? "Monitoring condition");
+    const labels: Record<string, string> = { ram_low: "RAM", disk_low: "Root Storage", load_high: "CPU Load",
+      health_api_unhealthy: "Middleware API", database_not_alive: "Database", heartbeat_missed: "Heartbeat",
+      apache_inactive: "Apache Availability", nginx_inactive: "Nginx Availability",
+      apache_unknown: "Apache Status Detection", nginx_unknown: "Nginx Status Detection", telemetry_invalid: "Telemetry" };
+    const recoveredCheck = labels[type] ?? type.replaceAll("_", " ");
+    const remaining = Number(payload.remaining_open_incidents ?? 0);
+    return `[RECOVERY] ${serverName}\nProject: ${projectName}\nRecovered Check: ${recoveredCheck}\n${remaining > 0 ? `Other Open Issues: ${remaining}. This agent still needs attention.` : "No other open issues are currently recorded."}`.slice(0, 4096);
+  }
   return `[${severity}] ${serverName}\nProject: ${projectName}\nProbable cause: ${cause}${diagnostics ? `\nDetails: ${diagnostics}` : ""}${databaseDiagnostics ? `\nDatabase: ${databaseDiagnostics}` : ""}`.slice(0, 4096);
 }
 
+async function postponeTelegram(connection: PoolConnection, rowId: string, nextAttemptAt: number, now: number): Promise<void> {
+  await connection.execute("UPDATE notification_outbox SET next_attempt_at = ?, updated_at = ? WHERE id = ? AND status = 'pending' AND is_delete = 0", [nextAttemptAt, now, rowId]);
+}
+
+/** Delivers eligible queued notifications under per-agent and shared transport locks; never sends unnotified or superseded recoveries. */
 export async function deliverTelegram(config: AppConfig): Promise<void> {
   const now = Date.now();
   const [settingsRows] = await getPool(config).execute<PlatformTelegramRow[]>(
@@ -103,11 +119,12 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
      INNER JOIN incidents incident ON incident.id = outbox.incident_id
      INNER JOIN agents agent ON agent.id = incident.agent_id
      WHERE outbox.channel = 'telegram' AND outbox.status = 'pending'
-       AND outbox.next_attempt_at <= ? AND outbox.is_delete = 0
+       AND (outbox.next_attempt_at <= ? OR (outbox.event_type = 'resolved' AND outbox.attempt_count = 0
+         AND incident.resolved_at + agent.telegram_recovery_cooldown_seconds * 1000 <= ?)) AND outbox.is_delete = 0
        AND incident.is_delete = 0 AND agent.is_delete = 0
-     ORDER BY outbox.id
+     ORDER BY (outbox.event_type = 'opened') DESC, outbox.id
      LIMIT 20`,
-    [now]
+    [now, now]
   );
 
   for (const row of rows) {
@@ -119,30 +136,51 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
         return;
       }
       if (await agentAwaitingMaintenanceResume(connection, row.agent_id, Date.now())) return;
-      const [sentRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT MAX(o.sent_at) AS last_sent_at FROM notification_outbox o
-         INNER JOIN incidents i ON i.id = o.incident_id
-         WHERE i.agent_id = ? AND o.channel = 'telegram' AND o.status = 'sent' AND o.is_delete = 0`, [row.agent_id]
-      );
-      const sentAt = sentRows[0]?.last_sent_at;
       const deliveryNow = Date.now();
-      if (sentAt != null && deliveryNow < Number(sentAt) + Number(currentAgent.telegram_alert_cooldown_seconds) * 1000) {
-        await connection.execute("UPDATE notification_outbox SET next_attempt_at = ?, updated_at = ? WHERE id = ? AND status = 'pending' AND is_delete = 0",
-          [Number(sentAt) + Number(currentAgent.telegram_alert_cooldown_seconds) * 1000, deliveryNow, row.id]);
-        return;
-      }
       // Lock and recheck after queue selection so cancellation and competing workers cannot reuse a stale row.
       const [pendingRows] = await connection.execute<RowDataPacket[]>(
-        `SELECT o.attempt_count, o.payload_json, o.event_type, i.status AS incident_status FROM notification_outbox o
+        `SELECT o.incident_id, o.attempt_count, o.payload_json, o.event_type, o.next_attempt_at,
+                i.status AS incident_status, i.incident_type, i.resolved_at FROM notification_outbox o
          INNER JOIN incidents i ON i.id = o.incident_id
-         WHERE o.id = ? AND o.status = 'pending' AND o.is_delete = 0 AND i.is_delete = 0 AND o.next_attempt_at <= ? FOR UPDATE`, [row.id, deliveryNow]
+         WHERE o.id = ? AND o.status = 'pending' AND o.is_delete = 0 AND i.is_delete = 0 FOR UPDATE`, [row.id]
       );
       if (!pendingRows[0]) return;
-      if (pendingRows[0].event_type === "opened" && pendingRows[0].incident_status !== "open") {
+      const pending = pendingRows[0], recovery = pending.event_type === "resolved";
+      if ((!recovery && pending.incident_status !== "open") || (recovery && pending.incident_status !== "resolved")) {
         await connection.execute("UPDATE notification_outbox SET status = 'cancelled', updated_at = ? WHERE id = ?", [deliveryNow, row.id]);
         return;
       }
-      const payload = typeof pendingRows[0].payload_json === "string" ? JSON.parse(pendingRows[0].payload_json) : pendingRows[0].payload_json;
+      let remainingOpen = 0;
+      if (recovery) {
+        const [eligibility] = await connection.execute<RowDataPacket[]>(
+          `SELECT EXISTS (SELECT 1 FROM notification_outbox WHERE incident_id = ? AND channel = 'telegram'
+             AND event_type = 'opened' AND status = 'sent' AND is_delete = 0) AS issue_delivered,
+           EXISTS (SELECT 1 FROM notification_outbox WHERE incident_id = ? AND channel = 'telegram'
+             AND event_type = 'resolved' AND status = 'sent' AND is_delete = 0) AS recovery_delivered,
+           EXISTS (SELECT 1 FROM incidents WHERE agent_id = ? AND incident_type = ? AND status = 'open' AND is_delete = 0) AS condition_reopened,
+           (SELECT COUNT(*) FROM incidents WHERE agent_id = ? AND status = 'open' AND is_delete = 0) AS remaining_open`,
+          [pending.incident_id, pending.incident_id, row.agent_id, pending.incident_type, row.agent_id]);
+        const eligible = eligibility[0];
+        if (!eligible || !Number(eligible.issue_delivered) || Number(eligible.recovery_delivered) || Number(eligible.condition_reopened)) {
+          await connection.execute("UPDATE notification_outbox SET status = 'cancelled', last_error = 'Recovery is unnotified, duplicated or superseded', updated_at = ? WHERE id = ?", [deliveryNow, row.id]);
+          return;
+        }
+        remainingOpen = Number(eligible.remaining_open);
+      }
+      const [sentRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT MAX(o.sent_at) AS last_sent_at FROM notification_outbox o INNER JOIN incidents i ON i.id = o.incident_id
+         WHERE i.agent_id = ? AND o.channel = 'telegram' AND o.status = 'sent' AND o.event_type = ? AND o.is_delete = 0`, [row.agent_id, pending.event_type]);
+      const cooldown = Number(recovery ? currentAgent.telegram_recovery_cooldown_seconds : currentAgent.telegram_alert_cooldown_seconds) * 1000;
+      const sentAt = sentRows[0]?.last_sent_at;
+      const earliest = Math.max(sentAt == null ? 0 : Number(sentAt) + cooldown, recovery ? Number(pending.resolved_at) + cooldown : 0);
+      if (deliveryNow < earliest) { await postponeTelegram(connection, row.id, earliest, deliveryNow); return; }
+      // Unattempted legacy recoveries may have been postponed by the former shared issue timer.
+      if (Number(pending.next_attempt_at) > deliveryNow && !(recovery && Number(pending.attempt_count) === 0)) return;
+      const transport = await lockTelegramDelivery(connection, deliveryNow);
+      const transportDue = Math.max(Number(transport.next_delivery_at), Number(transport.blocked_until));
+      if (deliveryNow < transportDue) { await postponeTelegram(connection, row.id, transportDue, deliveryNow); return; }
+      const payload = typeof pending.payload_json === "string" ? JSON.parse(pending.payload_json) : pending.payload_json;
+      if (recovery) payload.remaining_open_incidents = remainingOpen;
       let sendError: unknown;
       try {
         await sendTelegramMessage({
@@ -155,15 +193,21 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
       const completedAt = Date.now();
       await connection.execute(
         `UPDATE notification_outbox
-         SET status = 'sent', sent_at = ?, updated_at = ?, last_error = NULL
+         SET status = 'sent', sent_at = ?, updated_at = ?, last_error = NULL, destination = ?
          WHERE id = ?`,
-        [completedAt, completedAt, row.id]
+        [completedAt, completedAt, chatId, row.id]
       );
+      await connection.execute("UPDATE telegram_delivery_state SET next_delivery_at = ?, updated_at = ? WHERE scope_key = 'platform'", [completedAt + TELEGRAM_MIN_DELIVERY_GAP_MS, completedAt]);
     } else {
       const failedAt = Date.now();
-      const attempts = Number(pendingRows[0].attempt_count) + 1;
-      const failed = attempts >= 10;
-      const nextAttempt = failedAt + Math.min(60 * 60 * 1000, 2 ** attempts * 1000);
+      const attempts = Number(pending.attempt_count) + 1;
+      const rateLimitError = sendError instanceof TelegramDeliveryError && sendError.statusCode === 429 ? sendError : null;
+      const rateLimited = rateLimitError !== null;
+      const failed = attempts >= 10 && !rateLimited;
+      const retryMs = rateLimitError ? (rateLimitError.retryAfterSeconds ?? 60) * 1000 : Math.min(60 * 60 * 1000, 2 ** Math.min(attempts, 30) * 1000);
+      const nextAttempt = failedAt + retryMs;
+      await connection.execute("UPDATE telegram_delivery_state SET next_delivery_at = ?, blocked_until = GREATEST(blocked_until, ?), updated_at = ? WHERE scope_key = 'platform'",
+        [failedAt + TELEGRAM_MIN_DELIVERY_GAP_MS, rateLimited ? nextAttempt : 0, failedAt]);
       await connection.execute(
         `UPDATE notification_outbox
          SET status = ?, attempt_count = ?, next_attempt_at = ?, last_error = ?, updated_at = ?

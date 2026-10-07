@@ -268,8 +268,9 @@ describe("project-scoped agents page", () => {
     expect(screen.getByLabelText("Storage Usage Threshold (%)")).toHaveValue("90");
     expect(screen.getByLabelText("Load Per Core Threshold")).toHaveValue("1.5");
     expect(screen.getByLabelText("Alert If No Heartbeat For")).toHaveValue("120");
-    expect(screen.getByLabelText("Telegram Send Interval")).toHaveValue("900");
-    expect(screen.getByText("Minimum wait after a successful Telegram message.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Issue Alert Interval")).toHaveValue("900");
+    expect(screen.getByLabelText("Recovery Interval")).toHaveValue("30");
+    expect(screen.getByText("Minimum gap between successfully sent issue alerts.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this RAM usage.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this storage usage.")).toBeInTheDocument();
     expect(screen.getByText("Alerts when five-minute load divided by logical CPU count reaches this value.")).toBeInTheDocument();
@@ -283,7 +284,7 @@ describe("project-scoped agents page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue To Script Generation" }));
     expect(
       within(screen.getByRole("region", { name: "Notifications" })).getByRole("alert")
-    ).toHaveTextContent("Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram send interval.");
+    ).toHaveTextContent("Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram intervals.");
     fireEvent.click(screen.getByRole("button", { name: "Close Registration" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Register Agent" })).toHaveFocus());
   });
@@ -350,6 +351,7 @@ describe("project-scoped agents page", () => {
             load_5_per_core_threshold: 1.5,
             heartbeat_interval_seconds: 120,
             telegram_alert_cooldown_seconds: 900,
+            telegram_recovery_cooldown_seconds: 30,
             middleware_failure_threshold: 2
           })
         }
@@ -428,6 +430,7 @@ describe("project-scoped agents page", () => {
             load_5_per_core_threshold: 1.5,
             heartbeat_interval_seconds: 120,
             telegram_alert_cooldown_seconds: 900,
+            telegram_recovery_cooldown_seconds: 30,
             middleware_failure_threshold: 2
           })
         }

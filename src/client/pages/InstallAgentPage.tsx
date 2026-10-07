@@ -234,6 +234,7 @@ export function InstallAgentPage() {
             load_5_per_core_threshold: pendingRegistration.load_5_per_core_threshold,
             heartbeat_interval_seconds: pendingRegistration.heartbeat_interval_seconds,
             telegram_alert_cooldown_seconds: pendingRegistration.telegram_alert_cooldown_seconds,
+            telegram_recovery_cooldown_seconds: pendingRegistration.telegram_recovery_cooldown_seconds,
             middleware_failure_threshold: pendingRegistration.middleware_failure_threshold
           })
         }
@@ -561,6 +562,7 @@ export function InstallAgentPage() {
                 load_5_per_core_threshold: editingAgent.load_5_per_core_threshold,
                 heartbeat_interval_seconds: editingAgent.heartbeat_interval_seconds,
                 telegram_alert_cooldown_seconds: editingAgent.telegram_alert_cooldown_seconds,
+                telegram_recovery_cooldown_seconds: editingAgent.telegram_recovery_cooldown_seconds,
                 middleware_failure_threshold: editingAgent.middleware_failure_threshold ?? 2
               }}
               submitting={submitting}

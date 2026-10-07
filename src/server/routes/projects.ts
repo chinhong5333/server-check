@@ -5,6 +5,7 @@ import { Router, type Request } from "express";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import {
   DEFAULT_HEALTH_REQUEST_TIMEOUT_SECONDS,
+  DEFAULT_TELEGRAM_RECOVERY_COOLDOWN_SECONDS,
   createAgentInstallationBodySchema,
   createProjectBodySchema,
   deleteProjectBodySchema,
@@ -75,6 +76,7 @@ interface AgentRow extends RowDataPacket {
   load_5_per_core_threshold: string;
   heartbeat_interval_seconds: number;
   telegram_alert_cooldown_seconds: number;
+  telegram_recovery_cooldown_seconds: number;
 }
 
 interface AgentInternalRow extends RowDataPacket {
@@ -567,6 +569,8 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {string} request.params.project_id Active project's public UUID.
    * @param {import("express").Response<AgentSummary[]>} response Agent summaries ordered by severity.
    * @param {object} response.body.checks Saved Apache, Nginx, and middleware_api selections for each agent.
+   * @param {number} response.body.telegram_alert_cooldown_seconds Minimum per-agent gap between successfully delivered issue alerts.
+   * @param {number} response.body.telegram_recovery_cooldown_seconds Per-agent recovery delay and minimum recovery-delivery gap, in seconds.
    * @param {object|null} response.body.maintenance Effective {status, scope}, including inherited project maintenance; active wins over scheduled.
    * @returns {Promise<void>} Resolves after agent lookup.
    */
@@ -585,7 +589,7 @@ export function createProjectsRouter(config: AppConfig): Router {
                 last_health_http_status_code, last_health_latency_ms,
                 ram_available_threshold_percent, disk_available_threshold_percent,
                 load_5_per_core_threshold, heartbeat_interval_seconds,
-                telegram_alert_cooldown_seconds, middleware_failure_threshold,
+                telegram_alert_cooldown_seconds, telegram_recovery_cooldown_seconds, middleware_failure_threshold,
                 (SELECT m.load_5 FROM metric_samples m
                  WHERE m.agent_id = agents.id AND m.received_at = agents.last_heartbeat_at
                    AND m.is_delete = 0 ORDER BY m.id DESC LIMIT 1) AS latest_load_5
@@ -618,6 +622,7 @@ export function createProjectsRouter(config: AppConfig): Router {
         load_5_per_core_threshold: Number(row.load_5_per_core_threshold),
         heartbeat_interval_seconds: Number(row.heartbeat_interval_seconds),
         telegram_alert_cooldown_seconds: Number(row.telegram_alert_cooldown_seconds),
+        telegram_recovery_cooldown_seconds: Number(row.telegram_recovery_cooldown_seconds),
         middleware_failure_threshold: Number(row.middleware_failure_threshold)
       }));
       response.status(200).json(agents);
@@ -636,7 +641,8 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {number} request.body.disk_available_threshold_percent Available-storage incident threshold.
    * @param {number} request.body.load_5_per_core_threshold Five-minute load-per-core threshold.
    * @param {number} request.body.heartbeat_interval_seconds Maximum heartbeat interval expected by the central monitor.
-   * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful Telegram deliveries for this agent.
+   * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful issue-alert deliveries for this agent, 300-86400 seconds.
+   * @param {number} [request.body.telegram_recovery_cooldown_seconds] Recovery delay and delivery gap, integer 10-300 seconds. Omission preserves the saved recovery interval during rolling upgrades.
    * @param {number} [request.body.middleware_failure_threshold=2] Consecutive unhealthy middleware checks required before opening an alert, integer 1–10. Changing this value resets a pending streak; existing incidents stay open until recovery.
    * @param {import("express").Response<void>} response Empty success response.
    * @returns {Promise<void>} Resolves after configuration replacement and audit persistence.
@@ -658,6 +664,7 @@ export function createProjectsRouter(config: AppConfig): Router {
                disk_available_threshold_percent = ?,
                load_5_per_core_threshold = ?, heartbeat_interval_seconds = ?,
                telegram_alert_cooldown_seconds = ?,
+               telegram_recovery_cooldown_seconds = COALESCE(?, telegram_recovery_cooldown_seconds),
                middleware_failure_count = IF(middleware_failure_threshold = ?, middleware_failure_count, 0),
                middleware_failure_threshold = ?,
                updated_at = ?
@@ -669,6 +676,7 @@ export function createProjectsRouter(config: AppConfig): Router {
             body.load_5_per_core_threshold,
             body.heartbeat_interval_seconds,
             body.telegram_alert_cooldown_seconds,
+            body.telegram_recovery_cooldown_seconds ?? null,
             body.middleware_failure_threshold,
             body.middleware_failure_threshold,
             now,
@@ -696,6 +704,7 @@ export function createProjectsRouter(config: AppConfig): Router {
               load_5_per_core_threshold: body.load_5_per_core_threshold,
               heartbeat_interval_seconds: body.heartbeat_interval_seconds,
               telegram_alert_cooldown_seconds: body.telegram_alert_cooldown_seconds,
+              telegram_recovery_cooldown_seconds: body.telegram_recovery_cooldown_seconds,
               middleware_failure_threshold: body.middleware_failure_threshold,
               credential_rotated: false
             }),
@@ -825,7 +834,8 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {number} request.body.disk_available_threshold_percent Available-storage incident threshold.
    * @param {number} request.body.load_5_per_core_threshold Five-minute load-per-core threshold.
    * @param {number} request.body.heartbeat_interval_seconds Maximum heartbeat interval and generated cron schedule.
-   * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful Telegram deliveries for this agent.
+   * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful issue-alert deliveries for this agent, 300-86400 seconds.
+   * @param {number} [request.body.telegram_recovery_cooldown_seconds=30] Recovery delay and delivery gap, integer 10-300 seconds. Omitted by pre-recovery-interval clients, which receive the 30-second default.
    * @param {number} [request.body.middleware_failure_threshold=2] Consecutive unhealthy middleware checks required before opening an alert, integer 1–10. Changing this value resets a pending streak; existing incidents stay open until recovery.
    * @param {import("express").Response<AgentInstallationResponse>} response One-time script and crontab response.
    * @returns {Promise<void>} Resolves after agent and audit persistence.
@@ -851,14 +861,14 @@ export function createProjectsRouter(config: AppConfig): Router {
             (public_id, project_id, server_name, health_api_url, check_configuration_json,
              health_request_timeout_seconds, ram_available_threshold_percent,
              disk_available_threshold_percent, load_5_per_core_threshold,
-             heartbeat_interval_seconds, telegram_alert_cooldown_seconds, middleware_failure_threshold, apache_service_name,
+             heartbeat_interval_seconds, telegram_alert_cooldown_seconds, telegram_recovery_cooldown_seconds, middleware_failure_threshold, apache_service_name,
              credential_hash, credential_hint, status, probable_cause,
              agent_version, last_heartbeat_at, last_metrics_at, last_validation_error,
              last_ram_available_percent, last_disk_available_percent,
              last_load_5_per_core, last_health_outcome,
              last_health_http_status_code, last_health_latency_ms,
              created_at, updated_at, is_delete)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', 'Awaiting first heartbeat',
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', 'Awaiting first heartbeat',
                    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?, 0)`,
           [
             agentPublicId,
@@ -872,6 +882,7 @@ export function createProjectsRouter(config: AppConfig): Router {
             body.load_5_per_core_threshold,
             body.heartbeat_interval_seconds,
             body.telegram_alert_cooldown_seconds,
+            body.telegram_recovery_cooldown_seconds ?? DEFAULT_TELEGRAM_RECOVERY_COOLDOWN_SECONDS,
             body.middleware_failure_threshold,
             APACHE_AUTO_DETECT_LABEL,
             credential.credentialHash,
@@ -897,6 +908,7 @@ export function createProjectsRouter(config: AppConfig): Router {
               load_5_per_core_threshold: body.load_5_per_core_threshold,
               heartbeat_interval_seconds: body.heartbeat_interval_seconds,
               telegram_alert_cooldown_seconds: body.telegram_alert_cooldown_seconds,
+              telegram_recovery_cooldown_seconds: body.telegram_recovery_cooldown_seconds ?? DEFAULT_TELEGRAM_RECOVERY_COOLDOWN_SECONDS,
               middleware_failure_threshold: body.middleware_failure_threshold,
               checks: body.checks,
               apache_detection: APACHE_AUTO_DETECT_LABEL,

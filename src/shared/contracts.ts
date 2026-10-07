@@ -115,10 +115,14 @@ export const deleteProjectBodySchema = z
   })
   .strict();
 
+export const DEFAULT_TELEGRAM_RECOVERY_COOLDOWN_SECONDS = 30;
+
 const agentEditableShape = {
   server_name: z.string().trim().min(2).max(120),
   ...agentPolicyShape,
   telegram_alert_cooldown_seconds: z.number().int().min(300).max(86_400),
+  // Rolling-upgrade compatibility: omission preserves updates; installations default to 30 seconds.
+  telegram_recovery_cooldown_seconds: z.number().int().min(10).max(300).optional(),
   middleware_failure_threshold: z.number().int().min(1).max(10).default(2)
 };
 
@@ -390,6 +394,8 @@ export interface AgentSummary {
   load_5_per_core_threshold: number;
   heartbeat_interval_seconds: number;
   telegram_alert_cooldown_seconds: number;
+  /** Optional for responses from a central server that predates separate recovery intervals. */
+  telegram_recovery_cooldown_seconds?: number;
   middleware_failure_threshold?: number;
 }
 

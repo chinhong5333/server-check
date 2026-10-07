@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { TelemetryPayload } from "../../shared/contracts.js";
-import { queueTelegramNotification, cancelIncidentAlerts } from "./alert-queue.js";
+import { queueTelegramNotification, cancelIncidentAlerts, cancelConditionRecoveries } from "./alert-queue.js";
 
 interface AgentPolicy {
   agentInternalId: string;
@@ -151,6 +151,7 @@ export type AgentIdentity = Pick<AgentPolicy, "agentInternalId" | "agentPublicId
 
 /** Opens/updates an observed condition and queues one pending alert; caller holds the agent lock. */
 export async function recordAgentCondition(connection: PoolConnection, policy: AgentIdentity, condition: Condition, now: number): Promise<void> {
+  await cancelConditionRecoveries(connection, policy.agentInternalId, condition.type, now);
   const [rows] = await connection.execute<OpenIncidentRow[]>(
     "SELECT id, public_id, incident_type FROM incidents WHERE agent_id = ? AND incident_type = ? AND status = 'open' AND is_delete = 0 FOR UPDATE",
     [policy.agentInternalId, condition.type]
@@ -231,6 +232,7 @@ export async function evaluateTelemetryIncidents(
       const { count, threshold } = policy.middlewareFailures;
       condition.details = { ...condition.details, consecutive_failures: count, failure_threshold: threshold };
       if (count < threshold && !openByType.has("health_api_unhealthy")) {
+        await cancelConditionRecoveries(connection, policy.agentInternalId, condition.type, now);
         condition.severity = "warning";
         condition.probableCause = `Middleware API check failed (${count}/${threshold}); waiting for consecutive failures before alerting`;
         continue;

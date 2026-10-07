@@ -2490,8 +2490,8 @@ pre,
   border-block-start: var(--rule-thin) solid var(--color-rule);
 }
 @media (min-width: 48rem) {
-  .agent-dialog--agent-form .agent-settings-form .form-section__grid--thresholds,
-  .agent-settings-form .agent-settings-timing { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); }
+  .agent-dialog--agent-form .agent-settings-form .form-section__grid--thresholds { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); }
+  .agent-settings-form .agent-settings-timing { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-md); }
   .agent-dialog--agent-form .agent-settings-form .form-section__grid > .field { grid-column: auto; }
 }
 @media (max-width: 47.999rem) {

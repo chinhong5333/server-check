@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Save } from "lucide-react";
 import {
   updateAgentBodySchema,
+  DEFAULT_TELEGRAM_RECOVERY_COOLDOWN_SECONDS,
   type AgentEditableInput
 } from "../../shared/contracts";
 import { InlineLoader } from "./Feedback";
@@ -41,6 +42,7 @@ export function AgentForm({
   const [telegramCooldown, setTelegramCooldown] = useState(
     String(initialValues?.telegram_alert_cooldown_seconds ?? 900)
   );
+  const [recoveryCooldown, setRecoveryCooldown] = useState(String(initialValues?.telegram_recovery_cooldown_seconds ?? DEFAULT_TELEGRAM_RECOVERY_COOLDOWN_SECONDS));
   const [middlewareFailureThreshold, setMiddlewareFailureThreshold] = useState(String(initialValues?.middleware_failure_threshold ?? 2));
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -57,10 +59,11 @@ export function AgentForm({
       load_5_per_core_threshold: Number(cpuLoad),
       heartbeat_interval_seconds: Number(heartbeatInterval),
       telegram_alert_cooldown_seconds: Number(telegramCooldown),
+      telegram_recovery_cooldown_seconds: Number(recoveryCooldown),
       middleware_failure_threshold: Number(middlewareFailureThreshold)
     });
     if (!validation.success) {
-      const message = "Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram send interval.";
+      const message = "Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram intervals.";
       setValidationError(message);
       showToast({ tone: "error", message });
       return;
@@ -142,19 +145,26 @@ export function AgentForm({
                   <span id="agent-heartbeat-help" className="field__help">Queues an alert when no heartbeat arrives within this time. Other health checks are evaluated separately.</span>
                 </div>
                 <div className="field">
-                <label htmlFor="agent-telegram-cooldown">Telegram Send Interval</label>
-                  <select id="agent-telegram-cooldown" value={telegramCooldown} onChange={(event) => setTelegramCooldown(event.target.value)} required>
+                <label htmlFor="agent-telegram-cooldown">Issue Alert Interval</label>
+                  <select id="agent-telegram-cooldown" aria-describedby="agent-telegram-cooldown-help" value={telegramCooldown} onChange={(event) => setTelegramCooldown(event.target.value)} required>
                     {[5, 10, 15, 30, 60, 120, 360, 720, 1440].map((minutes) => (
                       <option value={minutes * 60} key={minutes}>{minutes < 60 ? `${minutes} min` : `${minutes / 60} hr${minutes === 60 ? "" : "s"}`}</option>
                     ))}
                   </select>
-                  <span className="field__help">Minimum wait after a successful Telegram message.</span>
+                  <span id="agent-telegram-cooldown-help" className="field__help">Minimum gap between successfully sent issue alerts.</span>
+                </div>
+                <div className="field">
+                  <label htmlFor="agent-telegram-recovery">Recovery Interval</label>
+                  <select id="agent-telegram-recovery" aria-describedby="agent-telegram-recovery-help" value={recoveryCooldown} onChange={event => setRecoveryCooldown(event.target.value)} required>
+                    {[...new Set([10, 15, 30, 60, 120, 300, Number(recoveryCooldown)])].sort((left, right) => left - right).map(seconds => <option key={seconds} value={seconds}>{seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} sec`}</option>)}
+                  </select>
+                  <span id="agent-telegram-recovery-help" className="field__help">Short recovery delay; does not reset the issue interval.</span>
                 </div>
               </div>
           </fieldset>
         </div>
         <div className="agent-settings-actions field--wide">
-          <button className="button button--primary" type="submit" disabled={submitting}>
+          <button className="button button--primary" type="submit" disabled={submitting} aria-label={submitting ? submittingLabel : undefined}>
             {submitting ? <InlineLoader label={submittingLabel} /> : <><Save aria-hidden="true" />{submitLabel}</>}
           </button>
         </div>
