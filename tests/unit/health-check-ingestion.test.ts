@@ -62,6 +62,7 @@ describe("Health result persistence", () => {
     const response=await request(app({apache:true,nginx:true,middleware_api:true})).post("/").set("authorization",`Bearer ${credential}`).send({...body,health_probe:{...body.health_probe,outcome:"unhealthy",http_status_code:null,error_code:"timeout"}});
     expect(response.status).toBe(202);
     expect(execute.mock.calls.some(([sql])=>sql.includes("middleware_failure_count"))).toBe(false);
+    expect(execute.mock.calls.some(([sql])=>sql.includes("last_uptime_seconds"))).toBe(false);
   });
   it("accepts legacy Apache/API reports without an Nginx field", async () => {
     const response = await request(app(null)).post("/").set("authorization", `Bearer ${credential}`)

@@ -8,6 +8,7 @@ import { safeEqualHex, sha256 } from "../security/crypto.js";
 import { evaluateTelemetryIncidents, recordAgentCondition, resolveHeartbeatIncident } from "../services/incidents.js";
 import { advanceMiddlewareFailures } from "../services/middleware-failures.js";
 import { lockAgentAlerts } from "../services/alert-queue.js";
+import { observeServerUptime } from "../services/server-uptime.js";
 import { matchesConfiguredChecks, readAgentChecks } from "../services/check-configuration.js";
 
 interface AgentPolicyRow extends RowDataPacket {
@@ -82,6 +83,9 @@ export function createHeartbeatRouter(config: AppConfig): Router {
    * @param {Request<{}, {}, Buffer>} request Agent request authenticated by Authorization Bearer credential; body may be empty or JSON telemetry.
    * @param {object} request.body.service_checks Apache and optional legacy-compatible Nginx service results; each contains service_name and status (active, inactive, unknown, disabled).
    * @param {object} request.body.health_probe Middleware API result; disabled outcomes must have null HTTP, latency, and error fields. Configured enabled states must match the payload.
+   * @param {number|null} request.body.metrics.uptime_seconds Reported OS uptime in seconds. A decrease in a sequence-unique, strictly newer valid sample records a one-off possible-restart event; null and older samples preserve the baseline.
+   * @param {number} request.body.observed_at Agent observation timestamp in Unix milliseconds, used to exclude older uptime reports.
+   * @param {number} request.body.sequence_id Agent sample identifier; duplicate sequences do not update uptime or create restart events.
    * @param {object|null} [request.body.database_health=null] Optional validated database snapshot extracted from the middleware API `db` object by agent 1.4 or newer.
    * @param {string} request.body.database_health.status Database status, limited to 40 characters; non-alive reports open a critical DB incident immediately, while absent optional data cannot confirm recovery.
    * @param {string} request.body.database_health.message Database diagnostic message, limited to 500 characters.
@@ -229,6 +233,11 @@ export function createHeartbeatRouter(config: AppConfig): Router {
           );
           return { duplicate: true };
         }
+
+        await observeServerUptime(connection, {
+          agentInternalId: agent.id, agentPublicId: agent.public_id, serverName: agent.server_name,
+          projectInternalId: agent.project_id, projectName: agent.project_name
+        }, payload.metrics.uptime_seconds, payload.observed_at, now);
 
         const [metricResult] = await connection.execute<ResultSetHeader>(
           `INSERT INTO metric_samples

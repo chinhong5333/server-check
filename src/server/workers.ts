@@ -11,6 +11,7 @@ import { recordAgentCondition, resolveAgentCondition } from "./services/incident
 import { purgeExpiredHistory, RETENTION_INTERVAL_MS } from "./services/retention.js";
 import { agentAwaitingMaintenanceResume, agentInMaintenance, cancelMaintenanceNotifications } from "./services/maintenance.js";
 import { processMaintenanceWindows } from "./services/maintenance-lifecycle.js";
+import { formatServerUptime, SERVER_RESTART_INCIDENT_TYPE } from "../shared/uptime.js";
 
 interface StaleAgentRow extends RowDataPacket {
   id: string;
@@ -76,6 +77,9 @@ export function telegramText(payload: Record<string, unknown>): string {
   const cause = String(payload.probable_cause ?? "Monitoring state changed");
   const projectName = String(payload.project_name ?? "Unknown project");
   const details = (payload.details ?? {}) as Record<string, unknown>;
+  if (payload.incident_type === SERVER_RESTART_INCIDENT_TYPE) {
+    return `[WARNING] ${serverName}\nProject: ${projectName}\nEvent: Possible Server Restart\nPrevious Uptime: ${formatServerUptime(typeof details.previous_uptime_seconds === "number" ? details.previous_uptime_seconds : null)}\nCurrent Uptime: ${formatServerUptime(typeof details.current_uptime_seconds === "number" ? details.current_uptime_seconds : null)}\nThe reported OS uptime decreased. This does not confirm the cause of the restart.`.slice(0, 4096);
+  }
   const diagnostics = [details.http_status_code == null ? null : `HTTP ${details.http_status_code}`,
     details.error_code, details.validation_error].filter(Boolean).join(" · ");
   const databaseDiagnostics = details.database_status == null ? "" : `DB ${details.database_status}${details.database_message ? `: ${details.database_message}` : ""}`;
@@ -122,7 +126,7 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
        AND (outbox.next_attempt_at <= ? OR (outbox.event_type = 'resolved' AND outbox.attempt_count = 0
          AND incident.resolved_at + agent.telegram_recovery_cooldown_seconds * 1000 <= ?)) AND outbox.is_delete = 0
        AND incident.is_delete = 0 AND agent.is_delete = 0
-     ORDER BY (outbox.event_type = 'opened') DESC, outbox.id
+     ORDER BY (outbox.event_type = 'opened') DESC, (incident.incident_type = 'server_restart') ASC, outbox.id
      LIMIT 20`,
     [now, now]
   );
@@ -146,11 +150,20 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
       );
       if (!pendingRows[0]) return;
       const pending = pendingRows[0], recovery = pending.event_type === "resolved";
-      if ((!recovery && pending.incident_status !== "open") || (recovery && pending.incident_status !== "resolved")) {
+      const restart = !recovery && pending.incident_type === SERVER_RESTART_INCIDENT_TYPE;
+      if ((recovery && pending.incident_type === SERVER_RESTART_INCIDENT_TYPE) || (!recovery && !restart && pending.incident_status !== "open") || ((recovery || restart) && pending.incident_status !== "resolved")) {
         await connection.execute("UPDATE notification_outbox SET status = 'cancelled', updated_at = ? WHERE id = ?", [deliveryNow, row.id]);
         return;
       }
       let remainingOpen = 0;
+      if (restart) {
+        const [delivered] = await connection.execute<RowDataPacket[]>(
+          `SELECT id FROM notification_outbox WHERE incident_id = ? AND channel = 'telegram' AND event_type = 'opened' AND status = 'sent' AND is_delete = 0 LIMIT 1`, [pending.incident_id]);
+        if (delivered[0]) {
+          await connection.execute("UPDATE notification_outbox SET status = 'cancelled', last_error = 'Restart event was already notified', updated_at = ? WHERE id = ?", [deliveryNow, row.id]);
+          return;
+        }
+      }
       if (recovery) {
         const [eligibility] = await connection.execute<RowDataPacket[]>(
           `SELECT EXISTS (SELECT 1 FROM notification_outbox WHERE incident_id = ? AND channel = 'telegram'

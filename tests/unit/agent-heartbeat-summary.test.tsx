@@ -36,6 +36,19 @@ describe("Merged heartbeat summary", () => {
     expect(screen.getByText("Overdued")).toBeInTheDocument();
     expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 18 Min 00 Sec");
   });
+  it("shows last reported OS uptime and never advances it while the sample becomes stale", () => {
+    render(<AgentHeartbeatSummary agent={{ ...agent, last_heartbeat_at: now, heartbeat_interval_seconds: 120,
+      uptime_seconds: 90061, uptime_received_at: now - 119000 }} help={null} />);
+    expect(screen.getByRole("article", { name: "Server Uptime" })).toHaveTextContent("1 Day 1 Hour 1 Minute");
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(screen.getByRole("article", { name: "Server Uptime" })).toHaveTextContent("Stale");
+    expect(screen.getByRole("article", { name: "Server Uptime" })).toHaveTextContent("1 Day 1 Hour 1 Minute");
+  });
+  it("shows an unavailable uptime state when no valid report has populated it", () => {
+    render(<AgentHeartbeatSummary agent={agent} help={null}/>);
+    expect(screen.getByRole("article", { name: "Server Uptime" })).toHaveTextContent("Not Available");
+    expect(screen.getByText("Awaiting a valid uptime report.")).toBeInTheDocument();
+  });
   it("crosses the deadline without a reload and resets when a heartbeat arrives", () => {
     const timely = { ...agent, last_heartbeat_at: now - 119000, heartbeat_interval_seconds: 120 };
     const view = render(<AgentHeartbeatSummary agent={timely} help={null} />);

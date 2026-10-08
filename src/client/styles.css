@@ -3298,6 +3298,21 @@ button.back-link {
 .agent-setup-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding-block-start: var(--space-sm); border-block-start: var(--rule-thin) solid var(--color-rule); }
 .agent-setup-footer p { margin: 0; }
 .agent-setup-footer .button { flex-shrink: 0; }
+/* Hallmark · Cobalt status metrics · last-reported uptime, no inferred live counter */
+.agent-heartbeat-summary--uptime { container: agent-status / inline-size; }
+.agent-heartbeat-summary--uptime .agent-heartbeat-summary__metrics { grid-template-columns: minmax(0, 1fr); }
+.agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric + .agent-heartbeat-summary__metric { border-inline-start: 0; border-block-start: var(--rule-thin) solid var(--color-rule); }
+.agent-heartbeat-summary__uptime-stale { margin-inline-start: var(--space-xs); color: var(--color-warning); font-weight: 600; }
+@container agent-status (min-width: 44rem) {
+  .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric + .agent-heartbeat-summary__metric { border-block-start: 0; }
+  .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric:nth-child(even) { border-inline-start: var(--rule-thin) solid var(--color-rule); }
+  .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric:nth-child(n+3) { border-block-start: var(--rule-thin) solid var(--color-rule); }
+}
+@container agent-status (min-width: 80rem) {
+  .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric + .agent-heartbeat-summary__metric { border-block-start: 0; border-inline-start: var(--rule-thin) solid var(--color-rule); }
+}
 @media (max-width: 40rem) {
   .agent-setup-dialog-heading, .agent-setup-surface > .agent-script-setup { padding: var(--space-sm); }
   .agent-setup-dialog-heading h2 { font-size: var(--text-lg); }

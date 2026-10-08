@@ -54,6 +54,8 @@ interface HistoryResponse {
     probable_cause: string | null;
     last_heartbeat_at: number | null;
     last_metrics_at: number | null;
+    uptime_seconds?: number | null;
+    uptime_received_at?: number | null;
     agent_version: string | null;
     heartbeat_interval_seconds: number;
     middleware_failure_count?: number;

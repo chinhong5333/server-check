@@ -70,6 +70,12 @@ describe("raw load history", () => {
     expect(execute.mock.calls[1][0]).toContain("AVG(load_5) AS load_5");
     expect(execute.mock.calls[2][0]).toContain("mount_point = '/'");
   });
+  it("returns last reported uptime independently of chart buckets and later payloadless heartbeats", async () => {
+    resourceOverrides = { last_uptime_seconds: "90061", last_uptime_received_at: "1500" };
+    const result = await request(app()).get("/agent-1/history?from=0&to=60000&bucket_seconds=60");
+    expect(result.status).toBe(200);
+    expect(result.body.agent).toMatchObject({ uptime_seconds: 90061, uptime_received_at: 1500, last_heartbeat_at: 2000 });
+  });
   it.each([null, "0"])("preserves unavailable or zero latest readings (%s)", async (value) => {
     latest = value;
     const result = await request(app()).get("/agent-1/history?from=0&to=3000&bucket_seconds=1800");

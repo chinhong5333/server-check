@@ -37,6 +37,8 @@ interface AgentRow extends RowDataPacket {
   probable_cause: string | null;
   last_heartbeat_at: string | null;
   last_metrics_at: string | null;
+  last_uptime_seconds: string | null;
+  last_uptime_received_at: string | null;
   agent_version: string | null;
   heartbeat_interval_seconds: number;
   middleware_failure_count: number;
@@ -150,6 +152,8 @@ export function createAgentsRouter(config: AppConfig): Router {
    * @param {string} request.query.to Inclusive Unix timestamp in milliseconds for the history range end.
    * @param {string} request.query.bucket_seconds Aggregation bucket; accepted values are 60, 300, 1800, and 3600.
    * @param {import("express").Response} response Current status summary and aligned metric-history points for the selected agent.
+   * @param {number|null} response.body.agent.uptime_seconds Last accepted, non-null reported OS uptime in seconds; independent of chart aggregation and the most recent payloadless heartbeat.
+   * @param {number|null} response.body.agent.uptime_received_at Central receipt timestamp for that uptime value, Unix milliseconds; clients must mark stale values rather than extrapolating through missed reports.
    * @returns {Promise<void>} Returns agent.checks selections and nullable agent.service_health (apache/nginx service_name/status and middleware_api probe diagnostics) with the latest valid report timestamp; resolves after aggregation.
    */
   router.get(
@@ -167,6 +171,7 @@ export function createAgentsRouter(config: AppConfig): Router {
         `SELECT a.id, a.public_id, a.server_name, a.health_api_url, a.check_configuration_json,
                 a.last_service_checks_json, a.status, a.probable_cause,
                 a.last_heartbeat_at, a.last_metrics_at, a.agent_version,
+                a.last_uptime_seconds, a.last_uptime_received_at,
                 a.heartbeat_interval_seconds, a.middleware_failure_count,
                 a.middleware_failure_threshold, p.public_id AS project_public_id,
                 latest.load_5 AS latest_load_5,
@@ -244,6 +249,8 @@ export function createAgentsRouter(config: AppConfig): Router {
           probable_cause: agent.probable_cause,
           last_heartbeat_at: agent.last_heartbeat_at === null ? null : Number(agent.last_heartbeat_at),
           last_metrics_at: agent.last_metrics_at === null ? null : Number(agent.last_metrics_at),
+          uptime_seconds: agent.last_uptime_seconds == null ? null : Number(agent.last_uptime_seconds),
+          uptime_received_at: agent.last_uptime_received_at == null ? null : Number(agent.last_uptime_received_at),
           agent_version: agent.agent_version,
           heartbeat_interval_seconds: Number(agent.heartbeat_interval_seconds),
           middleware_failure_count: Number(agent.middleware_failure_count),

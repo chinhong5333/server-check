@@ -1,14 +1,17 @@
-import { AlertTriangle, BellRing, CircleX, Clock3, RadioTower } from "lucide-react";
+import { AlertTriangle, BellRing, CircleX, Clock3, RadioTower, Timer } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import type { AgentHealthSnapshot, AgentSummary } from "../../shared/contracts";
 import { formatDateTime, formatLatency } from "../lib/format";
 import { agentStateCause } from "./AgentStateDisplay";
 import { StatusBadge } from "./StatusBadge";
+import { formatServerUptime } from "../../shared/uptime";
 
 type SummaryAgent = Pick<AgentSummary, "status" | "probable_cause" | "last_heartbeat_at" | "heartbeat_interval_seconds" | "agent_version"> & {
   service_health?: AgentHealthSnapshot | null;
   middleware_failure_count?: number;
   middleware_failure_threshold?: number;
+  uptime_seconds?: number | null;
+  uptime_received_at?: number | null;
 };
 
 interface StatusNotice {
@@ -110,12 +113,14 @@ export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false 
     return () => window.clearInterval(timer);
   }, []);
   const summary = heartbeatSummary(agent, now);
+  const uptimeReceived = agent.uptime_received_at ?? null;
+  const uptimeStale = uptimeReceived !== null && now >= uptimeReceived + agent.heartbeat_interval_seconds * 1000;
   const notice = statusNotice(agent, summary);
   const delivery = notificationsMuted ? "TG Muted During Maintenance" : notice?.delivery;
   const statusAnnouncement = [summary.status, summary.qualifier, notice?.title, notice?.message, delivery]
     .filter(Boolean).join(". ");
   return (
-    <section className="agent-heartbeat-summary" aria-label="Agent Status Summary">
+    <section className="agent-heartbeat-summary agent-heartbeat-summary--uptime" aria-label="Agent Status Summary">
       <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{statusAnnouncement}</span>
       <header className="agent-heartbeat-summary__header">
         <div className="agent-heartbeat-summary__identity">
@@ -169,6 +174,14 @@ export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false 
               <strong className="agent-heartbeat-summary__metric-value">Awaiting Data</strong>
             )}
             <p>{summary.deadline === null ? "A deadline starts after the first heartbeat." : <>Deadline: <time dateTime={new Date(summary.deadline).toISOString()}>{formatDateTime(summary.deadline)}</time></>}</p>
+          </div>
+        </article>
+        <article className="agent-heartbeat-summary__metric agent-heartbeat-summary__uptime" aria-label="Server Uptime">
+          <span className="agent-heartbeat-summary__metric-icon" aria-hidden="true"><Timer /></span>
+          <div>
+            <span className="agent-heartbeat-summary__metric-label">Server Uptime{uptimeStale ? <span className="agent-heartbeat-summary__uptime-stale">Stale</span> : null}</span>
+            <strong className="agent-heartbeat-summary__metric-value numeric">{formatServerUptime(agent.uptime_seconds)}</strong>
+            <p>{uptimeReceived === null ? "Awaiting a valid uptime report." : <>Last Reported: <time dateTime={new Date(uptimeReceived).toISOString()}>{formatDateTime(uptimeReceived)}</time></>}</p>
           </div>
         </article>
       </div>

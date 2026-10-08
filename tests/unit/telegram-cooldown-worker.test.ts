@@ -227,4 +227,21 @@ describe("per-agent Telegram delivery cooldown", () => {
     expect((execute as ReturnType<typeof vi.fn>).mock.calls.find(([sql]) => String(sql).includes("INSERT INTO notification_outbox"))?.[1]?.[5]).toBe(now + 30_000);
     expect(execute.mock.calls.some(([sql]) => sql.includes("UPDATE notification_outbox SET payload_json"))).toBe(true);
   });
+  it("delivers a completed restart event once using the issue channel without a recovery message", async () => {
+    const original = executeMock.getMockImplementation()!;
+    let notified = false;
+    executeMock.mockImplementation(async (sql: string, values: unknown[] = []) => {
+      if (sql.includes("SELECT o.incident_id")) return [[{ incident_id: "restart-1", attempt_count: 0, next_attempt_at: now,
+        payload_json: { ...payload, severity: "warning", incident_type: "server_restart", details: { previous_uptime_seconds: 100000, current_uptime_seconds: 30 } },
+        event_type: "opened", incident_type: "server_restart", incident_status: "resolved" }]];
+      if (sql.includes("SELECT id FROM notification_outbox") && sql.includes("status = 'sent'")) return [notified ? [{ id: "already-sent" }] : []];
+      if (sql.includes("SET status = 'sent'")) notified = true;
+      return original(sql, values);
+    });
+    await deliverTelegram(config);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const text = JSON.parse(fetchMock.mock.calls[0][1].body).text;
+    expect(text).toContain("Possible Server Restart"); expect(text).toContain("Current Uptime: 30 Seconds"); expect(text).not.toContain("[RECOVERY]");
+    expect(executeMock.mock.calls.some(([sql]) => String(sql).includes("Restart event was already notified"))).toBe(true);
+  });
 });

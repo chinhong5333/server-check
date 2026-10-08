@@ -484,6 +484,7 @@ export function createProjectsRouter(config: AppConfig): Router {
                health_request_timeout_seconds = ?, status = 'new',
                probable_cause = 'Awaiting first heartbeat after script replacement',
                agent_version = NULL, last_heartbeat_at = NULL, last_metrics_at = NULL,
+               last_uptime_seconds = NULL, last_uptime_observed_at = NULL, last_uptime_received_at = NULL,
                last_validation_error = NULL, last_ram_available_percent = NULL,
                last_disk_available_percent = NULL, last_load_5_per_core = NULL,
                last_health_outcome = NULL, last_health_http_status_code = NULL,
