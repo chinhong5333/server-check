@@ -239,6 +239,8 @@ export const filesystemMetricSchema = z
   })
   .strict();
 
+export const MAX_TOP_PROCESSES = 10;
+
 export const processMetricSchema = z
   .object({
     command: z.string().min(1).max(120),
@@ -269,7 +271,7 @@ export const telemetryPayloadSchema = z
     database_health: databaseHealthSchema.nullable().optional().default(null),
     metrics: hostMetricsSchema,
     filesystems: z.array(filesystemMetricSchema).max(32),
-    top_processes: z.array(processMetricSchema).max(10),
+    top_processes: z.array(processMetricSchema).max(MAX_TOP_PROCESSES),
     service_checks: serviceCheckSchema
   })
   .strict();

@@ -10,6 +10,7 @@ ecosystem.local.config.cjs
 coverage/
 playwright-report/
 test-results/
+test/inputs/*.local.json
 output/
 *.log
 !.hallmark/log.json

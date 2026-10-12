@@ -1,0 +1,60 @@
+{
+  "checks": { "apache": true, "nginx": true, "middleware_api": true },
+  "base_payload": {
+    "sequence_id": 1, "observed_at": 1, "agent_version": "1.3.0",
+    "health_probe": { "checked_at": 1, "outcome": "healthy", "http_status_code": 200, "latency_ms": 18, "error_code": null, "error_message": null },
+    "database_health": { "status": "alive", "message": "", "connection_count": 58, "connection_max": 150, "threads_running": 1, "peak_connections": 67, "long_queries": 0, "db_size_mb": 8329.7 },
+    "metrics": { "cpu_count": 2, "load_1": 0.1, "load_5": 0.2, "load_15": 0.3, "memory_total_bytes": 100, "memory_available_bytes": 80, "swap_total_bytes": 0, "swap_free_bytes": 0, "uptime_seconds": 100 },
+    "filesystems": [{ "filesystem": "/dev/test-root", "mount_point": "/", "total_bytes": 1000, "available_bytes": 800, "inode_used_percent": 10 }],
+    "service_checks": { "apache": { "service_name": "apache2", "status": "active" }, "nginx": { "service_name": "nginx", "status": "active" } }
+  },
+  "cases": [
+    {
+      "name": "skips high process RAM while saving valid entries and all core telemetry",
+      "top_processes": [{ "command": "valid-worker", "cpu_percent": 250, "memory_percent": 100 }, { "command": "invalid-worker", "cpu_percent": 5, "memory_percent": 105 }],
+      "expected_status": 202, "expected_processes": [{ "command": "valid-worker", "cpu_percent": 250, "memory_percent": 100 }], "expected_skipped": [{ "process_index": 1, "memory_percent": 105 }]
+    },
+    {
+      "name": "accepts an empty process list after every high-RAM entry is skipped",
+      "top_processes": [{ "command": "invalid-1", "cpu_percent": 1, "memory_percent": 101 }, { "command": "invalid-2", "cpu_percent": 2, "memory_percent": 500 }],
+      "expected_status": 202, "expected_processes": [], "expected_skipped": [{ "process_index": 0, "memory_percent": 101 }, { "process_index": 1, "memory_percent": 500 }]
+    },
+    {
+      "name": "continues to reject negative process RAM readings",
+      "top_processes": [{ "command": "negative-worker", "cpu_percent": 1, "memory_percent": -1 }],
+      "expected_status": 422, "expected_processes": [], "expected_skipped": []
+    },
+    {
+      "name": "continues to reject string process RAM readings",
+      "top_processes": [{ "command": "string-worker", "cpu_percent": 1, "memory_percent": "120" }],
+      "expected_status": 422, "expected_processes": [], "expected_skipped": []
+    },
+    {
+      "name": "rejects invalid core metrics even when a process entry is skipped",
+      "top_processes": [{ "command": "invalid-worker", "cpu_percent": 1, "memory_percent": 101 }], "metrics_override": { "memory_total_bytes": -1 },
+      "expected_status": 422, "expected_processes": [], "expected_skipped": [{ "process_index": 0, "memory_percent": 101 }]
+    },
+    {
+      "name": "does not bypass the original ten-process limit",
+      "top_processes": [
+        { "command": "p0", "cpu_percent": 1, "memory_percent": 101 }, { "command": "p1", "cpu_percent": 1, "memory_percent": 101 },
+        { "command": "p2", "cpu_percent": 1, "memory_percent": 101 }, { "command": "p3", "cpu_percent": 1, "memory_percent": 101 },
+        { "command": "p4", "cpu_percent": 1, "memory_percent": 101 }, { "command": "p5", "cpu_percent": 1, "memory_percent": 101 },
+        { "command": "p6", "cpu_percent": 1, "memory_percent": 101 }, { "command": "p7", "cpu_percent": 1, "memory_percent": 101 },
+        { "command": "p8", "cpu_percent": 1, "memory_percent": 101 }, { "command": "p9", "cpu_percent": 1, "memory_percent": 101 },
+        { "command": "p10", "cpu_percent": 1, "memory_percent": 101 }
+      ],
+      "expected_status": 422, "expected_processes": [], "expected_skipped": []
+    },
+    {
+      "name": "preserves legitimate CPU readings above one hundred percent",
+      "top_processes": [{ "command": "multicore-worker", "cpu_percent": 350, "memory_percent": 40 }],
+      "expected_status": 202, "expected_processes": [{ "command": "multicore-worker", "cpu_percent": 350, "memory_percent": 40 }], "expected_skipped": []
+    },
+    {
+      "name": "does not silently supply a missing process list",
+      "omit_top_processes": true,
+      "expected_status": 422, "expected_processes": [], "expected_skipped": []
+    }
+  ]
+}

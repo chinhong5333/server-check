@@ -10,6 +10,7 @@ import { advanceMiddlewareFailures } from "../services/middleware-failures.js";
 import { lockAgentAlerts } from "../services/alert-queue.js";
 import { observeServerUptime } from "../services/server-uptime.js";
 import { matchesConfiguredChecks, readAgentChecks } from "../services/check-configuration.js";
+import { skipExcessProcessMemory } from "../services/process-telemetry.js";
 
 interface AgentPolicyRow extends RowDataPacket {
   id: string;
@@ -83,6 +84,10 @@ export function createHeartbeatRouter(config: AppConfig): Router {
    * @param {Request<{}, {}, Buffer>} request Agent request authenticated by Authorization Bearer credential; body may be empty or JSON telemetry.
    * @param {object} request.body.service_checks Apache and optional legacy-compatible Nginx service results; each contains service_name and status (active, inactive, unknown, disabled).
    * @param {object} request.body.health_probe Middleware API result; disabled outcomes must have null HTTP, latency, and error fields. Configured enabled states must match the payload.
+   * @param {object[]} request.body.top_processes Up to ten optional diagnostic process records. An entire entry with a finite numeric memory_percent above 100 is discarded and logged; the remaining payload still undergoes strict validation.
+   * @param {string} request.body.top_processes[].command Process name, 1–120 characters.
+   * @param {number} request.body.top_processes[].cpu_percent Process CPU percentage, 0–100000; multicore values above 100 remain valid.
+   * @param {number} request.body.top_processes[].memory_percent Process RAM percentage, 0–100 for retained records. Negative, missing, nonnumeric and nonfinite values remain validation errors.
    * @param {number|null} request.body.metrics.uptime_seconds Reported OS uptime in seconds. A decrease in a sequence-unique, strictly newer valid sample records a one-off possible-restart event; null and older samples preserve the baseline.
    * @param {number} request.body.observed_at Agent observation timestamp in Unix milliseconds, used to exclude older uptime reports.
    * @param {number} request.body.sequence_id Agent sample identifier; duplicate sequences do not update uptime or create restart events.
@@ -150,7 +155,13 @@ export function createHeartbeatRouter(config: AppConfig): Router {
       } catch {
         decoded = null;
       }
-      const parsed = telemetryPayloadSchema.safeParse(decoded);
+      const processTelemetry = skipExcessProcessMemory(decoded);
+      if (processTelemetry.skipped.length > 0) request.log?.warn({
+        agent_id: agent.public_id,
+        skipped_count: processTelemetry.skipped.length,
+        skipped_processes: processTelemetry.skipped
+      }, "Skipped process records with reported RAM usage above 100%");
+      const parsed = telemetryPayloadSchema.safeParse(processTelemetry.payload);
 
       const checkMismatch = parsed.success && !matchesConfiguredChecks(readAgentChecks(agent.check_configuration_json), parsed.data);
       if (!parsed.success || checkMismatch) {
