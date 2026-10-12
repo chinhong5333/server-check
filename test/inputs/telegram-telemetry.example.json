@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "name": "explains process RAM above the allowed maximum",
+      "payload": { "severity": "warning", "server_name": "test-api", "project_name": "Test Project", "incident_type": "telemetry_invalid", "details": { "validation_error": "top_processes.0.memory_percent: Too big: expected number to be <=100" } },
+      "expected_lines": ["Details: Process 1 reported RAM usage above 100%.", "The agent is reachable, but the metrics from this report were rejected."],
+      "forbidden_text": ["top_processes.0", "Too big"]
+    },
+    {
+      "name": "explains a negative RAM reading using a human process number",
+      "payload": { "severity": "warning", "incident_type": "telemetry_invalid", "details": { "validation_error": "top_processes.1.memory_percent: Too small: expected number to be >=0" } },
+      "expected_lines": ["Details: Process 2 reported RAM usage below 0%."],
+      "forbidden_text": ["top_processes.1", "Too small"]
+    },
+    {
+      "name": "explains a missing or nonnumeric process RAM reading",
+      "payload": { "severity": "warning", "incident_type": "telemetry_invalid", "details": { "validation_error": "top_processes.2.memory_percent: Invalid input: expected number, received string" } },
+      "expected_lines": ["Process 3 did not report a valid RAM usage percentage. The allowed range is 0% to 100%."],
+      "forbidden_text": ["top_processes.2", "expected number"]
+    },
+    {
+      "name": "retains unknown diagnostics with a clear technical-detail label",
+      "payload": { "severity": "warning", "incident_type": "telemetry_invalid", "details": { "validation_error": "metrics.cpu_count: Invalid input: expected number, received string" } },
+      "expected_lines": ["The report contains invalid monitoring values. Technical detail: metrics.cpu_count:"],
+      "forbidden_text": []
+    },
+    {
+      "name": "explains multiple invalid process readings without mutating the payload",
+      "payload": { "severity": "warning", "incident_type": "telemetry_invalid", "details": { "validation_error": "top_processes.0.memory_percent: Too big: expected number to be <=100; top_processes.3.memory_percent: Too small: expected number to be >=0" } },
+      "expected_lines": ["Process 1 reported RAM usage above 100%. Process 4 reported RAM usage below 0%."],
+      "forbidden_text": ["top_processes."]
+    },
+    {
+      "name": "explains telemetry recovery without declaring the entire server healthy",
+      "payload": { "severity": "recovery", "incident_type": "telemetry_invalid", "remaining_open_incidents": 1 },
+      "expected_lines": ["Recovered Check: Agent Metrics", "Valid monitoring data is being received again.", "Other Open Issues: 1. This agent still needs attention."],
+      "forbidden_text": ["Recovered Check: Telemetry", "No other open issues"]
+    },
+    {
+      "name": "preserves unrelated middleware alert formatting",
+      "payload": { "severity": "critical", "server_name": "test-api", "project_name": "Test Project", "incident_type": "health_api_unhealthy", "probable_cause": "Middleware API returned an error", "details": { "http_status_code": 500 } },
+      "expected_lines": ["Probable cause: Middleware API returned an error", "Details: HTTP 500"],
+      "forbidden_text": ["invalid metrics report", "metrics from this report were rejected"]
+    }
+  ]
+}

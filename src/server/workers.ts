@@ -71,6 +71,24 @@ export async function scanMissedHeartbeats(config: AppConfig): Promise<void> {
     });
   }
 }
+/** Converts stored validation diagnostics into clear Telegram copy without changing the stored error. */
+function telemetryDetails(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "The report contains missing or invalid monitoring values.";
+  return value.split("; ").map(error => {
+    const memory = /^top_processes\.(\d+)\.memory_percent:\s*(.+)$/.exec(error);
+    if (!memory) return `The report contains invalid monitoring values. Technical detail: ${error}`;
+    const process = Number(memory[1]) + 1;
+    if (memory[2].startsWith("Too big:")) return `Process ${process} reported RAM usage above 100%.`;
+    if (memory[2].startsWith("Too small:")) return `Process ${process} reported RAM usage below 0%.`;
+    return `Process ${process} did not report a valid RAM usage percentage. The allowed range is 0% to 100%.`;
+  }).join(" ");
+}
+
+/**
+ * Renders plain-text incident notifications, translating invalid telemetry into operator-readable copy.
+ * @param {Record<string, unknown>} payload Stored notification payload and optional delivery-time incident count.
+ * @returns {string} Telegram message limited to 4096 characters; stored diagnostics remain unchanged.
+ */
 export function telegramText(payload: Record<string, unknown>): string {
   const severity = String(payload.severity ?? "recovery").toUpperCase();
   const serverName = String(payload.server_name ?? "Unknown server");
@@ -88,10 +106,13 @@ export function telegramText(payload: Record<string, unknown>): string {
     const labels: Record<string, string> = { ram_low: "RAM", disk_low: "Root Storage", load_high: "CPU Load",
       health_api_unhealthy: "Middleware API", database_not_alive: "Database", heartbeat_missed: "Heartbeat",
       apache_inactive: "Apache Availability", nginx_inactive: "Nginx Availability",
-      apache_unknown: "Apache Status Detection", nginx_unknown: "Nginx Status Detection", telemetry_invalid: "Telemetry" };
+      apache_unknown: "Apache Status Detection", nginx_unknown: "Nginx Status Detection", telemetry_invalid: "Agent Metrics" };
     const recoveredCheck = labels[type] ?? type.replaceAll("_", " ");
     const remaining = Number(payload.remaining_open_incidents ?? 0);
-    return `[RECOVERY] ${serverName}\nProject: ${projectName}\nRecovered Check: ${recoveredCheck}\n${remaining > 0 ? `Other Open Issues: ${remaining}. This agent still needs attention.` : "No other open issues are currently recorded."}`.slice(0, 4096);
+    return `[RECOVERY] ${serverName}\nProject: ${projectName}\nRecovered Check: ${recoveredCheck}\n${type === "telemetry_invalid" ? "Valid monitoring data is being received again.\n" : ""}${remaining > 0 ? `Other Open Issues: ${remaining}. This agent still needs attention.` : "No other open issues are currently recorded."}`.slice(0, 4096);
+  }
+  if (payload.incident_type === "telemetry_invalid") {
+    return `[${severity}] ${serverName}\nProject: ${projectName}\nProbable cause: The agent sent an invalid metrics report.\nDetails: ${telemetryDetails(details.validation_error)}\nThe agent is reachable, but the metrics from this report were rejected.`.slice(0, 4096);
   }
   return `[${severity}] ${serverName}\nProject: ${projectName}\nProbable cause: ${cause}${diagnostics ? `\nDetails: ${diagnostics}` : ""}${databaseDiagnostics ? `\nDatabase: ${databaseDiagnostics}` : ""}`.slice(0, 4096);
 }
