@@ -381,6 +381,13 @@ export interface AgentSummary {
   last_heartbeat_at: number | null;
   last_metrics_at: number | null;
   agent_version: string | null;
+  /** Optional during rolling central-server upgrades; last accepted OS uptime, not an extrapolated clock. */
+  uptime_seconds?: number | null;
+  uptime_received_at?: number | null;
+  /** Validated latest persisted service results; absent/corrupt snapshots are null. */
+  service_health?: AgentHealthSnapshot | null;
+  /** Latest heartbeat's database status only. Raw responses remain on the detail endpoint. */
+  database_status?: string | null;
   ram_available_percent: number | null;
   disk_available_percent: number | null;
   load_5_per_core: number | null;

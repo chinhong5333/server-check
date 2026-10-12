@@ -6,6 +6,8 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import {
   DEFAULT_HEALTH_REQUEST_TIMEOUT_SECONDS,
   DEFAULT_TELEGRAM_RECOVERY_COOLDOWN_SECONDS,
+  agentHealthSnapshotSchema,
+  databaseHealthSchema,
   createAgentInstallationBodySchema,
   createProjectBodySchema,
   deleteProjectBodySchema,
@@ -64,6 +66,10 @@ interface AgentRow extends RowDataPacket {
   last_heartbeat_at: string | null;
   last_metrics_at: string | null;
   agent_version: string | null;
+  last_uptime_seconds: string | null;
+  last_uptime_received_at: string | null;
+  last_service_checks_json: unknown;
+  latest_database_health_json: unknown;
   last_ram_available_percent: string | null;
   last_disk_available_percent: string | null;
   last_load_5_per_core: string | null;
@@ -116,6 +122,17 @@ function numeric(value: string | number | null): number | null {
   if (value === null) return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+/** Validates optional stored snapshots without allowing malformed JSON to break the roster. */
+function readSnapshot<T>(value: unknown, schema: z.ZodType<T>): T | null {
+  if (value == null) return null;
+  try {
+    const parsed = schema.safeParse(typeof value === "string" ? JSON.parse(value) : value);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
 }
 
 async function findProject(config: AppConfig, projectPublicId: string): Promise<ProjectRow> {
@@ -570,6 +587,10 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {string} request.params.project_id Active project's public UUID.
    * @param {import("express").Response<AgentSummary[]>} response Agent summaries ordered by severity.
    * @param {object} response.body.checks Saved Apache, Nginx, and middleware_api selections for each agent.
+   * @param {object|null} response.body.service_health Validated latest Apache, Nginx and middleware API results; null when absent or corrupt.
+   * @param {string|null} response.body.database_status Latest heartbeat's validated database status; null when that report has no database snapshot. Raw responses are not included.
+   * @param {number|null} response.body.uptime_seconds Last accepted OS uptime in seconds, independent of a later payloadless heartbeat.
+   * @param {number|null} response.body.uptime_received_at Central receipt timestamp for the uptime reading, Unix milliseconds; clients must mark expired readings stale.
    * @param {number} response.body.telegram_alert_cooldown_seconds Minimum per-agent gap between successfully delivered issue alerts.
    * @param {number} response.body.telegram_recovery_cooldown_seconds Per-agent recovery delay and minimum recovery-delivery gap, in seconds.
    * @param {object|null} response.body.maintenance Effective {status, scope}, including inherited project maintenance; active wins over scheduled.
@@ -583,20 +604,22 @@ export function createProjectsRouter(config: AppConfig): Router {
       const now = Date.now();
       const project = await findProject(config, request.params.project_id);
       const [rows] = await getPool(config).execute<AgentRow[]>(
-        `SELECT id, public_id, server_name, health_api_url, check_configuration_json, status, probable_cause,
-                last_heartbeat_at, last_metrics_at, agent_version,
-                last_ram_available_percent, last_disk_available_percent,
-                last_load_5_per_core, last_health_outcome,
-                last_health_http_status_code, last_health_latency_ms,
-                ram_available_threshold_percent, disk_available_threshold_percent,
-                load_5_per_core_threshold, heartbeat_interval_seconds,
-                telegram_alert_cooldown_seconds, telegram_recovery_cooldown_seconds, middleware_failure_threshold,
-                (SELECT m.load_5 FROM metric_samples m
-                 WHERE m.agent_id = agents.id AND m.received_at = agents.last_heartbeat_at
-                   AND m.is_delete = 0 ORDER BY m.id DESC LIMIT 1) AS latest_load_5
-         FROM agents
-         WHERE project_id = ? AND is_delete = 0
-         ORDER BY FIELD(status, 'critical', 'warning', 'stale', 'new', 'healthy'), server_name ASC`,
+        `SELECT a.id, a.public_id, a.server_name, a.health_api_url, a.check_configuration_json, a.status, a.probable_cause,
+                a.last_heartbeat_at, a.last_metrics_at, a.agent_version,
+                a.last_uptime_seconds, a.last_uptime_received_at, a.last_service_checks_json,
+                a.last_ram_available_percent, a.last_disk_available_percent,
+                a.last_load_5_per_core, a.last_health_outcome,
+                a.last_health_http_status_code, a.last_health_latency_ms,
+                a.ram_available_threshold_percent, a.disk_available_threshold_percent,
+                a.load_5_per_core_threshold, a.heartbeat_interval_seconds,
+                a.telegram_alert_cooldown_seconds, a.telegram_recovery_cooldown_seconds, a.middleware_failure_threshold,
+                latest.load_5 AS latest_load_5, latest.database_health_json AS latest_database_health_json
+         FROM agents a
+         LEFT JOIN metric_samples latest ON latest.id = (
+           SELECT m.id FROM metric_samples m WHERE m.agent_id = a.id
+             AND m.received_at = a.last_heartbeat_at AND m.is_delete = 0 ORDER BY m.id DESC LIMIT 1)
+         WHERE a.project_id = ? AND a.is_delete = 0
+         ORDER BY FIELD(a.status, 'critical', 'warning', 'stale', 'new', 'healthy'), a.server_name ASC`,
         [project.id]
       );
       const maintenance = await readMaintenanceIndicators(getPool(config), [String(project.id)], now);
@@ -611,6 +634,10 @@ export function createProjectsRouter(config: AppConfig): Router {
         last_heartbeat_at: numeric(row.last_heartbeat_at),
         last_metrics_at: numeric(row.last_metrics_at),
         agent_version: row.agent_version,
+        uptime_seconds: numeric(row.last_uptime_seconds),
+        uptime_received_at: numeric(row.last_uptime_received_at),
+        service_health: readSnapshot(row.last_service_checks_json, agentHealthSnapshotSchema),
+        database_status: readSnapshot(row.latest_database_health_json, databaseHealthSchema)?.status ?? null,
         ram_available_percent: numeric(row.last_ram_available_percent),
         disk_available_percent: numeric(row.last_disk_available_percent),
         load_5_per_core: numeric(row.last_load_5_per_core),
