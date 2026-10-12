@@ -3378,3 +3378,160 @@ button.back-link {
 @media (max-width: 59.999rem) {
   .telegram-log-heading { padding: var(--space-md); gap: var(--space-sm); }
 }
+
+/* Hallmark · component: agent-roster · genre: modern-minimal · theme: existing Cobalt
+ * pre-emit critique: P5 H5 E5 S5 R5 V4 · readable tables and consistent row rhythm */
+.agent-roster-surface { container: agent-roster / inline-size; --agent-check-row-height: 3.5rem; }
+.agent-roster-table .server-cell strong { white-space: normal; overflow-wrap: anywhere; }
+.agent-roster-table > tbody > tr > th, .agent-roster-table > tbody > tr > td { vertical-align: top; padding-block: var(--space-lg); }
+.agent-roster-table .server-cell > small { margin-block: var(--space-xs) var(--space-md); font-size: var(--text-sm); }
+.agent-roster-table .agent-state-stack { display: grid; gap: var(--space-xs); }
+.agent-roster-table .agent-state-stack small { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 400; }
+.agent-roster-table .status { font-size: var(--text-sm); }
+.agent-roster-table .resource-stack { max-width: none; gap: 0; }
+.agent-roster-table .resource-stack > span { min-height: var(--agent-check-row-height); align-items: center; gap: var(--space-sm); }
+.agent-roster-table .resource-stack small { font-size: var(--text-base); white-space: normal; }
+.agent-roster-table .agent-roster-checks { display: table; width: 100%; border-collapse: collapse; table-layout: auto; margin: 0; font-size: var(--text-base); }
+.agent-roster-table .agent-roster-checks > thead { display: table-header-group; }
+.agent-roster-table .agent-roster-checks > tbody { display: table-row-group; }
+.agent-roster-table .agent-roster-checks tr { display: table-row; height: var(--agent-check-row-height); padding: 0; border: 0; background: transparent; transition: none; }
+.agent-roster-table .agent-roster-checks th, .agent-roster-table .agent-roster-checks td { display: table-cell; width: auto; padding: var(--space-2xs) 0; border-block-end: var(--rule-thin) solid var(--color-rule); vertical-align: middle; font-family: var(--font-body); font-size: inherit; line-height: 1.4; }
+.agent-roster-table .agent-roster-checks thead th { height: 2rem; color: var(--color-muted); font-size: var(--text-sm); font-weight: 500; }
+.agent-roster-table .agent-roster-checks thead tr { height: 2.25rem; }
+.agent-roster-table .agent-roster-checks th[scope="row"] { color: var(--color-ink-2); font-weight: 400; white-space: normal; padding-inline-end: var(--space-xs); }
+.agent-roster-table .agent-roster-checks th:last-child, .agent-roster-table .agent-roster-checks td { text-align: end; white-space: nowrap; }
+.agent-roster-table .agent-roster-checks th::before, .agent-roster-table .agent-roster-checks td::before { display: none; }
+.agent-roster-table .agent-roster-checks tbody tr:last-child > * { border-block-end: 0; }
+.agent-roster-check td > span { display: inline-flex; align-items: center; gap: var(--space-xs); }
+.agent-roster-check svg { width: 1rem; height: 1rem; }
+.agent-roster-check--healthy { color: var(--color-success); }
+.agent-roster-check--critical { color: var(--color-error); }
+.agent-roster-check--warning { color: var(--color-warning); }
+.agent-roster-check--new, .agent-roster-check--stale { color: var(--color-muted); }
+.agent-report-stack, .agent-report-stack > div { display: grid; align-content: start; gap: var(--space-xs); }
+.agent-report-stack { gap: var(--space-lg); font-size: var(--text-base); }
+.agent-report-stack small { color: var(--color-muted); font-size: var(--text-sm); }
+.agent-roster-stale, .agent-report-stack .agent-roster-stale { display: block; margin-block-end: var(--space-xs); color: var(--color-warning); font-size: var(--text-sm); }
+.agent-roster-view { min-height: 44px; padding-inline: var(--space-sm); font-size: var(--text-sm); white-space: nowrap; }
+.agent-roster-table .agent-row-actions { flex-wrap: nowrap; gap: var(--space-sm); }
+.agent-roster-table .agent-row-actions > .icon-button { min-width: 44px; min-height: 44px; }
+.agent-actions-popover { position: fixed; inset: auto; width: max-content; max-width: calc(100% - var(--space-md)); margin: 0; padding: var(--space-2xs); border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-md); background: var(--color-surface-raised); color: var(--color-ink); }
+.agent-actions-popover:popover-open { display: grid; gap: var(--space-2xs); }
+.agent-actions-popover > .button { min-height: 44px; justify-content: flex-start; border-color: transparent; white-space: nowrap; font-size: var(--text-sm); }
+.agent-actions-popover > .icon-button--danger { color: var(--color-error); }
+@media (min-width: 64rem) {
+  .agent-roster-table > thead > tr > th:first-child { width: 18%; }
+  .agent-roster-table > thead > tr > th:nth-child(2) { width: 18%; }
+  .agent-roster-table > thead > tr > th:nth-child(3) { width: 25%; }
+  .agent-roster-table > thead > tr > th:nth-child(4) { width: 22%; }
+  .agent-roster-table > thead > tr > th:last-child { width: 17%; }
+  .agent-roster-table > thead > tr > th { font-size: var(--text-sm); }
+}
+@container agent-roster (max-width: 70rem) {
+  .agent-roster-table, .agent-roster-table > tbody { display: block; }
+  .agent-roster-table > thead { display: none; }
+  .agent-roster-table > tbody > tr { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); padding: var(--space-lg); }
+  .agent-roster-table > tbody > tr > th, .agent-roster-table > tbody > tr > td { display: block; width: auto; padding: 0; border-block-end: 0; }
+  .agent-roster-table tbody .server-cell { width: auto; }
+  .agent-roster-table > tbody > tr > td::before { display: block; margin-block-end: var(--space-sm); color: var(--color-ink); font-family: var(--font-body); font-size: var(--text-base); font-weight: 600; text-transform: none; }
+  .agent-roster-table .server-cell::before, .agent-roster-table .row-action::before { display: none; }
+  .agent-roster-table > tbody > tr > td { border-block-start: var(--rule-thin) solid var(--color-rule); padding-block-start: var(--space-md); }
+  .agent-roster-table .server-cell, .agent-roster-table .agent-heartbeat-cell, .agent-roster-table .row-action { grid-column: 1 / -1; }
+  .agent-roster-table > tbody > tr > .row-action { display: flex !important; }
+  .agent-roster-table .agent-report-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-lg); }
+  .agent-roster-table .agent-heartbeat-cell::before { display: none; }
+}
+@container agent-roster (min-width: 36rem) and (max-width: 70rem) {
+  .agent-roster-table > tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Monitoring inventory: comfortable scan rows, explicit status, progressive detail. */
+.agent-roster-surface--inventory { --agent-check-row-height: 2rem; }
+.roster-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm) var(--space-lg); padding: var(--space-sm) var(--space-lg); border-block-end: var(--rule-thin) solid var(--color-rule); }
+.roster-filters { display: flex; align-items: center; gap: var(--space-2xs); }
+.roster-filters button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: 44px; padding: var(--space-xs) var(--space-sm); border: 0; border-block-end: 2px solid transparent; border-radius: 0; background: transparent; color: var(--color-muted); font-size: var(--text-base); font-weight: 500; white-space: nowrap; cursor: pointer; }
+.roster-filters button .numeric { font-size: var(--text-sm); color: var(--color-muted); }
+.roster-filters button[aria-pressed="true"] { border-block-end-color: var(--color-accent); color: var(--color-ink); }
+.roster-filters button:hover { background: var(--color-paper-3); }
+.roster-filters button:active { background: var(--color-info-surface); }
+.roster-search { display: flex; align-items: center; gap: var(--space-xs); width: 18rem; max-width: 100%; margin-inline-start: auto; padding-inline: var(--space-sm); border: var(--rule-thin) solid var(--color-rule-strong); border-radius: var(--radius-md); background: var(--color-paper); color: var(--color-muted); }
+.roster-search input { width: 100%; min-width: 0; min-height: 42px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: var(--text-base); box-shadow: none; }
+.roster-search:focus-within { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.roster-search input:focus-visible { outline: none; box-shadow: none; }
+.agent-roster-surface--inventory .agent-roster-table > thead > tr > th { padding: var(--space-sm) var(--space-lg); background: var(--color-paper-3); font-family: var(--font-body); font-size: var(--text-sm); font-weight: 500; }
+.agent-roster-surface--inventory .agent-roster-table > thead > tr > th:first-child { width: 26%; }
+.agent-roster-surface--inventory .agent-roster-table > thead > tr > th:nth-child(2) { width: 20%; }
+.agent-roster-surface--inventory .agent-roster-table > thead > tr > th:nth-child(3) { width: 25%; }
+.agent-roster-surface--inventory .agent-roster-table > thead > tr > th:nth-child(4) { width: 22%; }
+.agent-roster-surface--inventory .agent-roster-table > thead > tr > th:last-child { width: 7%; padding-inline: var(--space-sm); }
+.agent-roster-surface--inventory .agent-roster-table > tbody > tr { height: 11rem; }
+.agent-roster-row { cursor: pointer; }
+.agent-roster-surface--inventory .agent-roster-table > tbody > tr > th,
+.agent-roster-surface--inventory .agent-roster-table > tbody > tr > td { padding: var(--space-md) var(--space-lg); vertical-align: middle; }
+.agent-roster-surface--inventory .agent-roster-table > tbody > tr > .row-action { padding-inline: var(--space-sm); }
+.roster-identity { display: grid; gap: var(--space-xs); font-weight: 400; }
+.roster-agent-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-accent); font-size: var(--text-base); line-height: 1.4; text-decoration: none; }
+.roster-agent-link strong { color: inherit; }
+.roster-agent-link:hover { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+.roster-identity__meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
+.roster-identity__meta > span:last-child { color: var(--color-muted); font-family: var(--font-mono); font-size: var(--text-sm); }
+.roster-identity__cause { font-size: var(--text-sm); font-weight: 400; color: var(--color-muted); line-height: 1.5; }
+.roster-resources { display: grid; gap: var(--space-xs); font-size: var(--text-sm); }
+.roster-resource { min-width: 0; display: grid; align-content: start; gap: var(--space-2xs); }
+.roster-resource > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); }
+.roster-resource > div > span:first-child { color: var(--color-muted); white-space: nowrap; }
+.roster-resource .numeric { color: var(--color-ink); white-space: nowrap; }
+.roster-resource progress, .roster-resource__empty { display: block; appearance: none; width: 100%; height: 3px; border: 0; border-radius: var(--radius-sm); overflow: hidden; background: var(--color-rule); color: var(--color-accent); }
+.roster-resource progress::-webkit-progress-bar { background: var(--color-rule); }
+.roster-resource progress::-webkit-progress-value { background: var(--color-accent); }
+.roster-resource progress::-moz-progress-bar { background: var(--color-accent); }
+.roster-resources--stale progress::-webkit-progress-value { background: var(--color-neutral); }
+.roster-resources--stale progress::-moz-progress-bar { background: var(--color-neutral); }
+.roster-resource-freshness { color: var(--color-muted); font-size: var(--text-sm); grid-column: 1 / -1; }
+.agent-roster-surface--inventory .agent-roster-checks th,
+.agent-roster-surface--inventory .agent-roster-checks td { border: 0; padding-block: 0; }
+.agent-roster-surface--inventory .agent-roster-checks th[scope="row"] { width: 1%; padding-inline-end: calc(var(--space-md) * 1.728); color: var(--color-muted); white-space: nowrap; }
+.agent-roster-surface--inventory .agent-roster-checks td { text-align: start; }
+.agent-roster-surface--inventory .agent-roster-checks { font-size: var(--text-sm); }
+.agent-roster-surface--inventory .agent-report-stack { gap: var(--space-sm); font-size: var(--text-sm); }
+.agent-roster-surface--inventory .agent-report-stack > div { gap: var(--space-2xs); }
+.roster-heartbeat-value { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+.roster-overdue { display: inline-flex; align-items: center; gap: var(--space-2xs); font-size: var(--text-sm); color: var(--color-error); }
+.roster-overdue svg { width: 1rem; height: 1rem; }
+.roster-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm) var(--space-lg); color: var(--color-muted); font-size: var(--text-sm); border-block-start: var(--rule-thin) solid var(--color-rule); }
+.agent-roster-surface--inventory .roster-no-results { height: auto !important; }
+.agent-roster-surface--inventory .roster-no-results > td { padding: var(--space-xl) var(--space-lg); text-align: center; }
+.roster-no-results strong, .roster-no-results p { display: block; margin-block: var(--space-xs); }
+.roster-no-results > td > svg { color: var(--color-muted); width: 1.5rem; height: 1.5rem; }
+@container agent-roster (max-width: 70rem) {
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr { height: auto; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "identity actions" "resources resources" "checks checks" "activity activity"; gap: var(--space-lg); padding: var(--space-lg); }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr > th,
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr > td { padding: 0; border: 0; }
+  .agent-roster-surface--inventory .server-cell { grid-area: identity; }
+  .agent-roster-surface--inventory td[data-label="Resource Use"] { grid-area: resources; }
+  .agent-roster-surface--inventory td[data-label="Health Checks"] { grid-area: checks; }
+  .agent-roster-surface--inventory .agent-heartbeat-cell { grid-area: activity; border-block-start: var(--rule-thin) solid var(--color-rule) !important; padding-block-start: var(--space-md) !important; }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr > .row-action { grid-area: actions; padding: 0; align-self: start; }
+  .agent-roster-surface--inventory td[data-label="Resource Use"]::before, .agent-roster-surface--inventory .row-action::before { display: none; }
+  .agent-roster-surface--inventory td[data-label="Health Checks"]::before { font-size: var(--text-sm); color: var(--color-muted); font-weight: 500; margin-block-end: var(--space-xs); }
+  .agent-roster-surface--inventory .roster-resources { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); }
+  .agent-roster-surface--inventory .roster-resource > div { display: grid; gap: var(--space-xs); justify-content: start; }
+  .agent-roster-surface--inventory .roster-resource .numeric { font-size: var(--text-base); }
+  .agent-roster-surface--inventory .roster-resource > div > span:first-child { font-size: var(--text-sm); }
+  .agent-roster-surface--inventory .roster-resource progress { margin-block-start: var(--space-2xs); }
+  .agent-roster-surface--inventory .roster-no-results { display: block !important; }
+  .agent-roster-surface--inventory .roster-no-results > td { padding: var(--space-lg); }
+}
+@container agent-roster (min-width: 42rem) and (max-width: 70rem) {
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "identity identity actions" "resources checks checks" "activity activity activity"; }
+  .agent-roster-surface--inventory .roster-resources { grid-template-columns: minmax(0, 1fr); }
+  .agent-roster-surface--inventory .roster-resource > div { display: flex; justify-content: space-between; }
+  .agent-roster-surface--inventory .roster-resource > div > span:first-child { font-size: var(--text-sm); }
+}
+@container agent-roster (max-width: 38rem) {
+  .roster-toolbar { flex-direction: column-reverse; align-items: stretch; gap: var(--space-xs); padding: var(--space-md); }
+  .roster-search { width: 100%; }
+  .roster-filters { justify-content: space-between; gap: 0; }
+  .roster-filters button { padding-inline: var(--space-xs); }
+  .roster-footer { padding-inline: var(--space-md); }
+}

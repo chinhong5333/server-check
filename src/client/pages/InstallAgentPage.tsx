@@ -1,7 +1,7 @@
 import { hasPermission } from "../../shared/permissions";
-import { ArrowLeft, ArrowRight, KeyRound, Pencil, Plus, ShieldAlert, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, Eye, KeyRound, Pencil, Plus, Search, ShieldAlert, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
   generateAgentScriptBodySchema,
@@ -14,7 +14,11 @@ import {
 import { ApiError, apiFetch } from "../api";
 import { AgentScriptChecks } from "../components/AgentScriptChecks";
 import { AgentForm } from "../components/AgentForm";
-import { AgentStateDisplay } from "../components/AgentStateDisplay";
+import { agentStateCause } from "../components/AgentStateDisplay";
+import { StatusBadge } from "../components/StatusBadge";
+import { AgentRosterChecks } from "../components/AgentRosterChecks";
+import { AgentActionsMenu } from "../components/AgentActionsMenu";
+import { formatServerUptime } from "../../shared/uptime";
 import { AgentScriptSetup } from "../components/AgentScriptSetup";
 import { EmptyState, ErrorState, InlineLoader, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
@@ -36,22 +40,43 @@ import { useProjects } from "../projects/ProjectProvider";
 function AgentHeartbeatStatus({ agent }: { agent: AgentSummary }) {
   const heartbeatOverdue = agent.last_heartbeat_at !== null
     && Date.now() >= agent.last_heartbeat_at + agent.heartbeat_interval_seconds * 1000;
+  const uptimeStale = agent.uptime_received_at != null
+    && Date.now() >= agent.uptime_received_at + agent.heartbeat_interval_seconds * 1000;
 
   return (
-    <div className="agent-heartbeat">
-      <span>{formatRelativeTime(agent.last_heartbeat_at)}</span>
-      {heartbeatOverdue ? (
-        <small className="agent-heartbeat__warning">
-          <TriangleAlert aria-hidden="true" />
-          Exceeds Heartbeat Interval
-        </small>
-      ) : null}
+    <div className="agent-report-stack">
+      <div className="agent-heartbeat"><small>Last Heartbeat</small>
+        <span className="roster-heartbeat-value"><span className="numeric">{formatRelativeTime(agent.last_heartbeat_at)}</span>
+          {heartbeatOverdue ? <span className="roster-overdue"><TriangleAlert aria-hidden="true" />Overdue</span> : null}
+        </span>
+      </div>
+      <div><small>{uptimeStale ? "Last Reported Uptime" : "Server Uptime"}</small>
+        <span className="numeric">{formatServerUptime(agent.uptime_seconds ?? null)}</span></div>
     </div>
   );
 }
 
+function AgentRosterResources({ agent }: { agent: AgentSummary }) {
+  const stale = agent.last_metrics_at !== null && (agent.status === "stale"
+    || Date.now() >= agent.last_metrics_at + agent.heartbeat_interval_seconds * 1000);
+  const metrics = [
+    { label: "RAM", value: utilizationFromAvailable(agent.ram_available_percent), capacity: true },
+    { label: "Root Disk", value: utilizationFromAvailable(agent.disk_available_percent), capacity: true },
+    { label: "Load/Core", value: agent.load_5_per_core, capacity: false }
+  ];
+  return <div className={`roster-resources${stale ? " roster-resources--stale" : ""}`}>
+    {metrics.map(metric => <div className="roster-resource" key={metric.label}>
+      <div><span>{metric.label}</span><MetricValue value={metric.value} format={metric.capacity ? formatPercent : formatLoadAverage} /></div>
+      {metric.capacity ? metric.value === null ? <span className="roster-resource__empty" aria-hidden="true" />
+        : <progress max={100} value={Math.min(100, Math.max(0, metric.value))} aria-label={`${metric.label} Usage For ${agent.server_name}`} /> : null}
+    </div>)}
+    {stale ? <span className="roster-resource-freshness">Last Reported · Stale</span> : null}
+  </div>;
+}
+
 export function InstallAgentPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const rotationTarget = searchParams.get("rotate_agent");
   const { showToast } = useToast();
@@ -412,6 +437,19 @@ export function InstallAgentPage() {
   }
 
   const registeredAgents = agents.data ?? [];
+  const rosterSearch = searchParams.get("agent_search") ?? "";
+  const rosterFilter = searchParams.get("agent_filter") ?? "all";
+  const visibleAgents = registeredAgents.filter(agent =>
+    agent.server_name.toLocaleLowerCase().includes(rosterSearch.trim().toLocaleLowerCase())
+    && (rosterFilter === "attention" ? agent.status !== "healthy" : rosterFilter === "healthy" ? agent.status === "healthy" : true));
+  const setRosterQuery = (key: "agent_search" | "agent_filter", value: string) => setSearchParams(previous => {
+    const next = new URLSearchParams(previous);
+    if (value && !(key === "agent_filter" && value === "all")) next.set(key, value); else next.delete(key);
+    return next;
+  }, { replace: true });
+  const clearRosterFilters = () => setSearchParams(previous => {
+    const next = new URLSearchParams(previous); next.delete("agent_search"); next.delete("agent_filter"); return next;
+  }, { replace: true });
 
   return (
     <div className="page-stack">
@@ -705,58 +743,66 @@ export function InstallAgentPage() {
         />
       ) : null}
       {agents.status === "success" && registeredAgents.length > 0 ? (
-        <section className="data-surface" aria-labelledby="registered-agents-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="registered-agents-title">Registered Agents</h2>
-              <p>Unhealthy and stale agents are listed first.</p>
+        <section className="data-surface agent-roster-surface agent-roster-surface--inventory" aria-labelledby="registered-agents-title">
+          <h2 id="registered-agents-title" className="visually-hidden">Registered Agents</h2>
+          <div className="roster-toolbar">
+            <div className="roster-filters" role="group" aria-label="Filter Agents By Health">
+              {[
+                { key: "all", label: "All", accessible: "All Agents", count: registeredAgents.length },
+                { key: "attention", label: "Attention", accessible: "Agents Needing Attention", count: registeredAgents.filter(agent => agent.status !== "healthy").length },
+                { key: "healthy", label: "Healthy", accessible: "Healthy Agents", count: registeredAgents.filter(agent => agent.status === "healthy").length }
+              ].map(filter => <button key={filter.key} type="button"
+                aria-label={`${filter.accessible} (${filter.count})`}
+                aria-pressed={filter.key === (rosterFilter === "attention" || rosterFilter === "healthy" ? rosterFilter : "all")}
+                onClick={() => setRosterQuery("agent_filter", filter.key)}>
+                {filter.label}<span className="numeric">{formatCount(filter.count)}</span>
+              </button>)}
             </div>
-            <span className="numeric section-count">
-              Total {formatCount(registeredAgents.length)} {registeredAgents.length === 1 ? "Agent" : "Agents"}
-            </span>
+            <label className="roster-search"><Search aria-hidden="true" /><span className="visually-hidden">Search Agents</span>
+              <input type="search" placeholder="Search Agents" value={rosterSearch} maxLength={120}
+                onChange={event => setRosterQuery("agent_search", event.target.value)} />
+            </label>
           </div>
           <div className="table-wrap">
             <table className="data-table agent-roster-table">
               <caption className="visually-hidden">
-                Current health, resource usage, and management actions for registered agents.
+                Current status, resource usage, health checks, reported server uptime, heartbeat freshness, and management actions for registered agents.
               </caption>
               <thead>
                 <tr>
                   <th scope="col">Agent Name</th>
                   <th scope="col">Resource Use</th>
-                  <th scope="col">Server State</th>
-                  <th scope="col">Last Heartbeat</th>
+                  <th scope="col">Health Checks</th>
+                  <th scope="col">Activity</th>
                   <th scope="col"><span className="visually-hidden">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
-                {registeredAgents.map((agent) => (
-                  <tr key={agent.id}>
+                {visibleAgents.map((agent) => (
+                  <tr key={agent.id} className="agent-roster-row" onClick={event => {
+                    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+                      || (event.target as Element).closest("a, button, input, select, textarea, summary, [popover]")
+                      || window.getSelection()?.toString()) return;
+                    navigate(`${projectBase}/agents/${encodeURIComponent(agent.id)}`);
+                  }}>
                     <th scope="row" data-label="Agent Name" className="server-cell">
-                      <span className="entity-name"><strong>{agent.server_name}</strong><MaintenanceIcon maintenance={agent.maintenance} /></span>
-                      <small>{agent.agent_version ? `Agent ${agent.agent_version}` : "Version Pending"}</small>
+                      <div className="roster-identity">
+                        <span className="entity-name"><Link className="roster-agent-link" title="View Agent Detail"
+                          aria-label={`View Agent Detail For ${agent.server_name}`} to={`${projectBase}/agents/${encodeURIComponent(agent.id)}`}>
+                          <strong>{agent.server_name}</strong></Link><MaintenanceIcon maintenance={agent.maintenance} /></span>
+                        <div className="roster-identity__meta"><StatusBadge status={agent.status} />
+                          <span>{agent.agent_version ? `v${agent.agent_version}` : "Version Pending"}</span></div>
+                        {agentStateCause(agent.status, agent.probable_cause) ? <p className="roster-identity__cause">{agentStateCause(agent.status, agent.probable_cause)}</p> : null}
+                      </div>
                     </th>
                     <td data-label="Resource Use">
-                      <div className="resource-stack numeric">
-                        <span>
-                          <small>RAM</small>
-                          <MetricValue value={utilizationFromAvailable(agent.ram_available_percent)} format={formatPercent} />
-                        </span>
-                        <span>
-                          <small>Storage</small>
-                          <MetricValue value={utilizationFromAvailable(agent.disk_available_percent)} format={formatPercent} />
-                        </span>
-                        <span>
-                          <small>Load Average (5 Min)</small>
-                          <MetricValue value={agent.latest_load_5} format={formatLoadAverage} />
-                        </span>
-                      </div>
+                      <AgentRosterResources agent={agent} />
                     </td>
-                    <td data-label="Server State">
-                      <AgentStateDisplay status={agent.status} probableCause={agent.probable_cause} />
+                    <td data-label="Health Checks">
+                      <AgentRosterChecks agent={agent} />
                     </td>
                     <td
-                      data-label="Last Heartbeat"
+                      data-label="Activity"
                       className="agent-heartbeat-cell"
                       title={agent.last_heartbeat_at ? new Date(agent.last_heartbeat_at).toISOString() : undefined}
                     >
@@ -764,16 +810,13 @@ export function InstallAgentPage() {
                     </td>
                     <td className="row-action">
                       <div className="agent-row-actions">
-                        <Link
-                          className="icon-button"
-                          aria-label={`View Agent Detail For ${agent.server_name}`}
-                          title="View Agent Detail"
-                          to={`${projectBase}/agents/${encodeURIComponent(agent.id)}`}
-                        >
-                          <ArrowRight aria-hidden="true" />
+                        <AgentActionsMenu name={agent.server_name}>
+                        <Link className="button button--secondary" aria-label={`View ${agent.server_name}`}
+                          to={`${projectBase}/agents/${encodeURIComponent(agent.id)}`}>
+                          <Eye aria-hidden="true" /> View
                         </Link>
                         <button
-                          className="icon-button"
+                          className="button button--secondary"
                           type="button"
                           hidden={!hasPermission(user, "edit_agent_settings")}
                           aria-label={`Edit ${agent.server_name}`}
@@ -781,7 +824,7 @@ export function InstallAgentPage() {
                           aria-haspopup="dialog"
                           aria-controls="edit-agent"
                           onClick={(event) => {
-                            editTriggerRef.current = event.currentTarget;
+                            editTriggerRef.current = event.currentTarget.closest("tr")?.querySelector<HTMLButtonElement>("[data-agent-actions]") ?? event.currentTarget;
                             setRegistrationOpen(false);
                             setAgentPendingRotation(null);
                             setAgentPendingDelete(null);
@@ -789,10 +832,10 @@ export function InstallAgentPage() {
                             setError(null);
                           }}
                         >
-                          <Pencil aria-hidden="true" />
+                          <Pencil aria-hidden="true" /> Edit
                         </button>
                         <button
-                          className="icon-button"
+                          className="button button--secondary"
                           type="button"
                           hidden={!hasPermission(user, "rotate_agent_secrets")}
                           aria-label={`Rotate ${agent.server_name} Access Secret`}
@@ -800,7 +843,7 @@ export function InstallAgentPage() {
                           aria-haspopup="dialog"
                           aria-controls="rotate-agent-credential"
                           onClick={(event) => {
-                            rotateTriggerRef.current = event.currentTarget;
+                            rotateTriggerRef.current = event.currentTarget.closest("tr")?.querySelector<HTMLButtonElement>("[data-agent-actions]") ?? event.currentTarget;
                             setRegistrationOpen(false);
                             setEditingAgent(null);
                             setAgentPendingDelete(null);
@@ -810,10 +853,10 @@ export function InstallAgentPage() {
                             setError(null);
                           }}
                         >
-                          <KeyRound aria-hidden="true" />
+                          <KeyRound aria-hidden="true" /> Rotate Secret
                         </button>
                         <button
-                          className="icon-button icon-button--danger"
+                          className="button button--secondary icon-button--danger"
                           type="button"
                           hidden={!hasPermission(user, "delete_agents")}
                           aria-label={`Delete ${agent.server_name}`}
@@ -821,7 +864,7 @@ export function InstallAgentPage() {
                           aria-haspopup="dialog"
                           aria-controls="delete-agent"
                           onClick={(event) => {
-                            deleteTriggerRef.current = event.currentTarget;
+                            deleteTriggerRef.current = event.currentTarget.closest("tr")?.querySelector<HTMLButtonElement>("[data-agent-actions]") ?? event.currentTarget;
                             setRegistrationOpen(false);
                             setEditingAgent(null);
                             setAgentPendingRotation(null);
@@ -829,14 +872,24 @@ export function InstallAgentPage() {
                             setDeleteError(null);
                           }}
                         >
-                          <Trash2 aria-hidden="true" />
+                          <Trash2 aria-hidden="true" /> Delete
                         </button>
+                        </AgentActionsMenu>
                       </div>
                     </td>
                   </tr>
                 ))}
+                {visibleAgents.length === 0 ? <tr className="roster-no-results"><td colSpan={5}>
+                  <Search aria-hidden="true" /><strong>No Matching Agents</strong>
+                  <p>Try another name or clear the health filter.</p>
+                  <button className="button button--secondary" type="button" onClick={clearRosterFilters}>Clear Filters</button>
+                </td></tr> : null}
               </tbody>
             </table>
+          </div>
+          <div className="roster-footer" role="status">
+            <span>{formatCount(visibleAgents.length)} Of {formatCount(registeredAgents.length)} Agents</span>
+            <span>Attention First</span>
           </div>
         </section>
       ) : null}

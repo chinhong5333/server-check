@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentSummary, ProjectSummary } from "../../src/shared/contracts";
 
@@ -118,6 +118,25 @@ function renderAgentsPage(path = "/projects/project-1/agents") {
   );
 }
 
+function renderNavigableAgentsPage() {
+  return render(<ToastProvider><MemoryRouter initialEntries={["/projects/project-1/agents"]}>
+    <Routes>
+      <Route path="/projects/project-1/agents" element={<InstallAgentPage />} />
+      <Route path="/projects/project-1/agents/:agentId" element={<p>Agent Detail Opened</p>} />
+    </Routes>
+  </MemoryRouter></ToastProvider>);
+}
+
+function prepareActions(name: string) {
+  const panel = screen.getByLabelText(`Actions For ${name}`);
+  let open = false;
+  Object.assign(panel, {
+    showPopover: () => { open = true; panel.style.display = "block"; },
+    hidePopover: () => { open = false; panel.style.display = "none"; }
+  });
+  vi.spyOn(panel, "matches").mockImplementation(() => open);
+}
+
 describe("project-scoped agents page", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -128,6 +147,62 @@ describe("project-scoped agents page", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+  });
+
+  it("opens agent details when a non-interactive row cell is clicked", async () => {
+    apiFetchMock.mockResolvedValue(agents);
+    renderNavigableAgentsPage();
+    fireEvent.click(await screen.findByText("56.0%"));
+    expect(await screen.findByText("Agent Detail Opened")).toBeInTheDocument();
+  });
+
+  it("keeps row navigation separate from opening More and Edit", async () => {
+    apiFetchMock.mockResolvedValue(agents);
+    renderNavigableAgentsPage();
+    await screen.findByText("atlas-web-01");
+    prepareActions("atlas-web-01");
+    fireEvent.click(screen.getByRole("button", { name: "More Actions For atlas-web-01" }));
+    expect(screen.queryByText("Agent Detail Opened")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit atlas-web-01" }));
+    expect(await screen.findByRole("dialog", { name: "Edit atlas-web-01" })).toBeInTheDocument();
+    expect(screen.queryByText("Agent Detail Opened")).not.toBeInTheDocument();
+  });
+
+  it("lets a view-only member open details through the View menu item", async () => {
+    authFixture.role = "sub_admin";
+    authFixture.permissions = ["view_projects"];
+    apiFetchMock.mockResolvedValue(agents);
+    renderNavigableAgentsPage();
+    await screen.findByText("atlas-web-01");
+    prepareActions("atlas-web-01");
+    fireEvent.click(screen.getByRole("button", { name: "More Actions For atlas-web-01" }));
+    const view = screen.getByRole("link", { name: "View atlas-web-01" });
+    expect(view).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Edit atlas-web-01" })).not.toBeInTheDocument();
+    fireEvent.click(view);
+    expect(await screen.findByText("Agent Detail Opened")).toBeInTheDocument();
+  });
+
+  it("filters the inventory by health and search and recovers from no matching agents", async () => {
+    apiFetchMock.mockResolvedValue(agents);
+    renderAgentsPage();
+    await screen.findByRole("heading", { name: "Registered Agents" });
+    fireEvent.click(screen.getByRole("button", { name: "Healthy Agents (1)" }));
+    expect(screen.getByText("atlas-web-01")).toBeInTheDocument();
+    expect(screen.queryByText("atlas-worker-01")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search Agents" }), { target: { value: "missing" } });
+    expect(screen.getByText("No Matching Agents")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear Filters" }));
+    expect(screen.getByText("atlas-worker-01")).toBeInTheDocument();
+    const search = screen.getByRole("searchbox", { name: "Search Agents" });
+    fireEvent.change(search, { target: { value: "all" } });
+    expect(search).toHaveValue("all");
+    expect(screen.getByText("No Matching Agents")).toBeInTheDocument();
+    fireEvent.change(search, { target: { value: " WORKER " } });
+    fireEvent.click(screen.getByRole("button", { name: "Agents Needing Attention (1)" }));
+    expect(screen.getByText("atlas-worker-01")).toBeInTheDocument();
+    expect(screen.queryByText("atlas-web-01")).not.toBeInTheDocument();
+    expect(screen.getByText("1 Of 2 Agents")).toBeInTheDocument();
   });
 
   it("uses canonical project workspace navigation instead of a global project selector", () => {
@@ -174,7 +249,7 @@ describe("project-scoped agents page", () => {
     renderAgentsPage();
     await screen.findByRole("heading",{name:"Registered Agents"});
     expect(screen.getByRole("button",{name:"Register Agent"})).toBeInTheDocument();
-    expect(screen.getByRole("button",{name:"Edit atlas-web-01"})).toBeInTheDocument();
+    expect(screen.getByLabelText("Edit atlas-web-01")).toBeInTheDocument();
     expect(screen.queryByRole("button",{name:"Rotate atlas-web-01 Access Secret"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button",{name:"Delete atlas-web-01"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button",{name:"Rename Project"})).not.toBeInTheDocument();
@@ -196,27 +271,29 @@ describe("project-scoped agents page", () => {
     expect(screen.queryByText("RAM alert below")).not.toBeInTheDocument();
     expect(screen.getAllByText("RAM")).toHaveLength(2);
     expect(screen.getByText("56.0%")).toBeInTheDocument();
-    expect(screen.getAllByText("Storage")).toHaveLength(2);
+    expect(screen.getAllByText("Root Disk")).toHaveLength(2);
     expect(screen.getByText("38.0%")).toBeInTheDocument();
-    expect(screen.getAllByText("Load Average (5 Min)")).toHaveLength(2);
-    expect(screen.getByText("0.76")).toBeInTheDocument();
+    expect(screen.getAllByText("Load/Core")).toHaveLength(2);
+    expect(screen.getByText("0.40")).toBeInTheDocument();
     expect(screen.queryByText("0.4x")).not.toBeInTheDocument();
     expect(screen.queryByText("CPU Load")).not.toBeInTheDocument();
     expect(screen.queryByText("1 project")).not.toBeInTheDocument();
     expect(screen.queryByText("many agents")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Registered Agents" })).toBeInTheDocument();
-    expect(screen.getByRole("table")).toHaveClass("agent-roster-table");
+    const rosterTable = screen.getByRole("table", { name: /Current status, resource usage/ });
+    const rosterHead = within(rosterTable.querySelector("thead")!);
+    expect(rosterTable).toHaveClass("agent-roster-table");
     expect(screen.getByRole("columnheader", { name: "Agent Name" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Server" })).not.toBeInTheDocument();
-    expect(screen.getByText("Total 2 Agents")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Server State" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "All Agents (2)" })).toBeInTheDocument();
+    expect(screen.queryByText("Select an agent to inspect its metrics and incidents.")).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Resource Use" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Last Heartbeat" })).toBeInTheDocument();
-    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+    expect(screen.getByRole("columnheader", { name: "Activity" })).toBeInTheDocument();
+    expect(rosterHead.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
       "Agent Name",
       "Resource Use",
-      "Server State",
-      "Last Heartbeat",
+      "Health Checks",
+      "Activity",
       "Actions",
     ]);
     expect(screen.queryByRole("columnheader", { name: "Application API" })).not.toBeInTheDocument();
@@ -228,21 +305,21 @@ describe("project-scoped agents page", () => {
       "href",
       "/projects/project-1/agents/agent-1"
     );
-    expect(screen.getByRole("button", { name: "Edit atlas-web-01" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Rotate atlas-web-01 Access Secret" })).toHaveAttribute(
+    expect(screen.getByLabelText("Edit atlas-web-01")).toBeInTheDocument();
+    expect(screen.getByLabelText("Rotate atlas-web-01 Access Secret")).toHaveAttribute(
       "aria-haspopup",
       "dialog"
     );
-    expect(screen.getByRole("button", { name: "Delete atlas-web-01" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Delete atlas-web-01")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View Agent Detail For atlas-web-01" })).toHaveAttribute(
       "title",
       "View Agent Detail"
     );
-    expect(screen.getByRole("button", { name: "Edit atlas-web-01" })).toHaveAttribute(
+    expect(screen.getByLabelText("Edit atlas-web-01")).toHaveAttribute(
       "aria-haspopup",
       "dialog"
     );
-    expect(screen.getByRole("button", { name: "Delete atlas-web-01" })).toHaveAttribute(
+    expect(screen.getByLabelText("Delete atlas-web-01")).toHaveAttribute(
       "aria-haspopup",
       "dialog"
     );
@@ -260,9 +337,9 @@ describe("project-scoped agents page", () => {
     const serverNameField = screen.getByLabelText("Server Name");
     expect(within(serverDetailsGroup).queryByLabelText("Middleware API URL")).not.toBeInTheDocument();
     expect(serverNameField.parentElement?.parentElement).toHaveClass("form-section__grid");
-    const thresholdsGroup = screen.getByRole("group", { name: "Alert Thresholds" });
-    const heartbeatGroup = screen.getByRole("group", { name: "Heartbeat" });
-    expect(thresholdsGroup.parentElement).toBe(heartbeatGroup.parentElement?.parentElement);
+    const thresholdsGroup = screen.getByRole("group", { name: "Resource Thresholds" });
+    const heartbeatGroup = screen.getByRole("group", { name: "Alert Timing" });
+    expect(thresholdsGroup.parentElement).toBe(heartbeatGroup.parentElement);
     expect(thresholdsGroup.parentElement).toHaveClass("agent-form-policy-row");
     expect(screen.getByLabelText("RAM Usage Threshold (%)")).toHaveValue("85");
     expect(screen.getByLabelText("Storage Usage Threshold (%)")).toHaveValue("90");
@@ -273,7 +350,7 @@ describe("project-scoped agents page", () => {
     expect(screen.getByText("Minimum gap between successfully sent issue alerts.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this RAM usage.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this storage usage.")).toBeInTheDocument();
-    expect(screen.getByText("Alerts when five-minute load divided by logical CPU count reaches this value.")).toBeInTheDocument();
+    expect(screen.getByText("Five-minute load divided by logical CPU count.")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Server Name")).toHaveFocus());
     const registrationDialog = screen.getByRole("dialog", { name: "Register Agent" });
     const cancelEvent = new Event("cancel", { bubbles: true, cancelable: true });
@@ -304,7 +381,7 @@ describe("project-scoped agents page", () => {
     const row = await screen.findByRole("row", { name: /atlas-web-01/i });
     expect(within(row).getByText("Critical")).toBeInTheDocument();
     expect(within(row).getByText("Heartbeat overdue")).toBeInTheDocument();
-    expect(within(row).getByText("Exceeds Heartbeat Interval")).toBeInTheDocument();
+    expect(within(row).getByText("Overdue")).toBeInTheDocument();
     expect(within(row).queryByText(/heartbeat interval · 2 mins/i)).not.toBeInTheDocument();
     expect(within(row).queryByText("HTTP 200 · 42 ms")).not.toBeInTheDocument();
   });
