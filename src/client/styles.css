@@ -3215,7 +3215,18 @@ button.back-link {
 .project-sort > .section-heading > div:first-child { flex: 1 1 18rem; }
 .project-sort-toolbar { padding-inline: 0; }
 .project-card-grid--sorting > li[draggable="true"] { cursor: grab; }
-.project-card-sortable--dragging { opacity: 0.55; }
+.project-card-sortable--dragging { opacity: 0.3; cursor: grabbing; }
+.project-card-sortable--dragging > .project-card { border-style: dashed; }
+.project-sort-drag-preview { position: fixed; inset: 0 auto auto 0; margin: 0; container: project-card / inline-size; pointer-events: none; z-index: var(--z-modal); will-change: transform; }
+.project-sort-drag-preview > .project-card { height: 100%; background: var(--color-surface-raised); border-color: var(--color-accent); box-shadow: 0 8px 24px var(--color-overlay); }
+@media (prefers-reduced-motion: no-preference) {
+  .project-sort-drag-preview > .project-card { animation: project-card-pickup var(--dur-micro) var(--ease-out) both; }
+  .project-card-grid--sorting > li { transition: opacity var(--dur-micro) var(--ease-out); }
+}
+@keyframes project-card-pickup {
+  from { transform: scale(1); opacity: 0.8; }
+  to { transform: scale(1.025) rotate(-1deg); opacity: 1; }
+}
 .project-card-sortable--over > .project-card { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .project-card-sort-controls { display: flex; align-items: center; gap: var(--space-2xs); width: 100%; }
 .project-sort-grip { display: flex; align-items: center; flex: 1; gap: var(--space-2xs); min-width: 0; font-size: var(--text-xs); color: var(--color-muted); white-space: nowrap; }

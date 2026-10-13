@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, GripVertical } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import type { ProjectSummary } from "../../shared/contracts";
 import { apiFetch } from "../api";
 import { ProjectCard } from "./ProjectCard";
@@ -14,7 +14,51 @@ export function ProjectSortMode({ projects, onClose, onSaved }: {
   const dragging = useRef<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  function endDrag() { dragging.current = null; setDraggedId(null); setDropTarget(null); }
+  const preview = useRef<{ element: HTMLDivElement; offsetX: number; offsetY: number } | null>(null);
+  const pointer = useRef({ x: 0, y: 0 });
+  const frame = useRef<number | null>(null);
+  const trackPreview = useCallback((event: DragEvent) => {
+    pointer.current = { x: event.clientX, y: event.clientY };
+    if (frame.current !== null) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      const active = preview.current;
+      if (active) active.element.style.transform = `translate3d(${pointer.current.x - active.offsetX}px, ${pointer.current.y - active.offsetY}px, 0)`;
+    });
+  }, []);
+  const removePreview = useCallback(() => {
+    document.removeEventListener("dragover", trackPreview);
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = null;
+    preview.current?.element.remove();
+    preview.current = null;
+  }, [trackPreview]);
+  useEffect(() => removePreview, [removePreview]);
+  function startPreview(event: ReactDragEvent<HTMLLIElement>) {
+    removePreview();
+    const card = event.currentTarget.querySelector<HTMLElement>(".project-card");
+    if (!card || typeof event.dataTransfer.setDragImage !== "function") return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const element = document.createElement("div");
+    element.className = "project-sort-drag-preview projects-page";
+    element.setAttribute("aria-hidden", "true");
+    element.inert = true;
+    element.style.width = `${bounds.width}px`;
+    element.style.height = `${bounds.height}px`;
+    element.style.transform = `translate3d(${bounds.left}px, ${bounds.top}px, 0)`;
+    const copy = card.cloneNode(true) as HTMLElement;
+    copy.removeAttribute("aria-labelledby");
+    copy.querySelectorAll("[id]").forEach(node => node.removeAttribute("id"));
+    element.append(copy);
+    preview.current = { element, offsetX: event.clientX - bounds.left, offsetY: event.clientY - bounds.top };
+    document.body.append(element);
+    // Hide the native bitmap; the live, inert copy follows drag events instead.
+    const blank = document.createElement("canvas");
+    blank.width = blank.height = 1;
+    event.dataTransfer.setDragImage(blank, 0, 0);
+    document.addEventListener("dragover", trackPreview, { passive: true });
+  }
+  function endDrag() { removePreview(); dragging.current = null; setDraggedId(null); setDropTarget(null); }
   function move(id: string, target: number) {
     if (busy || target < 0 || target >= draft.length) return;
     const next = [...draft];
@@ -42,8 +86,8 @@ export function ProjectSortMode({ projects, onClose, onSaved }: {
     <span className="visually-hidden" role="status">{announcement}</span>
     <ul className="project-card-grid project-card-grid--sorting">{draft.map((project, index) => <li key={project.id}
       className={`${draggedId === project.id ? "project-card-sortable--dragging" : ""} ${dropTarget === project.id ? "project-card-sortable--over" : ""}`}
-      draggable={!busy} onDragStart={(event) => { dragging.current = project.id; setDraggedId(project.id); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", project.id); }}
-      onDragEnd={endDrag} onDragOver={(event) => { if (!busy && dragging.current) { event.preventDefault(); setDropTarget(project.id); } }}
+      draggable={!busy} onDragStart={(event) => { startPreview(event); dragging.current = project.id; setDraggedId(project.id); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", project.id); }}
+      onDragEnd={endDrag} onDragOver={(event) => { if (!busy && dragging.current) { event.preventDefault(); setDropTarget(dragging.current === project.id ? null : project.id); } }}
       onDrop={(event) => { event.preventDefault(); if (dragging.current) move(dragging.current, index); endDrag(); }}>
       <ProjectCard project={project} sortingControls={<div className="project-card-sort-controls">
         <span className="project-sort-grip"><GripVertical aria-hidden="true" />Drag To Reorder</span>
