@@ -7,10 +7,7 @@ import {
   ArrowLeftRight,
   LogOut,
   Menu,
-  ScrollText,
-  Server,
   Settings,
-  UserRound,
   X
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -20,6 +17,13 @@ import { useProjects } from "../projects/ProjectProvider";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { ThemeToggle } from "./ThemeToggle";
 import { SidebarClock } from "./SidebarClock";
+import { formatCount } from "../lib/format";
+
+function initials(value: string): string {
+  const words = value.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const letters = words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? "").slice(0, 2);
+  return letters.toUpperCase() || "?";
+}
 
 /**
  * Mount storyboard
@@ -41,6 +45,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     ? `/projects/${encodeURIComponent(selectedProject.id)}`
     : null;
   const navigationVisible = desktopNavigation || menuOpen;
+  const projectAgentTotal = selectedProject
+    ? selectedProject.healthy_agents + selectedProject.new_agents + selectedProject.warning_agents
+      + selectedProject.critical_agents + selectedProject.stale_agents
+    : 0;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -62,7 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
       <header className="mobile-header">
         <NavLink className="wordmark" to={hasPermission(user, "view_projects") ? "/projects" : "/settings/password"}>
-          <ScrollText aria-hidden="true" />
+          <span className="brand-mark" aria-hidden="true"><Activity /></span>
           Server Check
         </NavLink>
         <button
@@ -87,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         inert={!navigationVisible}
       >
         <NavLink className="wordmark sidebar__wordmark" to={hasPermission(user, "view_projects") ? "/projects" : "/settings/password"} onClick={() => setMenuOpen(false)}>
-          <ScrollText aria-hidden="true" />
+          <span className="brand-mark" aria-hidden="true"><Activity /></span>
           <span>
             Server Check
             <small>Internal Operations</small>
@@ -104,8 +112,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <span className="project-context-card__label">Current Project</span>
             <span className="project-context-card__selection">
-              <span className="project-context-card__icon"><Server aria-hidden="true" /></span>
-              <strong>{selectedProject.name}</strong>
+              <span className="project-context-card__icon" aria-hidden="true">{initials(selectedProject.name)}</span>
+              <span className="project-context-card__name">
+                <strong>{selectedProject.name}</strong>
+                <small>{formatCount(projectAgentTotal)} {projectAgentTotal === 1 ? "Agent" : "Agents"}</small>
+              </span>
               <ArrowLeftRight aria-hidden="true" />
             </span>
           </Link>
@@ -166,7 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-label={`Account Settings: ${user?.email ?? "Account"}`}
               onClick={() => setMenuOpen(false)}
             >
-              <UserRound aria-hidden="true" />
+              <span className="sidebar__avatar" aria-hidden="true">{initials(user?.email?.split("@")[0] ?? "")}</span>
               <span className="sidebar__account-details">
                 <strong>{user?.email}</strong>
                 <span>{user?.role === "sub_admin" ? "Sub-Admin" : user?.role}</span>
