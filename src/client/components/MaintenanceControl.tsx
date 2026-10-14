@@ -1,4 +1,4 @@
-import { CalendarClock, Wrench, X } from "lucide-react";
+import { BellOff, CalendarClock, Clock3, Info, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { createMaintenanceBodySchema, type MaintenanceState } from "../../shared/contracts";
@@ -77,22 +77,30 @@ export function MaintenanceControl({ endpoint, scope, canManage, onChanged, onAc
   if (!canManage && !windows.length && resource.status !== "error") return null;
   const scheduleAction = canManage && !state?.own ? <button ref={trigger} type="button" className="button button--secondary" disabled={!state || busy}
     aria-haspopup="dialog" aria-controls={`${id}-dialog`} onClick={showSchedule}><CalendarClock aria-hidden="true" />Schedule Maintenance</button> : null;
-  const panel = !detailsTargetId || windows.length > 0 ? <section className={`maintenance-control${active ? " maintenance-control--active" : ""}`} aria-label={`${scope} Maintenance`}>
-    <div className="maintenance-control__heading">
-      <span><Wrench aria-hidden="true" /><strong>{scope} Maintenance</strong></span>
-      {resource.status === "loading" ? <span role="status"><InlineLoader label="Loading Maintenance" /></span> : null}
-      {!detailsTargetId ? scheduleAction : null}
-      {canManage && state?.own ? <button type="button" className="button button--secondary" disabled={busy} onClick={() => void endWindow()}>
-        {busy ? <InlineLoader label="Saving Maintenance" /> : state.own.status === "active" ? "End Maintenance Now" : "Cancel Maintenance"}</button> : null}
+  const tone = active ? "warning" : windows.length ? "accent" : "new";
+  const endAction = canManage && state?.own ? <button type="button" className="button button--secondary" disabled={busy} onClick={() => void endWindow()}>
+    {busy ? <InlineLoader label="Saving Maintenance" /> : state.own.status === "active" ? "End Maintenance Now" : "Cancel Maintenance"}</button> : null;
+  const panelActions = !detailsTargetId ? scheduleAction : null;
+  const panel = !detailsTargetId || windows.length > 0 ? <section className={`maintenance-control${active ? " maintenance-control--active" : windows.length ? " maintenance-control--scheduled" : ""}`} aria-label={`${scope} Maintenance`}>
+    <span className={`status-tile status-tile--${tone}`} aria-hidden="true"><Wrench /></span>
+    <div className="maintenance-control__body">
+      <div className="maintenance-control__heading">
+        <strong>{scope} Maintenance</strong>
+        {resource.status === "loading" ? <span role="status"><InlineLoader label="Loading Maintenance" /></span> : null}
+      </div>
+      {windows.map(window => <div className="maintenance-window" key={window.id}>
+        <div className="maintenance-window__title">
+          <span className={`status status--${window.status === "active" ? "warning" : "new"}`}>{window.scope === "project" && scope === "Agent" ? "Project " : ""}{window.status === "active" ? "Maintenance Active" : "Maintenance Scheduled"}</span>
+          <strong>{window.reason}</strong>
+        </div>
+        <p className="maintenance-window__meta"><Clock3 aria-hidden="true" />{window.status === "scheduled" ? `Starts ${formatDateTime(window.starts_at)} · ` : ""}Until {formatDateTime(window.ends_at)}</p>
+      </div>)}
+      {state && !windows.length ? <p className="field__help maintenance-control__note"><Info aria-hidden="true" />Monitoring continues. Telegram is muted only during an active window.</p> : null}
+      {active ? <p className="field__help maintenance-control__note"><BellOff aria-hidden="true" />Telegram is muted. Incidents and metrics continue recording; old messages will not be replayed.</p> : null}
+      {resource.error ? <div className="maintenance-control__error" role="alert"><p>Could not load maintenance. Try again.</p><button className="button button--secondary" type="button" onClick={resource.reload}>Retry</button></div> : null}
+      {!open && error ? <p className="field__help field__help--error" role="alert">{error}</p> : null}
     </div>
-    {windows.map(window => <div className="maintenance-window" key={window.id}>
-      <span className={`status status--${window.status === "active" ? "warning" : "new"}`}>{window.scope === "project" && scope === "Agent" ? "Project " : ""}{window.status === "active" ? "Maintenance Active" : "Maintenance Scheduled"}</span>
-      <div><strong>{window.reason}</strong><p>{window.status === "scheduled" ? `Starts ${formatDateTime(window.starts_at)} · ` : ""}Until {formatDateTime(window.ends_at)}</p></div>
-    </div>)}
-    {state && !windows.length ? <p className="field__help">Monitoring continues. Telegram is muted only during an active window.</p> : null}
-    {active ? <p className="field__help">Telegram is muted. Incidents and metrics continue recording; old messages will not be replayed.</p> : null}
-    {resource.error ? <div className="maintenance-control__error" role="alert"><p>Could not load maintenance. Try again.</p><button className="button button--secondary" type="button" onClick={resource.reload}>Retry</button></div> : null}
-    {!open && error ? <p className="field__help field__help--error" role="alert">{error}</p> : null}
+    {panelActions || endAction ? <div className="maintenance-control__actions">{panelActions}{endAction}</div> : null}
   </section> : null;
   return <>
     {detailsTargetId ? <>{scheduleAction}{resource.error && !windows.length && canManage ? <button type="button" className="button button--secondary" onClick={resource.reload}>Retry Maintenance</button> : null}</> : null}
