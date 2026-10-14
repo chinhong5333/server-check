@@ -3616,6 +3616,21 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 .status-tile--violet { background: var(--color-violet-surface); border-color: var(--color-violet-line); color: var(--color-violet); }
 .status-tile--new { border-style: dashed; }
 
+/* Theme control: segmented Light / Dark / System. */
+.theme-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-md); background: var(--color-paper-3); }
+.sidebar .theme-toggle { background: var(--color-sidebar-raised); }
+.theme-toggle__option {
+  width: 2.4rem; height: 2.25rem; display: grid; place-items: center; padding: 0; border: 0;
+  border-radius: 0.45rem; background: transparent; color: var(--color-muted); cursor: pointer;
+  transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out);
+}
+.sidebar .theme-toggle__option { color: var(--color-sidebar-muted); }
+.theme-toggle__option svg { width: 1.05rem; height: 1.05rem; }
+.theme-toggle__option[aria-pressed="true"] { background: var(--color-surface-raised); color: var(--color-ink); box-shadow: var(--shadow-whisper); }
+.sidebar .theme-toggle__option[aria-pressed="true"] { background: var(--color-sidebar-active); color: #FFFFFF; box-shadow: none; }
+@media (hover: hover) { .sidebar .theme-toggle__option:not([aria-pressed="true"]):hover { color: var(--color-sidebar-ink); } }
+@media (pointer: coarse) { .theme-toggle__option { width: 2.75rem; height: 2.75rem; } }
+
 /* Page header: breadcrumb, eyebrow pill, identity tile. */
 .page-context {
   width: fit-content; display: inline-flex; align-items: center; min-height: 1.6rem; padding: 0 var(--space-sm);

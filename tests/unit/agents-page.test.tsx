@@ -236,7 +236,7 @@ describe("project-scoped agents page", () => {
     expect(accountLink).toHaveTextContent("operator@example.com");
     expect(screen.queryByRole("link", { name: "Account Settings", exact: true })).not.toBeInTheDocument();
     expect(settingsLink).toHaveClass("icon-button");
-    expect(settingsLink.parentElement).toContainElement(screen.getByRole("button", { name: /Mode: Switch To/ }));
+    expect(settingsLink.parentElement).toContainElement(screen.getByRole("group", { name: "Theme" }));
     expect(currentProjectLabel.compareDocumentPosition(overviewLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByRole("link", { name: /Agents/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Incidents" })).not.toBeInTheDocument();

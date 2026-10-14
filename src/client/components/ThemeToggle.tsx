@@ -1,10 +1,24 @@
-import { ArrowRight, Moon, Sun } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { applyTheme, preferredTheme, savedTheme, THEME_STORAGE_KEY, type Theme } from "../lib/theme";
+import { Monitor, Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+import { applyTheme, savedTheme, THEME_STORAGE_KEY, type Theme } from "../lib/theme";
 
+type ThemePreference = Theme | "system";
+
+const options = [
+  { value: "light", label: "Light Theme", Icon: Sun },
+  { value: "dark", label: "Dark Theme", Icon: Moon },
+  { value: "system", label: "System Theme", Icon: Monitor }
+] as const;
+
+function systemPrefersDark(): boolean {
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+}
+
+/** Segmented theme control: an explicit choice is remembered; System follows the operating system. */
 export function ThemeToggle() {
-  const [theme, setTheme] = useState(preferredTheme);
-  const preference = useRef<Theme | null>(savedTheme());
+  const [preference, setPreference] = useState<ThemePreference>(() => savedTheme() ?? "system");
+  const [systemDark, setSystemDark] = useState(systemPrefersDark);
+  const theme: Theme = preference === "system" ? (systemDark ? "dark" : "light") : preference;
 
   useEffect(() => {
     applyTheme(theme);
@@ -12,13 +26,10 @@ export function ThemeToggle() {
 
   useEffect(() => {
     const media = window.matchMedia?.("(prefers-color-scheme: dark)");
-    const syncSystem = () => {
-      if (!preference.current) setTheme(media?.matches ? "dark" : "light");
-    };
+    const syncSystem = () => setSystemDark(media?.matches ?? false);
     const syncStorage = (event: StorageEvent) => {
       if (event.key !== THEME_STORAGE_KEY && event.key !== null) return;
-      preference.current = savedTheme();
-      setTheme(preferredTheme());
+      setPreference(savedTheme() ?? "system");
     };
     media?.addEventListener("change", syncSystem);
     window.addEventListener("storage", syncStorage);
@@ -28,29 +39,24 @@ export function ThemeToggle() {
     };
   }, []);
 
-  const nextTheme = theme === "dark" ? "light" : "dark";
-  const label = theme === "light" ? "Light Mode" : "Dark Mode";
-  const nextLabel = nextTheme === "light" ? "Light Mode" : "Dark Mode";
+  function choose(next: ThemePreference) {
+    setPreference(next);
+    try {
+      if (next === "system") localStorage.removeItem(THEME_STORAGE_KEY);
+      else localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // The selected theme still works when browser storage is unavailable.
+    }
+  }
+
   return (
-    <button
-      className="button button--secondary theme-toggle"
-      type="button"
-      aria-label={`${label}: Switch To ${nextLabel}`}
-      title={theme === "light" ? "Light To Dark" : "Dark To Light"}
-      onClick={() => {
-        preference.current = nextTheme;
-        applyTheme(nextTheme);
-        setTheme(nextTheme);
-        try {
-          localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-        } catch {
-          // The selected theme still works when browser storage is unavailable.
-        }
-      }}
-    >
-      {theme === "light" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
-      <ArrowRight aria-hidden="true" />
-      {nextTheme === "light" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
-    </button>
+    <div className="theme-toggle" role="group" aria-label="Theme">
+      {options.map(({ value, label, Icon }) => (
+        <button key={value} className="theme-toggle__option" type="button" aria-label={label} title={label}
+          aria-pressed={preference === value} onClick={() => choose(value)}>
+          <Icon aria-hidden="true" />
+        </button>
+      ))}
+    </div>
   );
 }
