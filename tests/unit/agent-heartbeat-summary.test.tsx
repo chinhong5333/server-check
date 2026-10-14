@@ -12,7 +12,7 @@ describe("Merged heartbeat summary", () => {
     render(<AgentHeartbeatSummary agent={{ ...agent, last_heartbeat_at: now - 60000, heartbeat_interval_seconds: 600 }} help={null} />);
     expect(screen.getByText("Last Heartbeat Received")).toBeInTheDocument();
     expect(screen.getByText("Alert If No Heartbeat For")).toBeInTheDocument();
-    expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 09 Min 00 Sec");
+    expect(screen.getByRole("timer")).toHaveTextContent("9 Minutes 0 Seconds");
     expect(screen.queryByText(/If no heartbeat is received for/)).not.toBeInTheDocument();
     expect(screen.queryByText(/This timeout applies only/)).not.toBeInTheDocument();
   });
@@ -23,9 +23,9 @@ describe("Merged heartbeat summary", () => {
     expect(screen.getByText("20 Minutes Ago")).toBeInTheDocument();
     expect(screen.getByText("1 Hour")).toBeInTheDocument();
     expect(screen.getByText("Time Until Marked Overdue")).toBeInTheDocument();
-    expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 40 Min 00 Sec");
+    expect(screen.getByRole("timer")).toHaveTextContent("40 Minutes 0 Seconds");
     act(() => { vi.advanceTimersByTime(1000); });
-    expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 39 Min 59 Sec");
+    expect(screen.getByRole("timer")).toHaveTextContent("39 Minutes 59 Seconds");
   });
   it("uses heartbeat freshness even if newer metrics exist", () => {
     const stale = { ...agent, heartbeat_interval_seconds: 120, last_metrics_at: now };
@@ -34,7 +34,7 @@ describe("Merged heartbeat summary", () => {
     expect(screen.queryByText("Healthy")).not.toBeInTheDocument();
     expect(screen.getByText("Heartbeat Overdue")).toBeInTheDocument();
     expect(screen.getByText("Overdued")).toBeInTheDocument();
-    expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 18 Min 00 Sec");
+    expect(screen.getByRole("timer")).toHaveTextContent("18 Minutes 0 Seconds");
   });
   it("shows last reported OS uptime and never advances it while the sample becomes stale", () => {
     render(<AgentHeartbeatSummary agent={{ ...agent, last_heartbeat_at: now, heartbeat_interval_seconds: 120,
@@ -52,15 +52,15 @@ describe("Merged heartbeat summary", () => {
   it("crosses the deadline without a reload and resets when a heartbeat arrives", () => {
     const timely = { ...agent, last_heartbeat_at: now - 119000, heartbeat_interval_seconds: 120 };
     const view = render(<AgentHeartbeatSummary agent={timely} help={null} />);
-    expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 00 Min 01 Sec");
+    expect(screen.getByRole("timer")).toHaveTextContent(/^1 Second$/);
     act(() => { vi.advanceTimersByTime(1000); });
     expect(screen.getByText("Heartbeat Overdue")).toBeInTheDocument();
-    expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 00 Min 00 Sec");
+    expect(screen.getByRole("timer")).toHaveTextContent(/^0 Seconds$/);
     act(() => { vi.advanceTimersByTime(1000); });
-    expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 00 Min 01 Sec");
+    expect(screen.getByRole("timer")).toHaveTextContent(/^1 Second$/);
     view.rerender(<AgentHeartbeatSummary agent={{ ...timely, last_heartbeat_at: Date.now() }} help={null} />);
     expect(screen.getByText("Receiving Heartbeats")).toBeInTheDocument();
-    expect(screen.getByRole("timer")).toHaveTextContent("00 Hr 02 Min 00 Sec");
+    expect(screen.getByRole("timer")).toHaveTextContent("2 Minutes 0 Seconds");
   });
   it("does not hide a failing health check when the heartbeat is on time", () => {
     render(<AgentHeartbeatSummary agent={{ ...agent, status: "critical", probable_cause: "The middleware API did not return HTTP 200" }} help={null} />);

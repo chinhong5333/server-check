@@ -1,10 +1,21 @@
-import { FileJson, X } from "lucide-react";
+import { Activity, Database, FileJson, HardDrive, Link2, RotateCcw, Server, TriangleAlert, X } from "lucide-react";
 import { useRef, useState } from "react";
 import type { AgentIncidentLog } from "../../shared/contracts";
 import { CopyButton } from "./CopyButton";
 import { DateTimeStamp } from "./DateTimeStamp";
 import { ModalDialog } from "./ModalDialog";
 import { formatIdentifierLabel } from "../lib/format";
+
+/** Icon tile for an incident row, chosen from the incident type identifier. */
+function incidentTile(type: string) {
+  if (type.includes("heartbeat")) return { Icon: Activity, tone: "warning" };
+  if (type.includes("database")) return { Icon: Database, tone: "critical" };
+  if (type.includes("middleware")) return { Icon: Link2, tone: "violet" };
+  if (type.includes("restart")) return { Icon: RotateCcw, tone: "accent" };
+  if (/ram|memory|disk|storage|load|cpu|resource/.test(type)) return { Icon: HardDrive, tone: "violet" };
+  if (/service|apache|nginx/.test(type)) return { Icon: Server, tone: "critical" };
+  return { Icon: TriangleAlert, tone: "warning" };
+}
 
 export function AgentIncidentHistory({
   incidents
@@ -42,7 +53,7 @@ export function AgentIncidentHistory({
               {incidents.map((incident) => (
                 <tr key={incident.id}>
                   <th scope="row" data-label="Incident" className="mono-label">
-                    {formatIdentifierLabel(incident.incident_type)}
+                    <IncidentType type={incident.incident_type} />
                   </th>
                   <td data-label="Details">{incident.probable_cause}</td>
                   <td data-label="Occurred At" className="numeric">
@@ -110,4 +121,12 @@ export function AgentIncidentHistory({
       </ModalDialog>
     </section>
   );
+}
+
+function IncidentType({ type }: { type: string }) {
+  const { Icon, tone } = incidentTile(type);
+  return <span className="incident-type">
+    <span className={`status-tile status-tile--sm status-tile--${tone}`} aria-hidden="true"><Icon /></span>
+    <span>{formatIdentifierLabel(type)}</span>
+  </span>;
 }

@@ -1,4 +1,4 @@
-import { CircleCheck, CircleDashed, CircleHelp, CircleX, Clock3 } from "lucide-react";
+import { CircleCheck, CircleDashed, CircleHelp, CircleX, Clock3, Link2, Server } from "lucide-react";
 import type { AgentChecks, AgentHealthSnapshot, DatabaseHealthSnapshot } from "../../shared/contracts";
 import { formatDateTime, formatLatency } from "../lib/format";
 import { AgentDatabaseHealth } from "./AgentDatabaseHealth";
@@ -30,9 +30,13 @@ export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, las
           const status = result && ("status" in result ? result.status : result.outcome);
           const view = checkPresentation(checks[key], status, expired);
           const title = key === "apache" ? "Apache Web Server" : key === "nginx" ? "Nginx Web Server" : "Middleware API";
+          const CheckIcon = key === "middleware_api" ? Link2 : Server;
           const api = key === "middleware_api" ? snapshot?.middleware_api : null;
           return <div className="agent-health-check" key={key} aria-label={title}>
-            <h3>{title}</h3>
+            <div className="agent-health-check__title">
+              <span className={`status-tile status-tile--sm status-tile--${view.tone}`} aria-hidden="true"><CheckIcon /></span>
+              <h3>{title}</h3>
+            </div>
             <span className={`status status--${view.tone}`}><view.Icon aria-hidden="true" />{view.label}</span>
             {checks[key] && result && status !== "disabled" ? <>
               {api ? <p className="field__help">{expired ? "Last Report: " : ""}

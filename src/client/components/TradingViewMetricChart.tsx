@@ -56,7 +56,7 @@ export function TradingViewMetricChart({ title, points, formatter }: {
     reducedMotion?.addEventListener("change", updatePulse);
     const theme = () => {
       const ink = themeColor(element, "--color-muted", "#a0aab8");
-      const line = themeColor(element, "--color-accent", "#328eff");
+      const line = themeColor(element, "--chart-series", "#2463eb");
       chart.applyOptions({ layout: { textColor: ink }, grid: { horzLines: { color: themeColor(element, "--color-rule", "#293340") } } });
       series.applyOptions({ lineColor: line, topColor: line.replace("rgb(", "rgba(").replace(")", ", 0.22)"), bottomColor: line.replace("rgb(", "rgba(").replace(")", ", 0.08)") });
     };

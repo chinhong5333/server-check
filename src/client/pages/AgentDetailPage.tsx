@@ -1,6 +1,6 @@
 import { hasPermission } from "../../shared/permissions";
 import { NotificationGroupBar } from "../components/NotificationGroup";
-import { ArrowLeft, CircleHelp, ExternalLink, Link2, X } from "lucide-react";
+import { ArrowLeft, CircleHelp, ExternalLink, Link2, Server, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { DEFAULT_AGENT_CHECKS, type AgentChecks, type AgentHealthSnapshot, type AgentIncidentLog, type DatabaseHealthSnapshot, type TelegramDeliverySummary } from "../../shared/contracts";
@@ -132,7 +132,7 @@ function MetricChart({
   const tradingPoints = useMemo(() => chartData.map(point => ({ at: point.at, value: point[dataKey] })), [chartData, dataKey]);
   const latestValue = latestReading === undefined ? latestMetricValue(data, dataKey) : latestReading;
   return (
-    <section className="chart-surface">
+    <section className={`chart-surface chart-surface--${String(dataKey).replace(/_/g, "-")}`}>
       <div className="section-heading">
         <div className="chart-heading-copy">
           <div className="chart-heading-title"><h2>{title}</h2>
@@ -156,7 +156,10 @@ function MetricChart({
       <div className="chart-body">
       {chart.error ? <div className="chart-feedback" role="status"><p>{chart.error}</p><button className="button button--secondary" type="button" onClick={chart.retry}>Retry Chart</button></div> : null}
       {chart.points === null ? <div className="chart chart-feedback" role="status">{chart.error ? "Chart Unavailable" : "Loading Chart…"}</div>
-        : chartData.length === 0 ? <div className="chart chart-feedback" role="status">No Data For This Interval</div> :
+        : !tradingPoints.some(point => point.value != null) ? <div className="chart-empty" role="status">
+            <div className="chart-empty__plot" aria-hidden="true"><span /><span /><span /></div>
+            <p>No Data For This Interval</p>
+          </div> :
           <TradingViewMetricChart key={chart.interval} title={title}
             points={tradingPoints} formatter={formatter} />}
       </div>
@@ -267,10 +270,12 @@ export function AgentDetailPage() {
         Overview
       </Link>
       <header className="page-header">
-        <div>
-          <p className="page-context">Agent Detail</p>
-          <h1>{agent.server_name}</h1>
-          <p>Current status, seven-day metric trends, and historical records for this monitored server.</p>
+        <div className="page-header__identity">
+          <span className={`status-tile status-tile--lg status-tile--${agent.status}`} aria-hidden="true"><Server /></span>
+          <div>
+            <p className="page-context">Agent Detail</p>
+            <h1>{agent.server_name}</h1>
+          </div>
         </div>
         <div className="agent-detail-actions" hidden={!hasPermission(user, "edit_agent_settings") && !hasPermission(user, "rotate_agent_secrets")}>
           {hasPermission(user, "edit_agent_settings") && <ManageAgentButton agentId={agent.id} projectId={agent.project_id} agentName={agent.server_name} onSaved={resource.reload} />}

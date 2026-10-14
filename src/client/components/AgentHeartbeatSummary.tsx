@@ -52,8 +52,12 @@ export function heartbeatSummary(agent: SummaryAgent, now: number) {
 
 function heartbeatCountdown(milliseconds: number, roundUp: boolean): string {
   const seconds = Math.max(0, Math[roundUp ? "ceil" : "floor"](milliseconds / 1000));
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${pad(Math.floor(seconds / 3600))} Hr ${pad(Math.floor(seconds / 60) % 60)} Min ${pad(seconds % 60)} Sec`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor(seconds / 60) % 60;
+  const unit = (value: number, label: string) => `${value} ${label}${value === 1 ? "" : "s"}`;
+  // Same Hour / Minute / Second wording as the other status values; leading zero units are omitted.
+  return [hours > 0 ? unit(hours, "Hour") : null, hours > 0 || minutes > 0 ? unit(minutes, "Minute") : null, unit(seconds % 60, "Second")]
+    .filter(Boolean).join(" ");
 }
 
 function middlewareDiagnostic(agent: SummaryAgent): string | null {

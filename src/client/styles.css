@@ -3857,8 +3857,147 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 }
 .project-sort-drag-preview > .project-card { box-shadow: 0 8px 24px var(--color-overlay); }
 
+/* Agent Detail: status summary. */
+.agent-heartbeat-summary h2 { font-size: var(--text-md); }
+.agent-heartbeat-summary__header { border-block-end: 0; }
+.agent-heartbeat-summary__version {
+  display: inline-flex; align-items: center; min-height: 2.1rem; padding: 0 var(--space-sm);
+  border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-sm); background: var(--color-paper-2);
+  color: var(--color-muted); font-size: var(--text-xs); font-weight: 500;
+}
+.agent-heartbeat-summary__notice {
+  margin: 0 var(--space-lg) var(--space-md); padding: var(--space-sm) var(--space-md);
+  border: var(--rule-thin) solid; border-radius: 0.75rem;
+}
+.agent-heartbeat-summary__notice--warning { border-color: var(--color-warning-line); }
+.agent-heartbeat-summary__notice--critical { border-color: var(--color-error-line); }
+.agent-heartbeat-summary__notice-copy strong { color: var(--color-ink); font-size: var(--text-base); }
+.agent-heartbeat-summary__notice-copy p { color: var(--color-ink-2); font-size: var(--text-sm); }
+.agent-heartbeat-summary__delivery { padding: 0.3rem var(--space-sm); border: 0; border-radius: var(--radius-pill); color: #FFFFFF; font-weight: 700; }
+.agent-heartbeat-summary__notice--warning .agent-heartbeat-summary__delivery { background: var(--color-warning-solid); }
+.agent-heartbeat-summary__notice--critical .agent-heartbeat-summary__delivery { background: var(--color-error-solid); }
+.agent-heartbeat-summary__metrics { border-block-start: var(--rule-thin) solid var(--color-rule); }
+.agent-heartbeat-summary__metric { gap: var(--space-md); }
+.agent-heartbeat-summary__metric-icon {
+  width: 2.8rem; height: 2.8rem; border: var(--rule-thin) solid var(--color-accent-line); border-radius: 0.75rem;
+  background: var(--color-info-surface); color: var(--color-accent-text);
+}
+.agent-heartbeat-summary__metric-icon svg { width: 1.35rem; height: 1.35rem; }
+.agent-heartbeat-summary__metric:nth-child(1) .agent-heartbeat-summary__metric-icon { background: var(--color-success-surface); border-color: var(--color-success-line); color: var(--color-success); }
+.agent-heartbeat-summary__metric:nth-child(2) .agent-heartbeat-summary__metric-icon { background: var(--color-warning-surface); border-color: var(--color-warning-line); color: var(--color-warning); }
+.agent-heartbeat-summary__metric:nth-child(4) .agent-heartbeat-summary__metric-icon { background: var(--color-violet-surface); border-color: var(--color-violet-line); color: var(--color-violet); }
+.agent-heartbeat-summary__metric--deadline { background: transparent; }
+.agent-heartbeat-summary__metric--overdue .agent-heartbeat-summary__metric-icon { background: var(--color-error-surface); border-color: var(--color-error-line); color: var(--color-error); }
+.agent-heartbeat-summary__metric-label { font-size: var(--text-sm); font-weight: 600; }
+.agent-heartbeat-summary__metric-value { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.015em; }
+.agent-heartbeat-summary__metric-value--timer { font-family: var(--font-body); font-size: 1.2rem; font-weight: 800; letter-spacing: -0.015em; }
+.agent-heartbeat-summary__metric p { font-size: var(--text-sm); }
+
+/* Agent Detail: health checks and database health. */
+.agent-health-check {
+  grid-template-columns: minmax(0, 1fr) auto; align-items: center; justify-items: stretch;
+  column-gap: var(--space-sm); row-gap: 0.375rem; padding: var(--space-sm) var(--space-md);
+}
+.agent-health-check > *:not(.agent-health-check__title):not(.status) { grid-column: 1 / -1; }
+.agent-health-check__title { min-width: 0; display: flex; align-items: center; gap: var(--space-xs); }
+.agent-health-check__title h3 { min-width: 0; font-size: var(--text-base); line-height: 1.25; overflow-wrap: anywhere; }
+.agent-health-check > .status { justify-self: end; }
+.agent-health-check .status--critical, .agent-database-health .status--critical { background: var(--color-error-surface); border-color: var(--color-error-line); color: var(--color-error); box-shadow: none; }
+.agent-health-check__updated { display: flex; justify-content: space-between; gap: var(--space-xs); }
+.agent-health-check__updated .field__help:last-child { color: var(--color-ink-2); font-weight: 600; }
+.agent-database-health { margin: 0 var(--space-md) var(--space-md); border: var(--rule-thin) solid var(--color-rule); border-radius: 0.75rem; background: var(--color-paper-2); overflow: clip; }
+:root[data-theme="dark"] .agent-database-health { background: var(--color-paper); }
+.agent-database-health__header { padding: var(--space-xs) var(--space-sm); }
+.agent-database-health__identity > svg {
+  box-sizing: content-box; width: 1rem; height: 1rem; padding: 0.45rem; border: var(--rule-thin) solid var(--color-accent-line);
+  border-radius: 0.55rem; background: var(--color-info-surface); color: var(--color-accent-text);
+}
+.agent-database-health__body { grid-template-columns: minmax(16rem, 1fr) minmax(0, 1.6fr); gap: var(--space-sm); padding: var(--space-sm); }
+.agent-database-capacity {
+  gap: var(--space-xs); padding: var(--space-sm) var(--space-md); border: var(--rule-thin) solid var(--color-rule);
+  border-radius: 0.65rem; background: var(--color-surface-raised);
+}
+.agent-database-capacity__value strong { font-family: var(--font-body); font-size: var(--text-xl); font-weight: 800; letter-spacing: -0.02em; }
+.agent-database-capacity__value span { font-family: var(--font-body); font-weight: 600; }
+.agent-database-capacity__percent {
+  display: inline-flex; align-items: center; min-height: 1.75rem; padding: 0 var(--space-xs); border-radius: var(--radius-sm);
+  background: var(--color-info-surface); color: var(--color-accent-text); font-family: var(--font-body); font-weight: 800;
+}
+.agent-database-capacity__meter { height: 0.55rem; background: var(--color-track); }
+.agent-database-capacity__meter::-webkit-progress-bar { background: var(--color-track); }
+.agent-database-capacity__footer span:last-child { color: var(--color-success); font-weight: 600; }
+.agent-database-health__metrics { gap: var(--space-xs); }
+.agent-database-health__metrics > div,
+.agent-database-health__metrics > div + div,
+.agent-database-health__metrics > div:nth-child(n) {
+  gap: 0.15rem; padding: var(--space-xs) var(--space-sm); border: var(--rule-thin) solid var(--color-rule);
+  border-radius: 0.65rem; background: var(--color-surface-raised);
+}
+.agent-database-health__metrics dd { font-family: var(--font-body); font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.agent-database-health__error, .agent-database-health__empty { margin: var(--space-sm); border-radius: 0.65rem; }
+@media (max-width: 64rem) { .agent-database-health__body { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 40rem) { .agent-database-capacity { border: var(--rule-thin) solid var(--color-rule); } }
+
+/* Agent Detail: script configuration. */
+.agent-script-configuration { padding: var(--space-md) var(--space-lg); }
+.agent-script-configuration dl { padding-inline-start: 0; border-inline-start: 0; }
+.agent-script-configuration .script-url-row > code {
+  display: flex; align-items: center; min-height: 2.75rem; padding: 0 var(--space-sm);
+  border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-md); background: var(--color-paper-2);
+  font-size: var(--text-sm);
+}
+:root[data-theme="dark"] .agent-script-configuration .script-url-row > code { background: var(--color-paper); }
+
+/* Agent Detail: metric charts — one series color per metric. */
+.chart-surface { --chart-series: var(--color-accent); }
+.chart-surface--ram-utilization-percent { --chart-series: var(--color-series-ram); }
+.chart-surface--storage-utilization-percent { --chart-series: var(--color-series-storage); }
+.chart-surface--load-5 { --chart-series: var(--color-series-load); }
+.chart-surface--health-latency-ms { --chart-series: var(--color-series-latency); }
+.chart-surface > .section-heading { border-block-end: 0; }
+.chart-heading-title h2 { display: inline-flex; align-items: center; gap: var(--space-xs); font-size: var(--text-md); }
+.chart-heading-title h2::before { content: ""; width: 0.7rem; height: 0.7rem; flex: none; border-radius: 0.2rem; background: var(--chart-series); }
+.chart-interval-control { gap: 2px; padding: 3px; border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-md); background: var(--color-paper-2); }
+.chart-interval-control button { border: 0; border-radius: 0.45rem; background: transparent; color: var(--color-muted); font-family: var(--font-body); font-weight: 700; }
+.chart-interval-control button[aria-pressed="true"] { border: 0; background: var(--color-surface-raised); color: var(--color-ink); box-shadow: var(--shadow-whisper); }
+:root[data-theme="dark"] .chart-interval-control button[aria-pressed="true"] { background: var(--color-paper-3); }
+.chart-interval-control button:hover { color: var(--color-ink); }
+.chart-latest > span:first-child { font-size: var(--text-xs); font-weight: 600; }
+.chart-latest .chart-latest__value { font-family: var(--font-body); font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; }
+.chart-readings .chart-capacity { font-weight: 500; }
+.chart-capacity > .numeric { font-weight: 700; }
+
+/* Agent Detail: history records — pill tabs. */
+.history-tabs__list {
+  width: fit-content; max-width: 100%; gap: 2px; padding: 4px; border: var(--rule-thin) solid var(--color-rule);
+  border-radius: 0.75rem; background: var(--color-paper-2);
+}
+.history-tabs__tab { flex: 0 1 auto; min-height: 2.6rem; border: 0; border-radius: 0.55rem; font-weight: 600; }
+.history-tabs__tab[aria-selected="true"] { background: var(--color-surface-raised); color: var(--color-ink); box-shadow: var(--shadow-card); }
+:root[data-theme="dark"] .history-tabs__tab[aria-selected="true"] { background: var(--color-paper-3); }
+.history-tabs__tab .numeric { border-radius: var(--radius-pill); background: var(--color-paper-3); color: var(--color-ink-2); font-weight: 700; }
+.history-tabs__tab[aria-selected="true"] .numeric { background: var(--color-accent); color: #FFFFFF; }
+@media (hover: hover) and (pointer: fine) { .history-tabs__tab:not([aria-selected="true"]):hover { background: var(--color-paper-3); } }
+@media (pointer: coarse) { .history-tabs__tab { min-height: 44px; } }
+@media (max-width: 40rem) { .history-tabs__list { width: 100%; } .history-tabs__tab { flex: 1 1 0; } }
+
 /* Forms: softer inputs on the new surfaces. */
 .field input, .field select { background: var(--color-surface-raised); border-color: var(--color-rule-strong); border-radius: var(--radius-md); }
+
+/* Health check cards: each check is its own inset box, matching the Database Health card. */
+.agent-health-checks__grid { gap: var(--space-sm); padding: var(--space-md) var(--space-md) var(--space-sm); }
+.agent-health-check,
+.agent-health-check + .agent-health-check {
+  border: var(--rule-thin) solid var(--color-rule); border-radius: 0.75rem; background: var(--color-paper-2);
+}
+:root[data-theme="dark"] .agent-health-check { background: var(--color-paper); }
+.agent-health-checks > .section-heading { border-block-end: 0; padding-block-end: 0; }
+@media (max-width: 40rem) {
+  .agent-health-check + .agent-health-check { border-block-start: var(--rule-thin) solid var(--color-rule); }
+}
+
+/* Agent Detail intro: breathing room between the back pill and the page header. */
+.agent-page-intro { gap: var(--space-lg); }
 
 /* Smooth dark: softer accent glows on the navy-free graphite chrome. */
 :root[data-theme="dark"] .nav-link--active,
@@ -3873,3 +4012,31 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 /* Sort mode: no divider lines between the section heading, the instructions bar and the cards. */
 .project-collection:has(> .project-sort) > .section-heading,
 .project-sort > .project-sort-toolbar { border-block-end: 0; }
+
+/* Metric chart with no values in the interval: keep an empty plot frame (y and x axis lines, faint grid). */
+.chart-empty { position: relative; height: 240px; margin: 0 var(--space-md) var(--space-sm); }
+.chart-empty__plot {
+  position: absolute; inset: var(--space-sm) var(--space-xs) var(--space-lg) var(--space-xl);
+  border-inline-start: var(--rule-thin) solid var(--color-rule-strong); border-block-end: var(--rule-thin) solid var(--color-rule-strong);
+}
+.chart-empty__plot > span { position: absolute; inset-inline: 0; border-block-start: var(--rule-thin) dashed var(--color-rule); }
+.chart-empty__plot > span:nth-child(1) { inset-block-start: 0; }
+.chart-empty__plot > span:nth-child(2) { inset-block-start: 33.333%; }
+.chart-empty__plot > span:nth-child(3) { inset-block-start: 66.666%; }
+.chart-empty > p { position: absolute; inset: 0 0 var(--space-lg) var(--space-xl); display: grid; place-items: center; margin: 0; color: var(--color-muted); font-size: var(--text-sm); font-weight: 600; }
+
+/* Agent Detail server name: one step smaller than other page titles. */
+.page-header__identity h1 { font-size: clamp(1.75rem, 2.8vw, 2.2rem); }
+
+/* Agent Detail identity tile: on wide screens it is square and exactly as tall as the eyebrow + title block. */
+@media (min-width: 48rem) {
+  .page-header > .page-header__identity {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center;
+    column-gap: var(--space-md); row-gap: var(--space-xs);
+  }
+  .page-header__identity > div { display: contents; }
+  .page-header__identity > .status-tile--lg { grid-row: 1 / span 2; align-self: stretch; width: auto; height: auto; aspect-ratio: 1; border-radius: 1rem; }
+  .page-header__identity > .status-tile--lg svg { width: 46%; height: 46%; }
+  .page-header__identity .page-context { grid-column: 2; grid-row: 1; }
+  .page-header__identity h1 { grid-column: 2; grid-row: 2; }
+}
