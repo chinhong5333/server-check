@@ -3727,6 +3727,88 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 }
 .incident-type { display: inline-flex; align-items: center; gap: var(--space-sm); }
 
+/* Agent roster (Operations Overview). */
+.roster-toolbar { padding: var(--space-sm) var(--space-md); border-block-end: 0; }
+.roster-filters { gap: 2px; padding: 4px; border: var(--rule-thin) solid var(--color-rule); border-radius: 0.75rem; background: var(--color-paper-2); }
+.roster-filters button { min-height: 2.6rem; padding: 0 var(--space-md); border: 0; border-radius: 0.55rem; color: var(--color-muted); font-weight: 600; }
+.roster-filters button[aria-pressed="true"] { background: var(--color-surface-raised); color: var(--color-ink); box-shadow: var(--shadow-card); }
+:root[data-theme="dark"] .roster-filters button[aria-pressed="true"] { background: var(--color-paper-3); }
+.roster-filters button:hover { background: var(--color-paper-3); color: var(--color-ink); }
+.roster-filters button .numeric {
+  min-width: 1.6rem; padding: 0.1rem 0.45rem; border-radius: var(--radius-pill);
+  background: var(--color-paper-3); color: var(--color-ink-2); font-size: var(--text-xs); font-weight: 700; text-align: center;
+}
+.roster-filters button:nth-child(1) .numeric { background: var(--color-accent); color: #FFFFFF; }
+.roster-filters button:nth-child(2) .numeric { background: var(--color-warning-surface); color: var(--color-warning); }
+.roster-filters button:nth-child(3) .numeric { background: var(--color-success-surface); color: var(--color-success); }
+@media (pointer: coarse) { .roster-filters button { min-height: 44px; } }
+.roster-search { border-radius: var(--radius-md); background: var(--color-surface-raised); box-shadow: var(--shadow-whisper); }
+:root[data-theme="dark"] .roster-search { background: var(--color-paper); }
+.agent-roster-surface--inventory .agent-roster-table > thead > tr > th { background: var(--color-paper-2); color: var(--color-muted); font-size: var(--text-xs); font-weight: 700; }
+.agent-roster-surface--inventory .agent-roster-table tbody tr:hover,
+.agent-roster-surface--inventory .agent-roster-table tbody tr:focus-within { background: var(--color-paper-2); }
+.roster-identity-row { display: flex; align-items: flex-start; gap: var(--space-md); min-width: 0; }
+.roster-identity-row > .roster-identity { min-width: 0; flex: 1 1 auto; }
+.roster-agent-link { min-height: 0; color: var(--color-ink); font-weight: 700; }
+.roster-agent-link strong { font-weight: 700; }
+.roster-agent-link:hover { color: var(--color-accent-text); }
+.roster-identity__meta > span:last-child {
+  padding: 0.1rem 0.4rem; border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-sm);
+  background: var(--color-paper-2); color: var(--color-ink-2); font-size: var(--text-xs);
+}
+.roster-identity__cause { color: var(--color-ink-2); }
+.roster-resources { gap: var(--space-sm); }
+.roster-resource > div > span:first-child { color: var(--color-ink-2); font-weight: 500; }
+.roster-resource .numeric { color: var(--color-ink); font-weight: 700; }
+.roster-resource progress, .roster-resource__empty { height: 0.55rem; border-radius: var(--radius-pill); background: var(--color-track); color: var(--color-accent); }
+.roster-resource progress::-webkit-progress-bar { background: var(--color-track); border-radius: var(--radius-pill); }
+.roster-resource progress::-webkit-progress-value { background: var(--color-accent); border-radius: var(--radius-pill); }
+.roster-resource progress::-moz-progress-bar { background: var(--color-accent); border-radius: var(--radius-pill); }
+.roster-resource progress[data-level="warning"]::-webkit-progress-value { background: var(--color-warning-fill); }
+.roster-resource progress[data-level="warning"]::-moz-progress-bar { background: var(--color-warning-fill); }
+.roster-resource progress[data-level="critical"]::-webkit-progress-value { background: var(--color-error-fill); }
+.roster-resource progress[data-level="critical"]::-moz-progress-bar { background: var(--color-error-fill); }
+.roster-resources--stale progress::-webkit-progress-value { background: var(--color-neutral); }
+.roster-resources--stale progress::-moz-progress-bar { background: var(--color-neutral); }
+.roster-resource:nth-child(3) .numeric {
+  padding: 0.05rem 0.45rem; border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-sm); background: var(--color-paper-2);
+}
+/* Health checks read as chips: icon + name, failures filled red; the status label stays for assistive tech. */
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-checks { display: block; width: 100%; }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-checks > tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.375rem; }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-checks tr {
+  display: flex; align-items: center; gap: 0.375rem; height: auto; min-height: 2.1rem; min-width: 0; padding: 0 0.55rem;
+  border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-sm); background: var(--color-surface-raised);
+}
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-checks th,
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-checks td {
+  display: block; width: auto; padding: 0; border: 0; color: inherit; font-size: var(--text-sm); font-weight: 600; line-height: 1.2;
+}
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-checks th[scope="row"] {
+  order: 2; min-width: 0; padding: 0; color: var(--color-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-checks td { order: 1; display: inline-flex; }
+.agent-roster-surface--inventory .agent-roster-check td > span { gap: 0; font-size: 0; }
+.agent-roster-surface--inventory .agent-roster-check td > span > svg { width: 1rem; height: 1rem; stroke-width: 2.2; }
+.agent-roster-surface--inventory .agent-roster-check--healthy td { color: var(--color-success-fill); }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-check--critical { background: var(--color-error-surface); border-color: var(--color-error-line); }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-check--critical th[scope="row"],
+.agent-roster-surface--inventory .agent-roster-check--critical td { color: var(--color-error); }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-check--warning { background: var(--color-warning-surface); border-color: var(--color-warning-line); }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-check--warning th[scope="row"] { color: var(--color-warning); }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-check--stale { background: var(--color-paper-3); }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-check--new { border-style: dashed; }
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-check--stale th[scope="row"],
+.agent-roster-surface--inventory .agent-roster-table .agent-roster-check--new th[scope="row"] { color: var(--color-muted); }
+.agent-report-stack small { color: var(--color-muted); font-weight: 500; }
+.agent-report-stack .numeric { color: var(--color-ink); font-weight: 700; }
+.live-dot { width: 0.55rem; height: 0.55rem; flex: none; border-radius: 50%; background: var(--color-neutral); }
+.live-dot--live { background: var(--color-success-fill); box-shadow: 0 0 0 3px var(--color-success-surface); }
+.roster-overdue {
+  padding: 0.1rem 0.5rem; border-radius: var(--radius-sm); background: var(--color-warning-surface);
+  color: var(--color-warning); font-size: var(--text-xs); font-weight: 700;
+}
+
 /* Forms: softer inputs on the new surfaces. */
 .field input, .field select { background: var(--color-surface-raised); border-color: var(--color-rule-strong); border-radius: var(--radius-md); }
 

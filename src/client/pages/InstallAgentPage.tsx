@@ -1,5 +1,5 @@
 import { hasPermission } from "../../shared/permissions";
-import { ArrowLeft, Eye, KeyRound, Pencil, Plus, Search, ShieldAlert, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, Eye, KeyRound, Pencil, Plus, Search, Server, ShieldAlert, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -43,10 +43,12 @@ function AgentHeartbeatStatus({ agent }: { agent: AgentSummary }) {
   const uptimeStale = agent.uptime_received_at != null
     && Date.now() >= agent.uptime_received_at + agent.heartbeat_interval_seconds * 1000;
 
+  const live = agent.last_heartbeat_at !== null && !heartbeatOverdue && agent.status !== "stale" && agent.status !== "new";
+
   return (
     <div className="agent-report-stack">
       <div className="agent-heartbeat"><small>Last Heartbeat</small>
-        <span className="roster-heartbeat-value"><span className="numeric">{formatRelativeTime(agent.last_heartbeat_at)}</span>
+        <span className="roster-heartbeat-value"><span className={`live-dot live-dot--${live ? "live" : "idle"}`} aria-hidden="true" /><span className="numeric">{formatRelativeTime(agent.last_heartbeat_at)}</span>
           {heartbeatOverdue ? <span className="roster-overdue"><TriangleAlert aria-hidden="true" />Overdue</span> : null}
         </span>
       </div>
@@ -68,7 +70,8 @@ function AgentRosterResources({ agent }: { agent: AgentSummary }) {
     {metrics.map(metric => <div className="roster-resource" key={metric.label}>
       <div><span>{metric.label}</span><MetricValue value={metric.value} format={metric.capacity ? formatPercent : formatLoadAverage} /></div>
       {metric.capacity ? metric.value === null ? <span className="roster-resource__empty" aria-hidden="true" />
-        : <progress max={100} value={Math.min(100, Math.max(0, metric.value))} aria-label={`${metric.label} Usage For ${agent.server_name}`} /> : null}
+        : <progress max={100} value={Math.min(100, Math.max(0, metric.value))} aria-label={`${metric.label} Usage For ${agent.server_name}`}
+          data-level={metric.value >= 90 ? "critical" : metric.value >= 70 ? "warning" : "normal"} /> : null}
     </div>)}
     {stale ? <span className="roster-resource-freshness">Last Reported · Stale</span> : null}
   </div>;
@@ -455,7 +458,12 @@ export function InstallAgentPage() {
     <div className="page-stack">
       <header className="page-header">
         <div>
-          <p className="page-context">Selected Project · {selectedProject.name}</p>
+          <nav className="page-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li>{hasPermission(user, "view_projects") ? <Link to="/projects">Projects</Link> : "Projects"}</li>
+              <li aria-current="page">{selectedProject.name}</li>
+            </ol>
+          </nav>
           <h1>Operations Overview</h1>
           <p>Monitor server health and manage every agent registered to this project.</p>
         </div>
@@ -786,6 +794,8 @@ export function InstallAgentPage() {
                     navigate(`${projectBase}/agents/${encodeURIComponent(agent.id)}`);
                   }}>
                     <th scope="row" data-label="Agent Name" className="server-cell">
+                      <div className="roster-identity-row">
+                      <span className={`status-tile status-tile--${agent.status}`} aria-hidden="true"><Server /></span>
                       <div className="roster-identity">
                         <span className="entity-name"><Link className="roster-agent-link" title="View Agent Detail"
                           aria-label={`View Agent Detail For ${agent.server_name}`} to={`${projectBase}/agents/${encodeURIComponent(agent.id)}`}>
@@ -793,6 +803,7 @@ export function InstallAgentPage() {
                         <div className="roster-identity__meta"><StatusBadge status={agent.status} />
                           <span>{agent.agent_version ? `v${agent.agent_version}` : "Version Pending"}</span></div>
                         {agentStateCause(agent.status, agent.probable_cause) ? <p className="roster-identity__cause">{agentStateCause(agent.status, agent.probable_cause)}</p> : null}
+                      </div>
                       </div>
                     </th>
                     <td data-label="Resource Use">
