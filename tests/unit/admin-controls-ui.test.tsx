@@ -76,7 +76,8 @@ describe("admin control interfaces", () => {
   });
   it("saves reordered IDs only after Save Order", async () => {
     const saved=vi.fn(); render(<ProjectSortMode projects={projects} onClose={vi.fn()} onSaved={saved} />);
-    fireEvent.click(screen.getByRole("button",{name:"Move Two Earlier"}));
+    const [one,two]=screen.getAllByRole("listitem");
+    fireEvent.dragStart(two,{dataTransfer:{setData:vi.fn()}}); fireEvent.dragOver(one); fireEvent.drop(one);
     expect(screen.getAllByRole("article")).toHaveLength(2);
     expect(screen.getByRole("list")).toHaveClass("project-card-grid");
     expect(screen.getAllByText("Total Agents")).toHaveLength(2);

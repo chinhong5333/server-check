@@ -1,4 +1,3 @@
-import { ArrowLeft, ArrowRight, GripVertical } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import type { ProjectSummary } from "../../shared/contracts";
 import { apiFetch } from "../api";
@@ -78,7 +77,7 @@ export function ProjectSortMode({ projects, onClose, onSaved }: {
     finally { setBusy(false); }
   }
   return <div className="project-sort" role="region" aria-label="Sort Projects">
-    <div className="section-heading project-sort-toolbar"><div><p>Drag the cards to change their order, then save. Move buttons are also available.</p></div>
+    <div className="section-heading project-sort-toolbar"><div><p>Drag the cards to change their order, then save.</p></div>
       <div className="project-sort__actions"><button type="button" className="button button--secondary" disabled={busy} onClick={onClose}>Cancel</button>
         <button type="button" className="button button--primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving Order…" : "Save Order"}</button></div>
     </div>
@@ -89,11 +88,7 @@ export function ProjectSortMode({ projects, onClose, onSaved }: {
       draggable={!busy} onDragStart={(event) => { startPreview(event); dragging.current = project.id; setDraggedId(project.id); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", project.id); }}
       onDragEnd={endDrag} onDragOver={(event) => { if (!busy && dragging.current) { event.preventDefault(); setDropTarget(dragging.current === project.id ? null : project.id); } }}
       onDrop={(event) => { event.preventDefault(); if (dragging.current) move(dragging.current, index); endDrag(); }}>
-      <ProjectCard project={project} sortingControls={<div className="project-card-sort-controls">
-        <span className="project-sort-grip"><GripVertical aria-hidden="true" />Drag To Reorder</span>
-        <button type="button" className="icon-button" title="Move Earlier" aria-label={`Move ${project.name} Earlier`} disabled={busy || index === 0} onClick={() => move(project.id, index - 1)}><ArrowLeft aria-hidden="true" /></button>
-        <button type="button" className="icon-button" title="Move Later" aria-label={`Move ${project.name} Later`} disabled={busy || index === draft.length - 1} onClick={() => move(project.id, index + 1)}><ArrowRight aria-hidden="true" /></button>
-      </div>} />
+      <ProjectCard project={project} sorting />
     </li>)}</ul>
   </div>;
 }

@@ -20,6 +20,7 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
   const preview = project.agents_preview ?? [];
   const showAll = total > 6;
   const visible = preview.slice(0, showAll ? 5 : 6);
+  const emptySlots = Math.max(0, 6 - visible.length - (showAll ? 1 : 0));
   const dialogId = `project-agents-${project.id}`;
   const titleId = `${dialogId}-title`;
   const descriptionId = `${dialogId}-description`;
@@ -70,6 +71,7 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
             View All<ArrowRight aria-hidden="true" />
           </button>
         </li>}
+        {Array.from({ length: emptySlots }, (_, index) => <li key={`empty-${index}`} className="project-card__agent-slot" aria-hidden="true" />)}
       </ul>
     </section>
     {showAll && <ModalDialog id={dialogId} open={open} labelledBy={titleId}

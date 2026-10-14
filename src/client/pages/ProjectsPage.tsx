@@ -47,8 +47,13 @@ export function ProjectsPage() {
       <NotificationGroupBar />
       <header className="page-header">
         <div>
+          <nav className="page-breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li>Server Check</li>
+              <li aria-current="page">Projects</li>
+            </ol>
+          </nav>
           <h1>Projects</h1>
-          <p>Review every project and the health of its registered agents.</p>
         </div>
         <button
           className="button button--primary"

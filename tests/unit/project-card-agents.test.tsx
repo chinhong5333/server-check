@@ -25,8 +25,8 @@ const fullRoster = [...preview, ...Array.from({ length: 6 }, (_, index) => ({
   id: `healthy-${index + 3}`, server_name: `coincat-node-${index + 4}`, status: "healthy" as const
 }))];
 
-function showCard(value: ProjectSummary = project, sortingControls?: React.ReactNode) {
-  render(<MemoryRouter><ProjectCard project={value} sortingControls={sortingControls} /></MemoryRouter>);
+function showCard(value: ProjectSummary = project, sorting = false) {
+  render(<MemoryRouter><ProjectCard project={value} sorting={sorting} /></MemoryRouter>);
 }
 
 beforeEach(() => { apiFetchMock.mockReset(); });
@@ -69,9 +69,12 @@ describe("Project card agent preview", () => {
     expect(apiFetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("omits roster controls while cards are being sorted", () => {
-    showCard(project, <span>Drag To Reorder</span>);
-    expect(screen.queryByRole("region", { name: "Agents" })).not.toBeInTheDocument();
-    expect(screen.getByText("Drag To Reorder")).toBeInTheDocument();
+  it("keeps the card identical but inert while cards are being sorted", () => {
+    showCard(project, true);
+    const card = screen.getByRole("article", { hidden: true });
+    expect(card).toHaveAttribute("inert");
+    expect(within(card).getByRole("region", { name: "Agents", hidden: true })).toBeInTheDocument();
+    expect(within(card).getByText("Manage")).toBeInTheDocument();
+    expect(within(card).queryByRole("link", { hidden: true })).not.toBeInTheDocument();
   });
 });
