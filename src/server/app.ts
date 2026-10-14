@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -105,9 +105,12 @@ export function createApp(config: AppConfig) {
 
   const clientDirectory = path.resolve(process.cwd(), "dist/client");
   if (existsSync(clientDirectory)) {
+    // Link-preview meta tags need absolute URLs; fill them from the runtime PUBLIC_BASE_URL once at startup.
+    const publicOrigin = config.publicBaseUrl.origin.replace(/[&<>"]/g, (character) => `&#${character.charCodeAt(0)};`);
+    const indexHtml = readFileSync(path.join(clientDirectory, "index.html"), "utf8").replaceAll("__PUBLIC_BASE_URL__", publicOrigin);
     app.use(express.static(clientDirectory, { index: false, maxAge: "1h" }));
     app.get(/^(?!\/api\/).*/, (_request, response) => {
-      response.sendFile(path.join(clientDirectory, "index.html"));
+      response.type("html").send(indexHtml);
     });
   }
 
