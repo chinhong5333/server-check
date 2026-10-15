@@ -41,6 +41,10 @@ Approved direction:
   - The chart line colour was hard-wired to the accent token and now reads `--chart-series`.
 - Known issue that predates this work: `agent-detail-page.test.tsx:188` expects state-definition text that is no longer in source.
 
+## Design Decisions
+
+- 2026-10-15 · Panel header strips, per theme: **light → Option B · Accent Band** (#EDF2FD / rule #C7D7FE, title #14306E); **dark → Option A · Neutral Band** (#24282F / rule #30353D). **No blue tint in the dark theme.** The light-theme blue tint is limited to panel header bands; blue otherwise stays the accent (buttons, links, active nav, charts).
+
 ## Conclusion
 
 The approved asset revamp is implemented:

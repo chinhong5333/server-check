@@ -321,3 +321,81 @@
 **Description:** `.page-header__identity h1` is now `clamp(1.75rem, 2.8vw, 2.2rem)`: 31.7 px at 1440, down from 37.4 px. Other page titles are unchanged. The icon tile still spans the eyebrow + title exactly: 181–246, now 66 × 66.
 
 **Next Steps:** User review.
+
+## 2026-10-15 06:20:00 PM
+
+**Task:** Decision recorded — panel header tone.
+
+**Description:**
+- The user chose **Option A · Neutral Band** for panel header strips (Agent Status, Health Checks, chart headers, roster toolbar, History).
+- Light band #F0F3F7 with rule #D3D9E1; dark band #24282F with rule #30353D; neutral titles.
+- **Constraint from the user: do not shift the colour tone to blue.** Header and surface bands stay neutral grey. Blue remains only the accent (buttons, links, active nav, charts).
+- Option B (blue accent band) and C (ink header) were rejected.
+- Mockups: the canvas board "Header Tone Options" and a Header Tone tweak on both Agent Detail boards (default A).
+
+**Next Steps:** Preview the white theme with Option A, then implement it in `styles.css` / `tokens.css` once approved.
+
+## 2026-10-15 06:30:00 PM
+
+**Task:** Header tone decision revised per theme.
+
+**Description:**
+- The user chose **Option B · Accent Band for the white (light) theme**: #EDF2FD band, #C7D7FE rule, #14306E title, #3E5683 secondary.
+- The dark theme keeps **Option A · Neutral Band**: #24282F / #30353D.
+- The earlier "do not modify the colour tone to blue" rule now applies to the dark theme. In light, the blue tint is limited to panel header bands.
+- Memory, plan and log updated.
+
+**Next Steps:** Preview the light theme with B and dark with A (preview `?header=b` for light), then implement once approved.
+
+## 2026-10-15 06:33:00 PM
+
+**Task:** Implement panel and modal header bands in the real app (light = Option B, dark = Option A), covering all pages and modals.
+
+**Description:**
+- `tokens.css`: new `--color-header-band`, `--color-header-rule`, `--color-header-title` and `--color-header-muted`.
+  - Light: #EDF2FD / #C7D7FE / #14306E / #3E5683.
+  - Dark: #24282F / #30353D / #EEF0F3 / #9AA2AE, neutral with no blue.
+- `styles.css`: one rule set bands every surface heading — `:is(.data-surface, .form-surface, .chart-surface, .agent-health-checks) > .section-heading` — plus the Agent Status header, the agent roster toolbar and the agent-setup dialog heading.
+  - Inside a band, `--color-muted` is remapped to the header muted colour. The theme muted #667085 would only reach 4.2:1 on the light band.
+  - Headings in form surfaces get rounded top corners.
+- Excluded on purpose:
+  - status-coloured confirmation dialogs (Delete Agent / Delete Project / Rotate Secret confirmations keep their red and amber surfaces)
+  - page-level headings (All Projects, sort toolbar, History Records title)
+  - project cards
+  - the single-row Script Configuration panel
+- **Bug fix found during verification** (introduced by the 2026-10-14 identity-tile change, already pushed):
+  - At about 1000 px the Agent Detail header grid gave the title a 0 px column. The server name stacked one letter per line and the tile stretched to 657 px.
+  - The header is now a wrapping flex row (identity `flex: 1 1 22rem`, actions wrap below) and the tile is capped at 5.5rem.
+  - Verified: 864 px (one-line title, 58 px tile), 1000 px (62 px tile), 1440 px (66 px tile matching the eyebrow and title), 390 px (52 px). No horizontal overflow.
+- **Verified the light band** (#EDF2FD, navy title) via computed styles:
+  - Agent Detail: status, health, charts and history, plus the Server State, Raw Log, Raw DB, Manage and Schedule Maintenance modals.
+  - Projects: Create Project and View All Agents modals; the page-level heading stays unbanded.
+  - Overview: roster toolbar plus the Register Agent, Edit Agent and Rename Project modals.
+  - Change Password settings panel, with rounded top corners.
+- **Dark mode** verified at #24282F with #EEF0F3 titles.
+- **Screenshot limits:** modals were checked by computed style only, because this screenshot mode does not capture the top layer.
+- No TSX changes. Unit tests not run (CSS and tokens only).
+- Not committed.
+
+**Next Steps:** User review. Commit on request.
+
+## 2026-10-15 06:36:00 PM
+
+**Task:** Agent Status notice spacing.
+
+**Description:** The alert notice ("Agent Requires Attention / Heartbeat overdue") sat flush under the new header band. Added `margin-block-start: var(--space-md)`. Measured 14 px above and 14 px below (dark, 1440 px).
+
+**Next Steps:** User review. Commit on request.
+
+## 2026-10-15 06:40:00 PM
+
+**Task:** Modal header title spacing not even (Manage Agent modal).
+
+**Description:**
+- Modal `.section-heading` used `align-items: start`, so a one-line title sat at the top of the band (14 px above, 35 px below) while the 44 px close button set the band height.
+- Added `.agent-dialog__surface > .section-heading { align-items: center; }`, which applies to every modal heading.
+- Measured (dark, 1440 px):
+  - Manage: 25 px above and 25 px below; title centre equals close-button centre (177).
+  - Schedule Maintenance (title plus description): 22 px / 22 px, centred on the close button.
+
+**Next Steps:** User review. Commit on request.
