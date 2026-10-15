@@ -4103,3 +4103,8 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 }
 .page-header__identity > .status-tile--lg { max-width: 5.5rem; max-height: 5.5rem; }
 
+/* Agent Status notice: breathing room below the header band, matching the gap underneath. */
+.agent-heartbeat-summary__notice { margin-block-start: var(--space-md); }
+
+/* Modal headers: centre the title block against the close button so the band spacing is even. */
+.agent-dialog__surface > .section-heading { align-items: center; }
