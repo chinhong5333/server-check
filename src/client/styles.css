@@ -4072,6 +4072,28 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
   .page-header__identity .page-context { grid-column: 2; grid-row: 1; }
   .page-header__identity h1 { grid-column: 2; grid-row: 2; }
 }
+
+/* Panel and modal header bands: soft accent band in light, neutral band in dark (tokens.css --color-header-*).
+ * Covers every card/surface heading and every modal heading; status-coloured confirmation dialogs keep their own tone. */
+:is(.data-surface, .form-surface, .chart-surface, .agent-health-checks) > .section-heading,
+.agent-heartbeat-summary__header,
+.agent-roster-surface .roster-toolbar,
+.agent-setup-dialog-heading {
+  --color-muted: var(--color-header-muted);
+  background: var(--color-header-band);
+  border-block-end: var(--rule-thin) solid var(--color-header-rule);
+}
+:is(.data-surface, .form-surface, .chart-surface, .agent-health-checks) > .section-heading :is(h2, h3),
+.agent-heartbeat-summary__header h2,
+.agent-setup-dialog-heading h2 { color: var(--color-header-title); }
+:is(.data-surface, .form-surface, .chart-surface, .agent-health-checks) > .section-heading p,
+.agent-setup-dialog-heading p,
+.agent-heartbeat-summary__state > span:not(.status) { color: var(--color-header-muted); }
+.agent-health-checks > .section-heading { padding-block-end: var(--space-md); }
+.agent-roster-surface .roster-toolbar { padding-block: var(--space-sm); }
+.form-surface > .section-heading,
+.agent-setup-dialog-heading { border-start-start-radius: calc(var(--radius-lg) - 1px); border-start-end-radius: calc(var(--radius-lg) - 1px); }
+
 /* Agent Detail header: the identity keeps a readable width and the actions wrap below it when space runs out;
  * the matched-height tile is capped so a wrapped title can never stretch it. */
 @media (min-width: 40rem) {

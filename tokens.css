@@ -41,6 +41,11 @@
   --color-violet-surface: #F4F3FF;
   --color-violet-line: #D9D6FE;
   --color-track: #EAEEF4;
+  /* Panel and modal header bands — light theme: soft accent band. */
+  --color-header-band: #EDF2FD;
+  --color-header-rule: #C7D7FE;
+  --color-header-title: #14306E;
+  --color-header-muted: #3E5683;
   --color-overlay: rgb(16 24 40 / 0.48);
   --color-skeleton: #E4E8EF;
   --color-code-surface: #0F1B2D;
@@ -145,6 +150,11 @@
     --color-violet-surface: rgb(180 166 245 / 0.12);
     --color-violet-line: rgb(180 166 245 / 0.3);
     --color-track: #272A31;
+    /* Panel and modal header bands — dark theme: neutral band, no blue tint. */
+    --color-header-band: #24282F;
+    --color-header-rule: #30353D;
+    --color-header-title: #EEF0F3;
+    --color-header-muted: #9AA2AE;
     --color-overlay: rgb(5 7 10 / 0.7);
     --color-skeleton: #22252B;
     --color-code-surface: #0D0F12;
