@@ -4072,3 +4072,12 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
   .page-header__identity .page-context { grid-column: 2; grid-row: 1; }
   .page-header__identity h1 { grid-column: 2; grid-row: 2; }
 }
+/* Agent Detail header: the identity keeps a readable width and the actions wrap below it when space runs out;
+ * the matched-height tile is capped so a wrapped title can never stretch it. */
+@media (min-width: 40rem) {
+  .agent-page-intro .page-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; }
+  .agent-page-intro .page-header > .page-header__identity { flex: 1 1 22rem; min-width: 0; }
+  .agent-page-intro .page-header > .agent-detail-actions { flex: 0 1 auto; }
+}
+.page-header__identity > .status-tile--lg { max-width: 5.5rem; max-height: 5.5rem; }
+
