@@ -205,7 +205,8 @@ describe("project-scoped agents page", () => {
     expect(screen.getByText("1 Of 2 Agents")).toBeInTheDocument();
   });
 
-  it("uses canonical project workspace navigation instead of a global project selector", () => {
+  it("uses canonical project workspace navigation instead of a global project selector", async () => {
+    apiFetchMock.mockResolvedValue({ telegram_group_url: "https://t.me/+exampleGroup", telegram_group_enabled: true });
     render(
       <MemoryRouter initialEntries={["/projects/project-1/agents"]}>
         <AppShell><p>Workspace content</p></AppShell>
@@ -242,6 +243,9 @@ describe("project-scoped agents page", () => {
     expect(screen.queryByRole("link", { name: "Incidents" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Project setting" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Project" })).not.toBeInTheDocument();
+    const alertLink = await screen.findByRole("link", { name: "Open Telegram Alerts" });
+    expect(alertLink).toHaveAttribute("href", "https://t.me/+exampleGroup");
+    expect(alertLink.nextElementSibling).toHaveClass("sidebar__bottom");
   });
   it("shows edit actions without delete or rotation for a scoped sub-admin", async () => {
     authFixture.role="sub_admin";authFixture.permissions=["view_projects","edit_agent_settings"];

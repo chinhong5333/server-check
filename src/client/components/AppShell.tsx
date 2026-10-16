@@ -18,6 +18,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { ThemeToggle } from "./ThemeToggle";
 import { SidebarClock } from "./SidebarClock";
 import { formatCount } from "../lib/format";
+import { NotificationGroupBar } from "./NotificationGroup";
 
 function initials(value: string): string {
   const words = value.split(/[^A-Za-z0-9]+/).filter(Boolean);
@@ -152,6 +153,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           )) : null}
           </nav>
         ) : null}
+
+        <NotificationGroupBar placement="sidebar" />
 
         <div className="sidebar__bottom">
           <div className="sidebar__utilities">
