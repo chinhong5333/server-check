@@ -30,7 +30,8 @@ import { preferredMaintenance, readMaintenanceIndicators } from "../services/mai
 import { createAgentCredential, sha256 } from "../security/crypto.js";
 import {
   APACHE_AUTO_DETECT_LABEL,
-  cronForInterval,
+  agentCronEntry,
+  defaultAgentScriptPath,
   generateAgentScript,
   normalizeHealthApiUrl
 } from "../services/agent-script.js";
@@ -490,7 +491,7 @@ export function createProjectsRouter(config: AppConfig): Router {
       const credential = createAgentCredential(agent.public_id);
       const now = Date.now();
       const scriptFilename = `server-check-${slugify(agent.server_name) || agent.public_id.slice(0, 8)}.sh`;
-      const scriptPath = `/opt/server-check/${scriptFilename}`;
+      const scriptPath = defaultAgentScriptPath(scriptFilename);
       const centralApiUrl = new URL("/api/v1/agent/heartbeats", config.publicBaseUrl).toString();
 
       await withTransaction(config, async (connection) => {
@@ -569,7 +570,7 @@ export function createProjectsRouter(config: AppConfig): Router {
           checks: body.checks,
           healthRequestTimeoutSeconds: DEFAULT_HEALTH_REQUEST_TIMEOUT_SECONDS
         }),
-        crontab_entry: cronForInterval(agent.heartbeat_interval_seconds, scriptPath),
+        crontab_entry: agentCronEntry(scriptPath),
         credential_shown_once: true
       };
       response.setHeader("Cache-Control", "no-store");
@@ -880,7 +881,7 @@ export function createProjectsRouter(config: AppConfig): Router {
       const credential = createAgentCredential(agentPublicId);
       const now = Date.now();
       const scriptFilename = `server-check-${slugify(body.server_name) || agentPublicId.slice(0, 8)}.sh`;
-      const scriptPath = `/opt/server-check/${scriptFilename}`;
+      const scriptPath = defaultAgentScriptPath(scriptFilename);
       const centralApiUrl = new URL("/api/v1/agent/heartbeats", config.publicBaseUrl).toString();
 
       await withTransaction(config, async (connection) => {
@@ -962,7 +963,7 @@ export function createProjectsRouter(config: AppConfig): Router {
         agent_id: agentPublicId,
         script_filename: scriptFilename,
         script,
-        crontab_entry: cronForInterval(body.heartbeat_interval_seconds, scriptPath),
+        crontab_entry: agentCronEntry(scriptPath),
         credential_shown_once: true
       };
       response.setHeader("Cache-Control", "no-store");

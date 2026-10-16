@@ -84,7 +84,7 @@ describe("database table contract", () => {
     expect(heartbeatRoute).not.toContain("p.ram_available_threshold_percent");
     expect(workers).toContain("a.heartbeat_interval_seconds");
     expect(workers).not.toContain("p.heartbeat_interval_seconds");
-    expect(projectRoutes).toContain("cronForInterval(body.heartbeat_interval_seconds, scriptPath)");
+    expect(projectRoutes).toContain("crontab_entry: agentCronEntry(scriptPath)");
     expect(projectRoutes).not.toContain("/:project_id/policy");
   });
 

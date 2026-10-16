@@ -200,7 +200,7 @@ describe("agent settings update route", () => {
     expect(response.body).toMatchObject({
       agent_id: "agent-1",
       script_filename: "server-check-atlas-web-01.sh",
-      crontab_entry: "*/2 * * * * /bin/sh '/opt/server-check/server-check-atlas-web-01.sh'",
+      crontab_entry: "* * * * * /bin/sh '/root/server-check-atlas-web-01.sh'",
       credential_shown_once: true
     });
     expect(response.body.script).toContain("# Agent: atlas-web-01");

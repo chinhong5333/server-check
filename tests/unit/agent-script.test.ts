@@ -2,7 +2,8 @@ import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import {
-  cronForInterval,
+  agentCronEntry,
+  defaultAgentScriptPath,
   generateAgentScript,
   normalizeHealthApiUrl,
   shellCommentValue,
@@ -66,12 +67,11 @@ describe("agent script generator", () => {
     );
   });
 
-  it("generates only supported cron intervals", () => {
-    expect(cronForInterval(60, "/opt/server check/agent.sh")).toBe(
-      `*/1 * * * * /bin/sh '/opt/server check/agent.sh'`
+  it("schedules the agent every minute from the default root path", () => {
+    expect(defaultAgentScriptPath("server-check-atlas.sh")).toBe("/root/server-check-atlas.sh");
+    expect(agentCronEntry("/root/server check/agent.sh")).toBe(
+      `* * * * * /bin/sh '/root/server check/agent.sh'`
     );
-    expect(cronForInterval(3600, "/opt/agent.sh")).toBe("0 * * * * /bin/sh '/opt/agent.sh'");
-    expect(() => cronForInterval(420, "/opt/agent.sh")).toThrow(/Supported cron intervals/);
   });
 
   it.runIf(localShell)("passes a real POSIX shell syntax check", () => {

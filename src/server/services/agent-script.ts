@@ -26,17 +26,14 @@ export function shellCommentValue(value: string): string {
     .trim();
 }
 
-export function cronForInterval(intervalSeconds: number, scriptPath: string): string {
-  if (intervalSeconds % 60 !== 0) {
-    throw new Error("Cron intervals must use whole minutes.");
-  }
+/** Default install location suggested to the operator; the setup UI lets them change it. */
+export function defaultAgentScriptPath(scriptFilename: string): string {
+  return `/root/${scriptFilename}`;
+}
 
-  const minutes = intervalSeconds / 60;
-  if (minutes === 60) return `0 * * * * /bin/sh ${shellSingleQuote(scriptPath)}`;
-  if (minutes < 1 || minutes > 30 || 60 % minutes !== 0) {
-    throw new Error("Supported cron intervals are 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, or 60 minutes.");
-  }
-  return `*/${minutes} * * * * /bin/sh ${shellSingleQuote(scriptPath)}`;
+/** The agent reports every minute; the agent's heartbeat interval only sets the missing-heartbeat timeout. */
+export function agentCronEntry(scriptPath: string): string {
+  return `* * * * * /bin/sh ${shellSingleQuote(scriptPath)}`;
 }
 
 export function normalizeHealthApiUrl(value: string): string {
