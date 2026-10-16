@@ -55,18 +55,25 @@ export function ProjectsPage() {
           </nav>
           <h1>Projects</h1>
         </div>
-        <button
-          className="button button--primary"
-          type="button"
-          aria-haspopup="dialog"
-          aria-controls="create-project-dialog"
-          hidden={!hasPermission(user, "edit_project_settings")}
-          onClick={openCreateDialog}
-          disabled={sortSnapshot !== null}
-        >
-          <FolderPlus aria-hidden="true" />
-          Create Project
-        </button>
+        <div className="projects-page__actions">
+          {projects.length > 0 ? <span className="numeric section-count">
+            Total {formatCount(projects.length)} {projects.length === 1 ? "Project" : "Projects"}
+          </span> : null}
+          {hasPermission(user, "edit_project_settings") && !sortSnapshot && projects.length > 1 && <button type="button" className="button button--secondary"
+            onClick={() => setSortSnapshot([...projects])}><ListFilter aria-hidden="true" />Sort</button>}
+          <button
+            className="button button--primary"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="create-project-dialog"
+            hidden={!hasPermission(user, "edit_project_settings")}
+            onClick={openCreateDialog}
+            disabled={sortSnapshot !== null}
+          >
+            <FolderPlus aria-hidden="true" />
+            Create Project
+          </button>
+        </div>
       </header>
 
       <ModalDialog
@@ -121,17 +128,7 @@ export function ProjectsPage() {
           }
         />
       ) : (
-        <section className="project-collection" aria-labelledby="all-projects-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="all-projects-title">All Projects</h2>
-            </div>
-            <div className="project-sort__actions"><span className="numeric section-count">
-              Total {formatCount(projects.length)} {projects.length === 1 ? "Project" : "Projects"}
-            </span>
-            {hasPermission(user, "edit_project_settings") && !sortSnapshot && projects.length > 1 && <button type="button" className="button button--secondary"
-              onClick={() => setSortSnapshot([...projects])}><ListFilter aria-hidden="true" />Sort</button>}</div>
-          </div>
+        <section className="project-collection" aria-label="All Projects">
           {sortSnapshot && hasPermission(user, "edit_project_settings") ? <ProjectSortMode projects={sortSnapshot} onClose={() => setSortSnapshot(null)}
             onSaved={() => { reloadProjects(); setSortSnapshot(null); }} /> :
           <ul className="project-card-grid">
