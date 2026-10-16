@@ -104,7 +104,7 @@ const replacementInstallation = {
   agent_id: "agent-1",
   script_filename: "server-check-atlas-web-renamed.sh",
   script: "#!/bin/sh\n# protected replacement\n",
-  crontab_entry: "*/2 * * * * /bin/sh '/opt/server-check/server-check-atlas-web-renamed.sh'",
+  crontab_entry: "* * * * * /bin/sh '/root/server-check-atlas-web-renamed.sh'",
   credential_shown_once: true as const
 };
 
@@ -463,7 +463,7 @@ describe("project-scoped agents page", () => {
     const backButton = screen.getByRole("button", { name: "Close Agent Setup" });
     expect(screen.queryByRole("textbox", { name: "Script Path" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next: Run Setup" }));
-    expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("chmod 700 '/opt/server-check/server-check-atlas-web-renamed.sh'");
+    expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("chmod 700 '/root/server-check-atlas-web-renamed.sh'");
     expect(screen.getByRole("button", { name: "Copy Setup Command" })).toBeInTheDocument();
 
     fireEvent.click(backButton);

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { AgentScriptSetup } from "../../src/client/components/AgentScriptSetup";
 afterEach(cleanup);
-const installation = {agent_id:"synthetic",script_filename:"original.sh",script:"#!/bin/sh\n# synthetic only\n",crontab_entry:"*/2 * * * * /bin/sh '/opt/server-check/original.sh'",credential_shown_once:true as const};
+const installation = {agent_id:"synthetic",script_filename:"original.sh",script:"#!/bin/sh\n# synthetic only\n",crontab_entry:"* * * * * /bin/sh '/root/original.sh'",credential_shown_once:true as const};
 it("moves from download to setup and exposes three separate commands ending in an immediate central report", () => {
   render(<AgentScriptSetup installation={installation}/>);
   expect(screen.queryByRole("textbox",{name:"Script Path"})).not.toBeInTheDocument();
@@ -15,18 +15,19 @@ it("moves from download to setup and exposes three separate commands ending in a
   fireEvent.click(screen.getByText("View Script"));
   fireEvent.click(screen.getByRole("button",{name:"Next: Run Setup"}));
   expect(screen.getByRole("heading",{name:"Run The Setup Command"})).toHaveFocus();
-  expect(screen.getByRole("textbox",{name:"Script Path"})).toHaveValue("/opt/server-check/original.sh");
+  expect(screen.getByRole("textbox",{name:"Script Path"})).toHaveValue("/root/original.sh");
   expect(screen.queryByText(/^Paste this command on your server/)).not.toBeInTheDocument();
-  expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("chmod 700 '/opt/server-check/original.sh'");
-  expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent(/&& \/bin\/sh '\/opt\/server-check\/original.sh'$/);
+  expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("chmod 700 '/root/original.sh'");
+  expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent(/&& \/bin\/sh '\/root\/original.sh'$/);
   expect(screen.getByRole("button",{name:"Copy Setup Command"})).toHaveTextContent(/^Copy$/);
+  expect(screen.getByText("Runs once now, then every minute.")).toBeInTheDocument();
   expect(screen.queryByText(/^Run as the server user who runs PM2/)).not.toBeInTheDocument();
   expect(screen.getByText("Use Separate Commands").parentElement).not.toHaveAttribute("open");
   fireEvent.click(screen.getByText("Use Separate Commands"));
   expect(screen.getByRole("button",{name:"Copy Permissions Command"})).toHaveTextContent(/^Copy$/);
   expect(screen.getByRole("button",{name:"Copy Cron Command"})).toHaveTextContent(/^Copy$/);
   expect(screen.getByRole("button",{name:"Copy Run Command"})).toHaveTextContent(/^Copy$/);
-  expect(screen.getByLabelText("3. Run And Report To Central Server")).toHaveTextContent("/bin/sh '/opt/server-check/original.sh'");
+  expect(screen.getByLabelText("3. Run And Report To Central Server")).toHaveTextContent("/bin/sh '/root/original.sh'");
 });
 it.each(["success", "failure"])("preserves %s feedback and the exact copied setup command with short labels", async outcome => {
   const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
@@ -67,7 +68,7 @@ it("updates every command immediately without API writes or changing the install
     fireEvent.click(screen.getByRole("button",{name:"Next: Run Setup"}));
     fireEvent.change(screen.getByRole("textbox",{name:"Script Path"}),{target:{value:"/root/myfile.sh"}});
     expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("chmod 700 '/root/myfile.sh'");
-    expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("*/2 * * * * /bin/sh");
+    expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("* * * * * /bin/sh");
     expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent(/&& \/bin\/sh '\/root\/myfile.sh'$/);
     expect(screen.getByLabelText("One-Line Setup Command")).not.toHaveTextContent("original.sh");
     fireEvent.click(screen.getByText("Use Separate Commands"));
