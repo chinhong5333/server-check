@@ -56,6 +56,11 @@ interface ProjectAgentPreviewRow extends RowDataPacket {
   status: ProjectAgentPreview["status"];
 }
 
+interface ProjectAgentNameRow extends RowDataPacket {
+  project_id: string;
+  server_name: string;
+}
+
 interface AgentRow extends RowDataPacket {
   id: string;
   public_id: string;
@@ -208,6 +213,7 @@ export function createProjectsRouter(config: AppConfig): Router {
       );
 
       const previewsByProject = new Map<string, ProjectAgentPreview[]>();
+      const agentNamesByProject = new Map<string, string[]>();
       const maintenance = await readMaintenanceIndicators(getPool(config), rows.map(row => String(row.id)), now);
       if (rows.length > 0) {
         const [previewRows] = await getPool(config).query<ProjectAgentPreviewRow[]>(
@@ -233,6 +239,17 @@ export function createProjectsRouter(config: AppConfig): Router {
             maintenance: preferredMaintenance(maintenance.inherited.get(projectId) ?? null, maintenance.agents.get(String(row.id)) ?? null) });
           previewsByProject.set(projectId, previews);
         }
+        const [nameRows] = await getPool(config).query<ProjectAgentNameRow[]>(
+          `SELECT a.project_id, a.server_name
+           FROM agents a
+           INNER JOIN projects p ON p.id = a.project_id AND p.is_delete = 0
+           WHERE a.is_delete = 0
+           ORDER BY a.project_id, a.server_name`
+        );
+        for (const row of nameRows) {
+          const projectId = String(row.project_id);
+          agentNamesByProject.set(projectId, [...(agentNamesByProject.get(projectId) ?? []), row.server_name]);
+        }
       }
 
       const projects: ProjectSummary[] = rows.map((row) => ({
@@ -241,6 +258,7 @@ export function createProjectsRouter(config: AppConfig): Router {
         slug: row.slug,
         maintenance: maintenance.projects.get(String(row.id)) ?? null,
         agents_preview: previewsByProject.get(String(row.id)) ?? [],
+        agent_names: agentNamesByProject.get(String(row.id)) ?? [],
         healthy_agents: Number(row.healthy_agents),
         new_agents: Number(row.new_agents),
         warning_agents: Number(row.warning_agents),

@@ -4194,4 +4194,5 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 @media (max-width: 39.999rem) {
   .page-header > .projects-page__actions { display: grid; grid-template-columns: repeat(2, auto); justify-content: start; }
   .projects-page__actions > .section-count { grid-column: 1 / -1; justify-self: start; }
+  .projects-page__actions > .roster-search { grid-column: 1 / -1; width: 100%; }
 }

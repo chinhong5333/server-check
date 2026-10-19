@@ -1,7 +1,7 @@
 import { hasPermission } from "../../shared/permissions";
-import { ListFilter, FolderPlus, X } from "lucide-react";
+import { ListFilter, FolderPlus, Search, X } from "lucide-react";
 import { useRef, useState, type MouseEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { type ProjectSummary } from "../../shared/contracts";
 import { EmptyState, ErrorState, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
@@ -19,6 +19,17 @@ export function ProjectsPage() {
   const [sortSnapshot, setSortSnapshot] = useState<ProjectSummary[] | null>(null);
   const { projects, status, error, reloadProjects } = useProjects();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const projectSearch = searchParams.get("project_search") ?? "";
+  const searchTerm = projectSearch.trim().toLocaleLowerCase();
+  const visibleProjects = searchTerm ? projects.filter(project =>
+    project.name.toLocaleLowerCase().includes(searchTerm)
+    || (project.agent_names ?? []).some(name => name.toLocaleLowerCase().includes(searchTerm))) : projects;
+  const setProjectSearch = (value: string) => setSearchParams(previous => {
+    const next = new URLSearchParams(previous);
+    if (value) next.set("project_search", value); else next.delete("project_search");
+    return next;
+  }, { replace: true });
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const createTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -59,6 +70,11 @@ export function ProjectsPage() {
           {projects.length > 0 ? <span className="numeric section-count">
             Total {formatCount(projects.length)} {projects.length === 1 ? "Project" : "Projects"}
           </span> : null}
+          {projects.length > 0 && !sortSnapshot ? <label className="roster-search"><Search aria-hidden="true" />
+            <span className="visually-hidden">Search Projects Or Agents</span>
+            <input type="search" placeholder="Search Projects Or Agents" value={projectSearch} maxLength={120}
+              onChange={event => setProjectSearch(event.target.value)} />
+          </label> : null}
           {hasPermission(user, "edit_project_settings") && !sortSnapshot && projects.length > 1 && <button type="button" className="button button--secondary"
             onClick={() => setSortSnapshot([...projects])}><ListFilter aria-hidden="true" />Sort</button>}
           <button
@@ -131,8 +147,13 @@ export function ProjectsPage() {
         <section className="project-collection" aria-label="All Projects">
           {sortSnapshot && hasPermission(user, "edit_project_settings") ? <ProjectSortMode projects={sortSnapshot} onClose={() => setSortSnapshot(null)}
             onSaved={() => { reloadProjects(); setSortSnapshot(null); }} /> :
+          visibleProjects.length === 0 ? <EmptyState
+            title="No Matching Projects"
+            message="No project or agent name matches this search."
+            action={<button className="button button--secondary" type="button" onClick={() => setProjectSearch("")}>Clear Search</button>}
+          /> :
           <ul className="project-card-grid">
-            {projects.map((project) => <li key={project.id}><ProjectCard project={project} /></li>)}
+            {visibleProjects.map((project) => <li key={project.id}><ProjectCard project={project} /></li>)}
           </ul>
           }
         </section>

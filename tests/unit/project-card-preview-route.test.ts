@@ -32,10 +32,12 @@ describe("Project list agent previews", () => {
     }]]).mockResolvedValueOnce([[...Array.from({ length: 6 }, (_, index) => ({
       id: String(index + 1), project_id: "1", public_id: `agent-${index + 1}`, server_name: `agent-${index + 1}`,
       status: (["critical", "warning", "new", "healthy", "healthy", "healthy"] as const)[index]
-    }))]]);
+    }))]]).mockResolvedValueOnce([Array.from({ length: 7 }, (_, index) => ({ project_id: "1", server_name: `agent-${index + 1}` }))]);
     const response = await request(app()).get("/");
     expect(response.status).toBe(200);
     expect(response.body[0].agents_preview).toHaveLength(6);
+    expect(response.body[0].agent_names).toHaveLength(7);
+    expect(response.body[1].agent_names).toEqual([]);
     expect(response.body[0].agents_preview[0]).toEqual({ id: "agent-1", server_name: "agent-1", status: "critical", maintenance: { status: "active", scope: "project" } });
     expect(response.body[0].maintenance).toEqual({ status: "active", scope: "project" });
     expect(response.body[1].maintenance).toBeNull();

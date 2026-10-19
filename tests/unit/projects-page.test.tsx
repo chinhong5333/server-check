@@ -27,6 +27,7 @@ const { apiFetchMock, projectFixture, healthyProjectFixture, reloadProjectsMock 
     id: "project-2",
     name: "Project Green",
     slug: "project-green",
+    agent_names: ["coincat-web-01", "coincat-db-01"],
     healthy_agents: 2,
     new_agents: 0,
     warning_agents: 0,
@@ -240,5 +241,29 @@ describe("Projects collection flow", () => {
     );
 
     expect(await screen.findByText("Projects collection")).toBeInTheDocument();
+  });
+  it("filters projects by project name or any agent name from one search box", async () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={["/projects"]}>
+          <ProjectsPage />
+        </MemoryRouter>
+      </ToastProvider>
+    );
+
+    const search = screen.getByRole("searchbox", { name: "Search Projects Or Agents" });
+    fireEvent.change(search, { target: { value: "COINCAT-DB" } });
+    expect(screen.getByRole("article", { name: "Project Green" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "Project Atlas" })).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "atlas" } });
+    expect(screen.getByRole("article", { name: "Project Atlas" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "Project Green" })).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "no-such-server" } });
+    expect(screen.getByText("No Matching Projects")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear Search" }));
+    expect(screen.getByRole("article", { name: "Project Atlas" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Project Green" })).toBeInTheDocument();
   });
 });

@@ -305,6 +305,8 @@ export interface ProjectSummary {
   maintenance?: MaintenanceIndicator | null;
   /** Up to six active agents, ordered by condition severity then registration recency. */
   agents_preview?: ProjectAgentPreview[];
+  /** Every active agent's server name, for project-list search. */
+  agent_names?: string[];
   /** @deprecated Monitoring policy is agent-scoped. */
   ram_available_threshold_percent?: number;
   /** @deprecated Monitoring policy is agent-scoped. */
