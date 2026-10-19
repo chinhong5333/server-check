@@ -684,16 +684,15 @@ export function InstallAgentPage() {
         open={Boolean(agentPendingDelete) && hasPermission(user, "delete_agents")}
         labelledBy="delete-agent-title"
         describedBy="delete-agent-description"
-        surfaceClassName="agent-dialog__surface agent-delete-confirmation"
+        surfaceClassName="agent-dialog__surface form-surface agent-delete-dialog"
         restoreFocusTo={deleteTriggerRef.current ?? registrationButtonRef.current}
       >
         {agentPendingDelete ? (
           <>
-            <div>
-              <ShieldAlert aria-hidden="true" />
+            <div className="section-heading">
               <div>
                 <h2 id="delete-agent-title">Delete {agentPendingDelete.server_name}?</h2>
-                <p id="delete-agent-description">Its access secret will stop working immediately. Historical records remain retained.</p>
+                <p>Registered in {selectedProject.name}.</p>
               </div>
               <button
                 data-dialog-initial-focus
@@ -708,6 +707,10 @@ export function InstallAgentPage() {
               >
                 <X aria-hidden="true" />
               </button>
+            </div>
+            <div className="form-banner form-banner--error agent-delete-dialog__notice">
+              <ShieldAlert aria-hidden="true" />
+              <p id="delete-agent-description">Its access secret will stop working immediately. Historical records remain retained.</p>
             </div>
             {deleteError ? <p className="field__help field__help--error" role="alert">{deleteError}</p> : null}
             <div className="action-row">

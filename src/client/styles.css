@@ -4143,6 +4143,15 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 /* Modal headers: centre the title block against the close button so the band spacing is even. */
 .agent-dialog__surface > .section-heading { align-items: center; }
 
+/* Delete Agent: standard modal shell; the danger tone lives only in the notice and the action. */
+.agent-delete-dialog { display: grid; gap: var(--space-md); }
+.agent-delete-dialog > .section-heading { margin-block-end: 0; }
+.agent-delete-dialog > .form-banner { margin: 0; }
+.agent-delete-dialog__notice { display: flex; align-items: flex-start; gap: var(--space-sm); line-height: 1.5; }
+.agent-delete-dialog__notice > svg { flex: 0 0 auto; width: 1.25rem; height: 1.25rem; margin-block-start: 0.1rem; }
+.agent-delete-dialog__notice > p { margin: 0; }
+.agent-delete-dialog .action-row { justify-content: flex-end; }
+
 /* Telegram alert link: desktop sidebar card above the utilities rule; narrower screens keep the page bar. */
 .sidebar-alert-link {
   margin-block-start: auto; display: flex; align-items: center; gap: var(--space-sm); min-height: 44px;
