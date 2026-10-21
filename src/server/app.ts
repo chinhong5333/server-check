@@ -15,7 +15,7 @@ import { createProjectsRouter } from "./routes/projects.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createAdminsRouter } from "./routes/admins.js";
 import { createDatabaseHealthProbe, type DatabaseHealth } from "./services/database-health.js";
-import { createMaintenanceRouter } from "./routes/maintenance.js";
+import { createAllProjectsMaintenanceRouter, createMaintenanceRouter } from "./routes/maintenance.js";
 
 export function createApp(config: AppConfig) {
   const app = express();
@@ -95,6 +95,7 @@ export function createApp(config: AppConfig) {
   app.use("/api/v1/auth", createAuthRouter(config));
   app.use("/api/v1/projects", createProjectsRouter(config));
   app.use("/api/v1/projects", createMaintenanceRouter(config));
+  app.use("/api/v1/maintenance/all-projects", createAllProjectsMaintenanceRouter(config));
   app.use("/api/v1/agents", createAgentsRouter(config));
   app.use("/api/v1/settings", createSettingsRouter(config));
   app.use("/api/v1/admins", createAdminsRouter(config));
