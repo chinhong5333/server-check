@@ -4016,7 +4016,8 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 @media (max-width: 40rem) { .history-tabs__list { width: 100%; } .history-tabs__tab { flex: 1 1 0; } }
 
 /* Forms: softer inputs on the new surfaces. */
-.field input, .field select { background: var(--color-surface-raised); border-color: var(--color-rule-strong); border-radius: var(--radius-md); }
+/* background-color only: the shorthand would wipe the select chevron (background-image). */
+.field input, .field select { background-color: var(--color-surface-raised); border-color: var(--color-rule-strong); border-radius: var(--radius-md); }
 
 /* Maintenance panel: one tinted row — icon tile, details, actions. No nested boxes, no top bar. */
 .maintenance-control {
