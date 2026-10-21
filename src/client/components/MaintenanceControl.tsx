@@ -15,7 +15,7 @@ function localDateTime(at: number): string {
 
 /** Compact scoped controls; viewers can inspect windows but cannot mutate them. */
 export function MaintenanceControl({ endpoint, scope, canManage, onChanged, onActiveChange, detailsTargetId }: {
-  endpoint: string; scope: "Project" | "Agent"; canManage: boolean;
+  endpoint: string; scope: "Project" | "Agent" | "All Projects"; canManage: boolean;
   onChanged?: () => void; onActiveChange?: (active: boolean) => void;
   /** Renders the trigger here and window details in the named sibling slot. */
   detailsTargetId?: string;
@@ -75,8 +75,8 @@ export function MaintenanceControl({ endpoint, scope, canManage, onChanged, onAc
     finally { setBusy(false); }
   }
   if (!canManage && !windows.length && resource.status !== "error") return null;
-  const scheduleAction = canManage && !state?.own ? <button ref={trigger} type="button" className="button button--secondary" disabled={!state || busy}
-    aria-haspopup="dialog" aria-controls={`${id}-dialog`} onClick={showSchedule}><CalendarClock aria-hidden="true" />Schedule Maintenance</button> : null;
+  const scheduleAction = canManage && !state?.own ? <button ref={trigger} type="button" className={`button button--secondary${scope === "All Projects" ? " maintenance-mode-button" : ""}`} disabled={!state || busy}
+    aria-haspopup="dialog" aria-controls={`${id}-dialog`} onClick={showSchedule}><CalendarClock aria-hidden="true" />{scope === "All Projects" ? "Maintenance Mode" : "Schedule Maintenance"}</button> : null;
   const tone = active ? "warning" : windows.length ? "accent" : "new";
   const endAction = canManage && state?.own ? <button type="button" className="button button--secondary" disabled={busy} onClick={() => void endWindow()}>
     {busy ? <InlineLoader label="Saving Maintenance" /> : state.own.status === "active" ? "End Maintenance Now" : "Cancel Maintenance"}</button> : null;

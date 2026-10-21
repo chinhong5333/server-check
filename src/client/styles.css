@@ -4190,10 +4190,42 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
   .sidebar-alert-link:hover > svg { color: #FFFFFF; }
 }
 
-/* Projects header: count, Sort and Create Project share one action row (no separate collection heading). */
-.page-header > .projects-page__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-sm); }
-@media (max-width: 39.999rem) {
-  .page-header > .projects-page__actions { display: grid; grid-template-columns: repeat(2, auto); justify-content: start; }
-  .projects-page__actions > .section-count { grid-column: 1 / -1; justify-self: start; }
-  .projects-page__actions > .roster-search { grid-column: 1 / -1; width: 100%; }
+/* Projects header: title on its own row; the toolbar below splits collection tools (left) from page actions (right). */
+.projects-page > .page-header { grid-template-columns: minmax(0, 1fr); }
+.page-header > .projects-page__actions { container: projects-toolbar / inline-size; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.projects-page__collection-actions, .projects-page__primary-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); min-width: 0; }
+.projects-page__collection-actions > .roster-search { margin-inline-start: 0; }
+.projects-page__title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm); }
+.projects-page__primary-actions { margin-inline-start: auto; justify-content: flex-end; }
+.maintenance-mode-button { border-color: var(--color-error); }
+@media (hover: hover) { .maintenance-mode-button:not(:disabled):hover { border-color: var(--color-error); background: var(--color-error-surface); } }
+/* Toolbar ≥ 700px wide: the search box flexes (16.5–24rem, never clipping its placeholder) and everything shares one row.
+ * Sized by the toolbar itself, not the viewport, because the desktop sidebar takes a varying share of the screen. */
+@container projects-toolbar (min-width: 700px) {
+  .projects-page__collection-actions { flex: 1 1 17rem; flex-wrap: nowrap; min-width: min-content; }
+  .projects-page__collection-actions > .roster-search { flex: 1 1 auto; width: auto; min-width: 16.5rem; max-width: 24rem; min-height: 44px; }
+  .projects-page__primary-actions { flex: none; flex-wrap: nowrap; }
 }
+/* Toolbar < 700px: search + Sort fill one row, the two page actions share the next row equally (everything stacks below 340px). */
+@container projects-toolbar (max-width: 699.98px) {
+  .projects-page__collection-actions, .projects-page__primary-actions { width: 100%; }
+  .projects-page__collection-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .projects-page__collection-actions > .roster-search { width: 100%; }
+  .projects-page__collection-actions > .roster-search:last-child { grid-column: 1 / -1; }
+  .projects-page__primary-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .projects-page__primary-actions > .button { min-width: 0; justify-content: center; padding-inline: var(--space-sm); font-size: var(--text-sm); white-space: nowrap; }
+  .projects-page__primary-actions:not(:has(> .maintenance-mode-button)) > .button { grid-column: 1 / -1; }
+}
+@container projects-toolbar (max-width: 339.98px) {
+  .projects-page__collection-actions, .projects-page__primary-actions { grid-template-columns: minmax(0, 1fr); }
+  .projects-page__collection-actions > .button { justify-self: start; }
+}
+
+/* Phones: the Telegram bar is just its blue button, edge to edge. */
+@media (max-width: 48rem) {
+  .page-stack > .notification-group-bar { padding: 0; border: 0; background: transparent; }
+  .page-stack > .notification-group-bar > a { min-height: 44px; }
+}
+
+/* All-projects maintenance details: the slot collapses when no batch is current or upcoming. */
+.projects-page__maintenance:empty { display: none; }

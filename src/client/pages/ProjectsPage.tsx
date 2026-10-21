@@ -12,6 +12,7 @@ import { ProjectSortMode } from "../components/ProjectSortMode";
 import { ProjectCard } from "../components/ProjectCard";
 import { useAuth } from "../auth/AuthProvider";
 import { NotificationGroupBar } from "../components/NotificationGroup";
+import { MaintenanceControl } from "../components/MaintenanceControl";
 
 
 export function ProjectsPage() {
@@ -64,12 +65,15 @@ export function ProjectsPage() {
               <li aria-current="page">Projects</li>
             </ol>
           </nav>
-          <h1>Projects</h1>
+          <div className="projects-page__title">
+            <h1>Projects</h1>
+            {projects.length > 0 ? <span className="numeric section-count">
+              Total {formatCount(projects.length)} {projects.length === 1 ? "Project" : "Projects"}
+            </span> : null}
+          </div>
         </div>
         <div className="projects-page__actions">
-          {projects.length > 0 ? <span className="numeric section-count">
-            Total {formatCount(projects.length)} {projects.length === 1 ? "Project" : "Projects"}
-          </span> : null}
+          <div className="projects-page__collection-actions">
           {projects.length > 0 && !sortSnapshot ? <label className="roster-search"><Search aria-hidden="true" />
             <span className="visually-hidden">Search Projects Or Agents</span>
             <input type="search" placeholder="Search Projects Or Agents" value={projectSearch} maxLength={120}
@@ -77,6 +81,10 @@ export function ProjectsPage() {
           </label> : null}
           {hasPermission(user, "edit_project_settings") && !sortSnapshot && projects.length > 1 && <button type="button" className="button button--secondary"
             onClick={() => setSortSnapshot([...projects])}><ListFilter aria-hidden="true" />Sort</button>}
+          </div>
+          <div className="projects-page__primary-actions">
+          {projects.length > 0 ? <MaintenanceControl endpoint="/api/v1/maintenance/all-projects" scope="All Projects" canManage={user?.role === "admin"}
+            detailsTargetId="all-projects-maintenance" onChanged={reloadProjects} /> : null}
           <button
             className="button button--primary"
             type="button"
@@ -89,8 +97,10 @@ export function ProjectsPage() {
             <FolderPlus aria-hidden="true" />
             Create Project
           </button>
+          </div>
         </div>
       </header>
+      <div id="all-projects-maintenance" className="projects-page__maintenance" />
 
       <ModalDialog
         id="create-project-dialog"
