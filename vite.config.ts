@@ -12,7 +12,7 @@ function publicBaseUrlPlaceholder(origin: string): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const origin = env.PUBLIC_BASE_URL ? new URL(env.PUBLIC_BASE_URL).origin : "http://127.0.0.1:5173";
+  const origin = env.PUBLIC_BASE_URL ? new URL(env.PUBLIC_BASE_URL).origin : "http://127.0.0.1:5180";
   return {
     plugins: [react(), publicBaseUrlPlaceholder(origin)],
     build: {
@@ -22,9 +22,10 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: "127.0.0.1",
-      port: 5173,
+      port: 5180,
+      strictPort: true,
       proxy: {
-        "/api": "http://127.0.0.1:3000"
+        "/api": `http://127.0.0.1:${env.PORT ?? "3000"}`
       }
     }
   };

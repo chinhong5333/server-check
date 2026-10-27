@@ -23,7 +23,8 @@ it("loads the selected agent settings and saves through the existing edit endpoi
   const call=api.mock.calls.find(([,init])=>init?.method==="PUT")!;
   expect(call[0]).toBe("/api/v1/projects/project-1/agents/agent-1");
   expect(JSON.parse(call[1].body)).toEqual({server_name:"Atlas Updated",ram_available_threshold_percent:15,disk_available_threshold_percent:10,
-    load_5_per_core_threshold:1.5,heartbeat_interval_seconds:120,telegram_alert_cooldown_seconds:900,telegram_recovery_cooldown_seconds:120,middleware_failure_threshold:3});
+    load_5_per_core_threshold:1.5,heartbeat_interval_seconds:120,telegram_alert_cooldown_seconds:900,telegram_recovery_cooldown_seconds:120,middleware_failure_threshold:3,
+    checks:{apache:true,nginx:false,middleware_api:true}});
   await waitFor(()=>expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
 it("aborts loading and makes no write when closed",async()=>{

@@ -1,7 +1,11 @@
 import type { AgentChecks } from "../../shared/contracts";
 
-export function AgentScriptChecks({ value, onChange, disabled = false }: {
+export function AgentScriptChecks({ value, onChange, disabled = false, help, cannotEnable = [] }: {
   value: AgentChecks; onChange: (value: AgentChecks) => void; disabled?: boolean;
+  /** Replaces the default script-generation help text. */
+  help?: string;
+  /** Checks that may be turned off but not on (for example, Middleware API without a saved URL). */
+  cannotEnable?: (keyof AgentChecks)[];
 }) {
   return (
     <fieldset className="form-section field--wide" disabled={disabled}>
@@ -13,12 +17,13 @@ export function AgentScriptChecks({ value, onChange, disabled = false }: {
           ["middleware_api", "Middleware API", "HTTP 200 from your health endpoint."]
         ] as const).map(([key, label, description]) => (
           <label className="script-check-option" key={key}>
-            <input type="checkbox" checked={value[key]} onChange={(event) => onChange({ ...value, [key]: event.target.checked })} />
+            <input type="checkbox" checked={value[key]} disabled={!value[key] && cannotEnable.includes(key)}
+              onChange={(event) => onChange({ ...value, [key]: event.target.checked })} />
             <span><strong>{label}</strong><small>{description}</small></span>
           </label>
         ))}
       </div>
-      <p className="field__help">Unchecked services are not monitored. These choices are applied by the generated script.</p>
+      <p className="field__help">{help ?? "Unchecked services are not monitored. These choices are applied by the generated script."}</p>
     </fieldset>
   );
 }

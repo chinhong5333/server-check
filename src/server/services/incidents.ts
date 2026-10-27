@@ -199,6 +199,14 @@ export async function resolveAgentCondition(
   }
 }
 
+/** An incident whose check is now off closes without a misleading "recovered" alert. */
+function checkTurnedOff(incidentType: string, payload: TelemetryPayload): boolean {
+  if (incidentType.startsWith("apache_")) return payload.service_checks.apache.status === "disabled";
+  if (incidentType.startsWith("nginx_")) return (payload.service_checks.nginx?.status ?? "disabled") === "disabled";
+  if (incidentType === "health_api_unhealthy" || incidentType === "database_not_alive") return payload.health_probe.outcome === "disabled";
+  return false;
+}
+
 export async function evaluateTelemetryIncidents(
   connection: PoolConnection,
   policy: AgentPolicy,
@@ -250,7 +258,7 @@ export async function evaluateTelemetryIncidents(
        WHERE id = ?`,
       [now, now, incident.id]
     );
-    if (incident.incident_type === "database_not_alive" && payload.health_probe.outcome === "disabled") {
+    if (checkTurnedOff(incident.incident_type, payload)) {
       await cancelIncidentAlerts(connection, incident.id, now);
       continue;
     }

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { AgentScriptSetup } from "../../src/client/components/AgentScriptSetup";
 afterEach(cleanup);
@@ -14,13 +14,13 @@ it("moves from download to setup and exposes three separate commands ending in a
   expect(screen.getByText("Save this one-time script, then upload it to the path below on your server.")).toBeInTheDocument();
   fireEvent.click(screen.getByText("View Script"));
   fireEvent.click(screen.getByRole("button",{name:"Next: Run Setup"}));
-  expect(screen.getByRole("heading",{name:"Run The Setup Command"})).toHaveFocus();
+  expect(screen.getByRole("heading",{name:"Run Setup"})).toHaveFocus();
   expect(screen.getByRole("textbox",{name:"Script Path"})).toHaveValue("/root/original.sh");
   expect(screen.queryByText(/^Paste this command on your server/)).not.toBeInTheDocument();
   expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent("chmod 700 '/root/original.sh'");
   expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent(/&& \/bin\/sh '\/root\/original.sh'$/);
   expect(screen.getByRole("button",{name:"Copy Setup Command"})).toHaveTextContent(/^Copy$/);
-  expect(screen.getByText("Runs once now, then every minute.")).toBeInTheDocument();
+  expect(screen.getByText("Paste it on the server as root. It adds a crontab job that pings the central server every minute.")).toBeInTheDocument();
   expect(screen.queryByText(/^Run as the server user who runs PM2/)).not.toBeInTheDocument();
   expect(screen.getByText("Use Separate Commands").parentElement).not.toHaveAttribute("open");
   fireEvent.click(screen.getByText("Use Separate Commands"));
@@ -98,4 +98,25 @@ it("keeps the script available but blocks setup for an invalid generated command
   expect(screen.getByRole("button",{name:"Next: Run Setup"})).toBeDisabled();
   expect(screen.getByRole("button",{name:"Copy Script"})).toBeEnabled();
   expect(screen.queryByRole("button",{name:"Copy Setup Command"})).not.toBeInTheDocument();
+});
+it("closes from the Run Setup step only after Done Setup is held for 2 seconds", () => {
+  vi.useFakeTimers();
+  try {
+    const onDone = vi.fn();
+    render(<AgentScriptSetup installation={installation} onDone={onDone}/>);
+    expect(screen.queryByRole("button",{name:/^Done Setup/})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button",{name:"Next: Run Setup"}));
+    const done = screen.getByRole("button",{name:/^Done Setup/});
+    expect(done).toHaveAccessibleDescription("Press and hold for 2 seconds to close.");
+    fireEvent.click(done);
+    fireEvent.pointerDown(done,{button:0});
+    act(() => { vi.advanceTimersByTime(1900); });
+    expect(done).toHaveTextContent("Keep Holding…");
+    fireEvent.pointerUp(done);
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.keyDown(done,{key:"Enter"});
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(onDone).toHaveBeenCalledOnce();
+  } finally { vi.useRealTimers(); }
 });

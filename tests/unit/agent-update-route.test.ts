@@ -18,7 +18,8 @@ vi.mock("../../src/server/middleware/auth.js", async original => ({
   ...await original<typeof import("../../src/server/middleware/auth.js")>(),
   authenticate: () => (request: Request, _response: Response, next: NextFunction) => {
     request.auth = {
-      user: { id: "user-1", email: "admin@example.com", role: "admin" },
+      // x-role: sub_admin simulates a sub-admin holding only view_projects.
+      user: { id: "user-1", email: "admin@example.com", role: (request.get("x-role") ?? "admin") as "admin", permissions: ["view_projects"] },
       userInternalId: "9",
       sessionId: "session-1",
       sessionInternalId: "10",
@@ -147,7 +148,8 @@ describe("agent settings update route", () => {
     expect(updateStatement).toContain("middleware_failure_count = IF(middleware_failure_threshold = ?, middleware_failure_count, 0)");
     const saved = transactionExecuteMock.mock.calls.find(([sql])=>String(sql).includes("UPDATE agents"))!;
     expect(String(saved[0]).match(/\?/g)?.length).toBe(saved[1].length);
-    expect(saved[1].slice(6,8)).toEqual([3,3]);
+    expect(saved[1].slice(8,10)).toEqual([3,3]);
+    expect(saved[1][1]).toBeNull();
     expect(statements.some((sql) => sql.includes("UPDATE incidents"))).toBe(false);
     expect(statements.some((sql) => sql.includes("UPDATE notification_outbox"))).toBe(false);
     expect(statements.some((sql) => sql.includes("'agent.update'"))).toBe(true);
@@ -188,6 +190,64 @@ describe("agent settings update route", () => {
     expect(update?.[0]).toContain("last_service_checks_json = NULL");
     expect(JSON.parse(update?.[1][3])).toEqual(checks);
     expect(String(update?.[0]).match(/\?/g)?.length).toBe(update?.[1].length);
+  });
+
+  it("saves check selections and refuses to enable Middleware API without a saved URL", async () => {
+    const base = { server_name: "atlas-web-01", ram_available_threshold_percent: 15, disk_available_threshold_percent: 10,
+      load_5_per_core_threshold: 1.5, heartbeat_interval_seconds: 120, telegram_alert_cooldown_seconds: 900, middleware_failure_threshold: 2 };
+    const off = { apache: false, nginx: false, middleware_api: false };
+    expect((await request(createTestApp()).put("/project-1/agents/agent-1").send({ ...base, checks: off })).status).toBe(204);
+    const saved = transactionExecuteMock.mock.calls.find(([sql]) => String(sql).includes("UPDATE agents"))!;
+    expect(saved[1][1]).toBe(JSON.stringify(off));
+    transactionExecuteMock.mockClear();
+    poolExecuteMock.mockImplementation(async (sql: string) => sql.includes("FROM projects")
+      ? [[{ id: "21", public_id: "project-1", name: "Project Atlas", slug: "project-atlas" }], []]
+      : [[{ id: "31", public_id: "agent-1", server_name: "atlas-web-01", health_api_url: null }], []]);
+    const refused = await request(createTestApp()).put("/project-1/agents/agent-1").send({ ...base, checks: { ...off, middleware_api: true } });
+    expect(refused.status).toBe(422);
+    expect(refused.body.error.code).toBe("middleware_url_missing");
+    expect(transactionExecuteMock).not.toHaveBeenCalled();
+  });
+
+  it("bulk-saves each agent's own check values", async () => {
+    const first = "00000000-0000-4000-8000-0000000000a1", second = "00000000-0000-4000-8000-0000000000a2";
+    transactionExecuteMock.mockImplementation(async (sql: string) => String(sql).includes("FROM agents") ? [[
+      { id: "31", public_id: first, server_name: "with-url", health_api_url: "https://atlas.example.com/health" },
+      { id: "32", public_id: second, server_name: "no-url", health_api_url: null }], []] : [{ affectedRows: 1 }]);
+    const agents = [
+      { agent_id: first, checks: { apache: false, nginx: true, middleware_api: true } },
+      { agent_id: second, checks: { apache: true, nginx: false, middleware_api: false } }];
+    const response = await request(createTestApp()).patch("/project-1/agent-checks").send({ agents });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ updated_count: 2 });
+    const saved = transactionExecuteMock.mock.calls.filter(([sql]) => String(sql).startsWith("UPDATE agents SET check_configuration_json"))
+      .map(([, values]) => [values[2], JSON.parse(values[0])]);
+    expect(saved).toEqual([["31", agents[0].checks], ["32", agents[1].checks]]);
+    expect(transactionExecuteMock.mock.calls.some(([sql]) => String(sql).includes("'agent.checks.bulk_update'"))).toBe(true);
+  });
+
+  it("saves nothing when Middleware API is on without a URL or an agent is outside the project", async () => {
+    const agentId = "00000000-0000-4000-8000-0000000000a2";
+    transactionExecuteMock.mockImplementation(async (sql: string) => String(sql).includes("FROM agents")
+      ? [[{ id: "32", public_id: agentId, server_name: "no-url", health_api_url: null }], []] : [{ affectedRows: 1 }]);
+    const refused = await request(createTestApp()).patch("/project-1/agent-checks")
+      .send({ agents: [{ agent_id: agentId, checks: { apache: true, nginx: false, middleware_api: true } }] });
+    expect(refused.status).toBe(422);
+    expect(refused.body.error.code).toBe("middleware_url_missing");
+    transactionExecuteMock.mockImplementation(async (sql: string) => String(sql).includes("FROM agents") ? [[], []] : [{ affectedRows: 1 }]);
+    const missing = await request(createTestApp()).patch("/project-1/agent-checks")
+      .send({ agents: [{ agent_id: agentId, checks: { apache: false, nginx: false, middleware_api: false } }] });
+    expect(missing.status).toBe(404);
+    expect(transactionExecuteMock.mock.calls.some(([sql]) => String(sql).startsWith("UPDATE agents"))).toBe(false);
+  });
+
+  it("refuses check changes from a sub-admin without Register & Edit Agents", async () => {
+    const checks = { apache: false, nginx: false, middleware_api: false };
+    const bulk = await request(createTestApp()).patch("/project-1/agent-checks").set("x-role", "sub_admin")
+      .send({ agents: [{ agent_id: "00000000-0000-4000-8000-0000000000a1", checks }] });
+    const single = await request(createTestApp()).put("/project-1/agents/agent-1").set("x-role", "sub_admin").send({ checks });
+    expect([bulk.status, single.status]).toEqual([403, 403]);
+    expect(withTransactionMock).not.toHaveBeenCalled();
   });
 
   it("rotates credentials only through the explicit replacement-script endpoint", async () => {

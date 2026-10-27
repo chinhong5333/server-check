@@ -9,7 +9,7 @@ import { evaluateTelemetryIncidents, recordAgentCondition, resolveHeartbeatIncid
 import { advanceMiddlewareFailures } from "../services/middleware-failures.js";
 import { lockAgentAlerts } from "../services/alert-queue.js";
 import { observeServerUptime } from "../services/server-uptime.js";
-import { matchesConfiguredChecks, readAgentChecks } from "../services/check-configuration.js";
+import { applyConfiguredChecks, missingConfiguredChecks, readAgentChecks } from "../services/check-configuration.js";
 import { skipExcessProcessMemory } from "../services/process-telemetry.js";
 
 interface AgentPolicyRow extends RowDataPacket {
@@ -163,12 +163,13 @@ export function createHeartbeatRouter(config: AppConfig): Router {
       }, "Skipped process records with reported RAM usage above 100%");
       const parsed = telemetryPayloadSchema.safeParse(processTelemetry.payload);
 
-      const checkMismatch = parsed.success && !matchesConfiguredChecks(readAgentChecks(agent.check_configuration_json), parsed.data);
-      if (!parsed.success || checkMismatch) {
+      const configuredChecks = readAgentChecks(agent.check_configuration_json);
+      const missingChecks = parsed.success ? missingConfiguredChecks(configuredChecks, parsed.data) : [];
+      if (!parsed.success || missingChecks.length > 0) {
         const validationError = !parsed.success ? parsed.error.issues
           .map((issue) => `${issue.path.join(".") || "body"}: ${issue.message}`)
           .join("; ")
-          .slice(0, 500) : "Reported health checks do not match the latest generated script configuration.";
+          .slice(0, 500) : `The installed script does not run the ${missingChecks.join(", ")} check. Turn it off in Manage, or rotate the secret to install a script that runs it.`;
         await withAgentTransaction(config, agent, async (connection) => {
           await connection.execute(
             `INSERT INTO heartbeat_events
@@ -210,7 +211,7 @@ export function createHeartbeatRouter(config: AppConfig): Router {
         return;
       }
 
-      const payload = parsed.data;
+      const payload = applyConfiguredChecks(configuredChecks, parsed.data);
       const result = await withAgentTransaction(config, agent, async (connection) => {
         await connection.execute(
           `INSERT INTO heartbeat_events

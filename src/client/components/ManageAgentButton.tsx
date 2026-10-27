@@ -1,6 +1,6 @@
 import { Settings, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { AgentEditableInput, AgentSummary } from "../../shared/contracts";
+import { DEFAULT_AGENT_CHECKS, type AgentEditableInput, type AgentSummary } from "../../shared/contracts";
 import { apiFetch } from "../api";
 import { AgentForm } from "./AgentForm";
 import { ModalDialog } from "./ModalDialog";
@@ -49,6 +49,7 @@ export function ManageAgentButton({ agentId, projectId, agentName, onSaved }: {
       <div className="section-heading"><h2 id="manage-agent-title">Manage {agentName}</h2>
         <button data-dialog-initial-focus className="icon-button" type="button" aria-label="Close Agent Settings" disabled={saving} onClick={() => setOpen(false)}><X aria-hidden="true" /></button></div>
       {loading ? <PageSkeleton rows={3} /> : settings ? <AgentForm key={settings.id} initialValues={settings}
+        checks={{ initial: settings.checks ?? { ...DEFAULT_AGENT_CHECKS }, middlewareUrlSaved: settings.health_api_url !== null }}
         submitting={saving} submitLabel="Save Changes" submittingLabel="Saving Changes" error={error} onSubmit={(values) => void save(values)} />
         : error ? <ErrorState title="Couldn't Load Agent Settings" message={error} onRetry={() => setVersion((value) => value + 1)} /> : null}
     </ModalDialog>

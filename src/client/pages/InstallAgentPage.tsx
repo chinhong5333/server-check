@@ -23,6 +23,8 @@ import { AgentScriptSetup } from "../components/AgentScriptSetup";
 import { EmptyState, ErrorState, InlineLoader, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
 import { MaintenanceControl } from "../components/MaintenanceControl";
+import { BulkHealthChecksButton } from "../components/BulkHealthChecks";
+import { WizardSteps } from "../components/WizardSteps";
 import { MaintenanceIcon } from "../components/MaintenanceIcon";
 import { ProjectActions } from "../components/ProjectActions";
 import { MetricValue } from "../components/MetricValue";
@@ -76,6 +78,14 @@ function AgentRosterResources({ agent }: { agent: AgentSummary }) {
     {stale ? <span className="roster-resource-freshness">Last Reported · Stale</span> : null}
   </div>;
 }
+
+/** Register Agent guided flow; the agent form owns steps 1–3, this page owns step 4 (checks + script). */
+const REGISTRATION_STEPS = [
+  { title: "Server", hint: "Name the agent" },
+  { title: "Thresholds", hint: "Usage that alerts" },
+  { title: "Alert Timing", hint: "When to alert" },
+  { title: "Health Checks", hint: "Pick checks, get script" }
+] as const;
 
 export function InstallAgentPage() {
   const { user } = useAuth();
@@ -214,6 +224,7 @@ export function InstallAgentPage() {
     operation: "created" | "rotated"
   ) => {
     setInstallation(result);
+    setRegistrationOpen(false);
     setInstallationProjectName(selectedProject.name);
     setInstallationAgentName(agentName);
     setInstallationOperation(operation);
@@ -362,17 +373,9 @@ export function InstallAgentPage() {
     setError(null);
   };
 
-  if (installation) {
-    const rotated = installationOperation === "rotated";
-    return (
-      <div className="page-stack">
-        <header className="page-header">
-          <div>
-            <p className="page-context">{installationProjectName ?? selectedProject.name}</p>
-            <h1>Operations Overview</h1>
-            <p>Save and install the generated agent script before returning to the overview.</p>
-          </div>
-        </header>
+  // The one-time script dialogs sit on top of the normal overview, so the roster stays visible behind them.
+  const rotated = installationOperation === "rotated";
+  const installationDialogs = installation ? <>
         <ModalDialog id="agent-script-setup" open labelledBy="agent-script-setup-title" describedBy="agent-script-setup-description"
           dialogClassName="agent-dialog--script-setup" surfaceClassName="agent-dialog__surface agent-setup-surface"
           restoreFocusTo={registrationButtonRef.current} onDismiss={() => setInstallationExitStep(1)}>
@@ -382,30 +385,25 @@ export function InstallAgentPage() {
               <p id="agent-script-setup-description">{rotated ? "The old secret is revoked. Save this replacement before closing; it cannot be retrieved again." : "Save this one-time script before closing; it cannot be retrieved again."}</p></div>
             <button ref={installationBackButtonRef} data-dialog-initial-focus className="icon-button" type="button" aria-label="Close Agent Setup" onClick={() => setInstallationExitStep(1)}><X aria-hidden="true" /></button>
           </div>
-          <AgentScriptSetup key={installation.agent_id} installation={installation} compact={rotated} />
+          <AgentScriptSetup key={installation.agent_id} installation={installation} compact={rotated} onDone={returnToOverview} />
         </ModalDialog>
         <ModalDialog
           id="leave-access-secret"
           open={installationExitStep > 0}
           labelledBy="leave-access-secret-title"
           describedBy="leave-access-secret-description"
-          surfaceClassName="agent-dialog__surface agent-rotation-confirmation"
+          surfaceClassName="agent-dialog__surface form-surface agent-delete-dialog"
           restoreFocusTo={installationBackButtonRef.current}
         >
           <>
-            <div>
-              <ShieldAlert aria-hidden="true" />
+            <div className="section-heading">
               <div>
                 <h2 id="leave-access-secret-title">
                   {installationExitStep === 1
                     ? "Leave the Access Secret Page?"
                     : "Confirm Leaving the Access Secret Page"}
                 </h2>
-                <p id="leave-access-secret-description">
-                  {installationExitStep === 1
-                    ? "Once you close this page, you cannot open this access secret or generated script again. Save both before continuing."
-                    : "Final confirmation: this one-time access secret and generated script cannot be reopened. You must rotate the agent access secret to generate a replacement."}
-                </p>
+                <p>{installationAgentName ?? "This Agent"} · {installationProjectName ?? selectedProject.name}</p>
               </div>
               <button
                 data-dialog-initial-focus={installationExitStep === 1 ? true : undefined}
@@ -417,7 +415,18 @@ export function InstallAgentPage() {
                 <X aria-hidden="true" />
               </button>
             </div>
+            <div className="form-banner form-banner--warning agent-delete-dialog__notice">
+              <ShieldAlert aria-hidden="true" />
+              <p id="leave-access-secret-description">
+                {installationExitStep === 1
+                  ? "Once you close this page, you cannot open this access secret or generated script again. Save both before continuing."
+                  : "Final confirmation: this one-time access secret and generated script cannot be reopened. You must rotate the agent access secret to generate a replacement."}
+              </p>
+            </div>
             <div className="action-row">
+              <button className="button button--secondary" type="button" onClick={() => setInstallationExitStep(0)}>
+                Back To Script
+              </button>
               {installationExitStep === 1 ? (
                 <button className="button button--danger" type="button" onClick={() => setInstallationExitStep(2)}>
                   I Saved The Script — Continue
@@ -435,9 +444,7 @@ export function InstallAgentPage() {
             </div>
           </>
         </ModalDialog>
-      </div>
-    );
-  }
+  </> : null;
 
   const registeredAgents = agents.data ?? [];
   const rosterSearch = searchParams.get("agent_search") ?? "";
@@ -494,6 +501,8 @@ export function InstallAgentPage() {
       <ProjectActions key={selectedProject.id} project={selectedProject}>
         <MaintenanceControl endpoint={`${projectApiBase}/maintenance`} scope="Project" detailsTargetId="project-maintenance-details"
           canManage={hasPermission(user, "edit_project_settings")} onChanged={agents.reload} />
+        {hasPermission(user, "edit_agent_settings") && agents.data?.length ? <BulkHealthChecksButton projectApiBase={projectApiBase}
+          projectName={selectedProject.name} agents={agents.data} onSaved={agents.reload} /> : null}
       </ProjectActions>
       <div id="project-maintenance-details" className="maintenance-details-slot" />
 
@@ -501,25 +510,19 @@ export function InstallAgentPage() {
         id="register-agent"
         open={registrationOpen && hasPermission(user, "edit_agent_settings")}
         labelledBy="register-agent-title"
-        dialogClassName={registrationStep === "settings" ? "agent-dialog--agent-form" : undefined}
+        dialogClassName="agent-dialog--agent-form"
         surfaceClassName="agent-dialog__surface form-surface"
         restoreFocusTo={registrationButtonRef.current}
       >
         <div className="section-heading">
           <div>
-            <h2 id="register-agent-title">
-              {registrationStep === "settings" ? "Register Agent" : "Generate Agent Script"}
-            </h2>
-            <p>
-              {registrationStep === "settings"
-                ? `The new agent will belong to ${selectedProject.name}.`
-                : "Step 1 of 1. Enter the health endpoint that this generated script will check."}
-            </p>
+            <h2 id="register-agent-title">Register Agent</h2>
+            <p>The new agent will belong to {selectedProject.name}.</p>
           </div>
           <button
             className="icon-button"
             type="button"
-            aria-label={registrationStep === "settings" ? "Close Registration" : "Close Script Generation"}
+            aria-label="Close Registration"
             disabled={submitting}
             onClick={() => {
               setRegistrationOpen(false);
@@ -535,8 +538,10 @@ export function InstallAgentPage() {
         {registrationStep === "settings" ? (
           <AgentForm
             key="create-agent"
+            initialValues={pendingRegistration ?? undefined}
+            wizard={{ steps: REGISTRATION_STEPS, initialStep: pendingRegistration ? 2 : 0 }}
             submitting={false}
-            submitLabel="Continue To Script Generation"
+            submitLabel="Next: Health Checks"
             submittingLabel="Continuing"
             error={error}
             onSubmit={prepareAgentScript}
@@ -544,8 +549,10 @@ export function InstallAgentPage() {
         ) : (
           <>
             {error ? <div className="form-banner form-banner--error" role="alert">{error}</div> : null}
-            <form className="form-grid" onSubmit={(event) => void createAgent(event)} noValidate aria-busy={submitting}>
-              <AgentScriptChecks value={registrationChecks} onChange={setRegistrationChecks} disabled={submitting} />
+            <form className="form-grid agent-settings-form agent-settings-form--wizard" onSubmit={(event) => void createAgent(event)} noValidate aria-busy={submitting}>
+              <WizardSteps steps={REGISTRATION_STEPS} current={3} label="Agent Registration Progress" />
+              <AgentScriptChecks value={registrationChecks} onChange={setRegistrationChecks} disabled={submitting}
+                help="Unchecked services are not monitored. These choices go into the generated script." />
               {registrationChecks.middleware_api ? <div className="field field--wide">
                 <label htmlFor="registration-health-api-url">Middleware API URL</label>
                 <input
@@ -564,9 +571,13 @@ export function InstallAgentPage() {
                 />
                 <span className="field__help">Saved as the middleware endpoint used by this generated script.</span>
               </div> : null}
-              <button className="button button--primary field--wide" type="submit" disabled={submitting}>
-                {submitting ? <InlineLoader label="Generating Script" /> : "Generate Script"}
-              </button>
+              <div className="agent-settings-actions agent-wizard-actions field--wide">
+                <button className="button button--secondary" type="button" disabled={submitting}
+                  onClick={() => { setError(null); setRegistrationStep("settings"); }}><ArrowLeft aria-hidden="true" />Back</button>
+                <button className="button button--primary" type="submit" disabled={submitting}>
+                  {submitting ? <InlineLoader label="Generating Script" /> : "Generate Script"}
+                </button>
+              </div>
             </form>
           </>
         )}
@@ -611,6 +622,7 @@ export function InstallAgentPage() {
                 telegram_recovery_cooldown_seconds: editingAgent.telegram_recovery_cooldown_seconds,
                 middleware_failure_threshold: editingAgent.middleware_failure_threshold ?? 2
               }}
+              checks={{ initial: editingAgent.checks ?? { ...DEFAULT_AGENT_CHECKS }, middlewareUrlSaved: editingAgent.health_api_url !== null }}
               submitting={submitting}
               submitLabel="Save Changes"
               submittingLabel="Saving Changes"
@@ -907,6 +919,7 @@ export function InstallAgentPage() {
           </div>
         </section>
       ) : null}
+      {installationDialogs}
     </div>
   );
 }

@@ -4229,3 +4229,123 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 
 /* All-projects maintenance details: the slot collapses when no batch is current or upcoming. */
 .projects-page__maintenance:empty { display: none; }
+
+/* Agent settings: Health Checks / Resource Thresholds / Alert Timing as switchable sections.
+ * All panels share one grid cell so the modal keeps the tallest panel's height; the tab names the section, so legends are screen-reader only. */
+.agent-settings-tabs { display: grid; gap: var(--space-md); min-width: 0; }
+.agent-settings-tabs > .history-tabs__list { width: 100%; }
+.agent-settings-tabs .history-tabs__tab { flex: 1 1 0; min-width: 0; gap: var(--space-xs); padding-inline: var(--space-sm); }
+.agent-settings-tabs .history-tabs__tab > svg { width: 1rem; height: 1rem; flex: none; }
+.agent-settings-panels { display: grid; min-width: 0; }
+.agent-settings-panels > [data-active] { grid-area: 1 / 1; min-width: 0; }
+.agent-settings-panels > [data-active][data-active="false"] { visibility: hidden; }
+.agent-settings-panels legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.agent-settings-panels .form-section { margin: 0; }
+.agent-settings-tab__short { display: none; }
+/* Phones: short one-line tab names (the full name stays the accessible label) and panels take their own height. */
+@media (max-width: 39.999rem) {
+  .agent-settings-tabs .history-tabs__tab { gap: var(--space-2xs); min-height: 44px; padding-inline: var(--space-xs); font-size: var(--text-sm); }
+  .agent-settings-tab__label { display: none; }
+  .agent-settings-tab__short { display: inline; }
+  .agent-settings-panels > [data-active][data-active="false"] { display: none; }
+}
+.agent-settings-panels .form-section { border: 0; padding-block-start: 0; }
+/* Health check choices as cards: the whole card toggles; checked cards carry the accent. */
+:is(.agent-settings-panels, .agent-settings-form--wizard) .script-check-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); gap: var(--space-sm); }
+:is(.agent-settings-panels, .agent-settings-form--wizard) .script-check-option {
+  align-items: flex-start; gap: var(--space-sm); min-height: 44px; padding: var(--space-md);
+  border: var(--rule-thin) solid var(--color-rule-strong); border-radius: var(--radius-md); background: var(--color-surface-raised); cursor: pointer;
+  transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
+}
+:is(.agent-settings-panels, .agent-settings-form--wizard) .script-check-option:has(input:checked) { border-color: var(--color-accent); background: var(--color-info-surface); }
+:is(.agent-settings-panels, .agent-settings-form--wizard) .script-check-option:has(input:disabled) { cursor: not-allowed; opacity: 0.6; }
+:is(.agent-settings-panels, .agent-settings-form--wizard) .script-check-option:has(input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+:is(.agent-settings-panels, .agent-settings-form--wizard) .script-check-option input { margin-block-start: 2px; }
+@media (hover: hover) { :is(.agent-settings-panels, .agent-settings-form--wizard) .script-check-option:not(:has(input:disabled)):hover { border-color: var(--color-accent); } }
+/* Panels span the full modal width, so thresholds and timing fields flow into columns instead of a single stack. */
+.agent-settings-panels .form-section__grid { grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); }
+.agent-settings-panels .form-section__grid > .field--wide { grid-column: auto; }
+
+/* Run Setup: Script Path (light top) and the one-line command it rewrites (dark bottom) in one card. */
+.agent-setup-command-card { min-width: 0; overflow: hidden; border: var(--rule-thin) solid var(--color-rule-strong); border-radius: var(--radius-md); }
+.agent-setup-command-card > .field { gap: var(--space-xs); padding: var(--space-md); background: var(--color-paper-2); }
+.agent-setup-command-card > .field input { background-color: var(--color-surface-raised); }
+.agent-setup-command-card > .field .field__help { min-height: 0; margin: 0; }
+/* Inside the card the two command views are flush rows separated by rules, styled like the other disclosures. */
+.agent-setup-command-card > .agent-setup-disclosure { border: 0; border-block-start: var(--rule-thin) solid var(--color-rule-strong); border-radius: 0; }
+.agent-setup-command-card > .agent-setup-disclosure > summary { border-radius: 0; }
+.agent-script-setup .agent-setup-command-card .code-surface { border-radius: var(--radius-md); }
+
+/* Any open modal locks the page behind it; the reserved gutter keeps the layout from shifting when the scrollbar hides. */
+html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
+
+/* Leave Access Secret confirmation: same standard shell as Delete Agent (header band, warning banner, actions right). */
+.agent-delete-dialog .action-row { gap: var(--space-sm); }
+
+/* Hold-to-confirm (Done Setup): a darker fill sweeps left to right over the hold (--hold-duration, set from HOLD_SECONDS) and snaps back on early release.
+ * While held the label reads "Keep Holding…", so the hold stays clear when motion is reduced. */
+.hold-button { position: relative; overflow: hidden; isolation: isolate; touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: transform var(--dur-micro) var(--ease-out); }
+.hold-button__fill {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none; transform: scaleX(0); transform-origin: left center;
+  background: color-mix(in srgb, var(--color-accent) 62%, #000000); transition: transform 200ms var(--ease-out);
+}
+.hold-button--holding { transform: scale(0.98); }
+.hold-button--holding .hold-button__fill { transform: scaleX(1); transition: transform var(--hold-duration, 2s) linear; }
+.hold-button__hint { padding: 1px var(--space-xs); border-radius: var(--radius-pill); background: rgb(255 255 255 / 0.2); font-size: var(--text-xs); font-weight: 600; }
+
+/* Bulk Health Checks: one row per agent, a checkbox per check, select-all per column; changed rows carry an accent edge. */
+.bulk-checks { display: grid; gap: var(--space-md); }
+.bulk-checks > .section-heading { margin-block-end: 0; }
+.bulk-checks__table-wrap { max-height: min(26rem, 55vh); overflow: auto; scrollbar-gutter: stable; border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-md); }
+.agent-dialog.agent-dialog--bulk-checks { width: min(51rem, calc(100% - var(--space-lg))); }
+/* Fixed layout: check columns keep their width, the agent column takes the rest and truncates long names with an ellipsis (full name on hover). */
+.bulk-checks__table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.bulk-checks__table thead th:not(:first-child) { width: 7rem; }
+.bulk-checks__table thead th { position: sticky; inset-block-start: 0; z-index: 1; background: var(--color-paper-2); border-block-end: var(--rule-thin) solid var(--color-rule-strong);
+  padding: var(--space-xs) var(--space-sm); color: var(--color-muted); font-size: var(--text-xs); font-weight: 700; text-align: start; white-space: nowrap; }
+.bulk-checks__column { display: inline-flex; align-items: center; gap: var(--space-2xs); min-height: 2rem; cursor: pointer; }
+.bulk-checks__table tbody th { padding: var(--space-xs) var(--space-sm); font-size: var(--text-sm); font-weight: 600; text-align: start; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: inset 3px 0 0 transparent; }
+/* Header and row checkboxes share the same start padding and size, so each column's boxes sit in one vertical line. */
+.bulk-checks__table td { padding-inline: var(--space-sm); text-align: start; }
+.bulk-checks__table tbody tr + tr > * { border-block-start: var(--rule-thin) solid var(--color-rule); }
+.bulk-checks__table tbody tr.is-changed { background: var(--color-info-surface); }
+.bulk-checks__table tbody tr.is-changed th { box-shadow: inset 3px 0 0 var(--color-accent); }
+.bulk-checks__table input[type="checkbox"] { width: 1.25rem; height: 1.25rem; margin: 0; flex: none; accent-color: var(--color-accent); cursor: pointer; }
+.bulk-checks__table input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.4; }
+.bulk-checks__table td input[type="checkbox"] { display: block; margin-block: 0.65rem; }
+.bulk-checks .action-row { justify-content: flex-end; gap: var(--space-sm); }
+@media (max-width: 39.999rem) {
+  .bulk-checks__table thead th:not(:first-child) { width: 3.5rem; }
+  .bulk-checks__table thead th:not(:first-child), .bulk-checks__table td { padding-inline: var(--space-2xs); }
+  .bulk-checks__column { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 0.7rem; }
+}
+
+/* Register Agent wizard: numbered steps (shared with Agent Registered), one section per step, Back left / Next right.
+ * Section titles stay visible here because the step bar does not name the panel the way a tab does. */
+.wizard-steps { grid-template-columns: repeat(var(--wizard-steps, 2), minmax(0, 1fr)); }
+.agent-settings-form--wizard > .wizard-steps, .agent-settings-form--wizard > .agent-settings-tabs { grid-column: 1 / -1; }
+.agent-settings-form--wizard .agent-settings-panels legend { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+.agent-wizard-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+/* Chevron steps (>==>): the li paints the outline colour, ::before paints the fill 1px inside it, both clipped to the same arrow.
+ * Each step tucks its notch into the previous point, leaving a thin gap along the diagonal; the first step has a flat left edge. */
+.agent-setup-steps.wizard-steps { gap: 0; }
+.agent-setup-steps.wizard-steps li {
+  --chevron: 0.85rem; --step-line: var(--color-rule); --step-fill: var(--color-paper-2);
+  --arrow: polygon(0 0, calc(100% - var(--chevron)) 0, 100% 50%, calc(100% - var(--chevron)) 100%, 0 100%, var(--chevron) 50%);
+  position: relative; isolation: isolate; border: 0; border-radius: 0; background: var(--step-line); clip-path: var(--arrow);
+  padding-inline: calc(var(--chevron) + var(--space-sm)) calc(var(--chevron) + var(--space-xs));
+}
+.agent-setup-steps.wizard-steps li + li { margin-inline-start: calc(0.2rem - var(--chevron)); }
+.agent-setup-steps.wizard-steps li:first-child {
+  --arrow: polygon(0 0, calc(100% - var(--chevron)) 0, 100% 50%, calc(100% - var(--chevron)) 100%, 0 100%); padding-inline-start: var(--space-md);
+}
+.agent-setup-steps.wizard-steps li::before { content: ""; position: absolute; inset: 1px; z-index: -1; background: var(--step-fill); clip-path: var(--arrow); }
+.agent-setup-steps.wizard-steps li[aria-current="step"] { --step-line: var(--color-accent-line); --step-fill: var(--color-info-surface); background: var(--step-line); }
+@media (max-width: 39.999rem) {
+  .wizard-steps li { flex-direction: column; justify-content: center; gap: var(--space-2xs); padding: var(--space-xs) var(--space-2xs); text-align: center; }
+  .wizard-steps .agent-setup-steps__text strong { font-size: var(--text-xs); line-height: 1.2; }
+  .agent-setup-steps.wizard-steps li { --chevron: 0.55rem; padding-inline: calc(var(--chevron) + 2px) calc(var(--chevron) - 2px); }
+  .agent-setup-steps.wizard-steps li:first-child { padding-inline-start: var(--space-2xs); }
+}

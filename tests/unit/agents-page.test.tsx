@@ -343,8 +343,10 @@ describe("project-scoped agents page", () => {
     expect(serverNameField.parentElement?.parentElement).toHaveClass("form-section__grid");
     const thresholdsGroup = screen.getByRole("group", { name: "Resource Thresholds" });
     const heartbeatGroup = screen.getByRole("group", { name: "Alert Timing" });
-    expect(thresholdsGroup.parentElement).toBe(heartbeatGroup.parentElement);
-    expect(thresholdsGroup.parentElement).toHaveClass("agent-form-policy-row");
+    // Guided registration: each section is its own step panel; only the first step starts active.
+    expect(thresholdsGroup.closest(".agent-settings-panels")).toBe(heartbeatGroup.closest(".agent-settings-panels"));
+    expect(serverDetailsGroup.closest("[data-active]")).toHaveAttribute("data-active", "true");
+    expect(thresholdsGroup.closest("[data-active]")).toHaveAttribute("data-active", "false");
     expect(screen.getByLabelText("RAM Usage Threshold (%)")).toHaveValue("85");
     expect(screen.getByLabelText("Storage Usage Threshold (%)")).toHaveValue("90");
     expect(screen.getByLabelText("Load Per Core Threshold")).toHaveValue("1.5");
@@ -362,10 +364,9 @@ describe("project-scoped agents page", () => {
     expect(cancelEvent.defaultPrevented).toBe(true);
     fireEvent.click(registrationDialog);
     expect(screen.getByRole("dialog", { name: "Register Agent" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Continue To Script Generation" }));
-    expect(
-      within(screen.getByRole("region", { name: "Notifications" })).getByRole("alert")
-    ).toHaveTextContent("Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram intervals.");
+    fireEvent.click(screen.getByRole("button", { name: "Next: Thresholds" }));
+    expect(screen.getByText("Enter a server name.")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Agent Registration Progress" })).getAllByRole("listitem")[0]).toHaveAttribute("aria-current", "step");
     fireEvent.click(screen.getByRole("button", { name: "Close Registration" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Register Agent" })).toHaveFocus());
   });
@@ -411,8 +412,8 @@ describe("project-scoped agents page", () => {
       target: { value: "atlas-api-01" }
     });
     expect(screen.queryByLabelText("Middleware API URL")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Continue To Script Generation" }));
-    expect(screen.getByRole("dialog", { name: "Generate Agent Script" })).toBeInTheDocument();
+    for (const step of ["Next: Thresholds", "Next: Alert Timing", "Next: Health Checks"]) fireEvent.click(screen.getByRole("button", { name: step }));
+    expect(within(screen.getByRole("list", { name: "Agent Registration Progress" })).getAllByRole("listitem")[3]).toHaveAttribute("aria-current", "step");
     fireEvent.change(screen.getByLabelText("Middleware API URL"), {
       target: { value: "https://api.atlas.example.com/health" }
     });
@@ -453,13 +454,14 @@ describe("project-scoped agents page", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Register Agent" }));
     fireEvent.change(screen.getByLabelText("Server Name"), { target: { value: "atlas-api-01" } });
-    fireEvent.click(screen.getByRole("button", { name: "Continue To Script Generation" }));
+    for (const step of ["Next: Thresholds", "Next: Alert Timing", "Next: Health Checks"]) fireEvent.click(screen.getByRole("button", { name: step }));
     fireEvent.change(screen.getByLabelText("Middleware API URL"), {
       target: { value: "https://api.atlas.example.com/health" }
     });
     fireEvent.click(screen.getByRole("button", { name: "Generate Script" }));
 
     expect(await screen.findByRole("dialog", { name: "Agent Registered" })).toBeInTheDocument();
+    expect(document.querySelector(".agent-roster-surface")).not.toBeNull();
     const backButton = screen.getByRole("button", { name: "Close Agent Setup" });
     expect(screen.queryByRole("textbox", { name: "Script Path" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next: Run Setup" }));

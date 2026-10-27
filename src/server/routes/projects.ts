@@ -13,6 +13,8 @@ import {
   deleteProjectBodySchema,
   generateAgentScriptBodySchema,
   updateAgentBodySchema,
+  bulkAgentChecksBodySchema,
+  type BulkAgentChecksResult,
   updateProjectBodySchema,
   type AgentInstallationResponse,
   type ProjectAgentPreview,
@@ -691,9 +693,57 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful issue-alert deliveries for this agent, 300-86400 seconds.
    * @param {number} [request.body.telegram_recovery_cooldown_seconds] Recovery delay and delivery gap, integer 10-300 seconds. Omission preserves the saved recovery interval during rolling upgrades.
    * @param {number} [request.body.middleware_failure_threshold=2] Consecutive unhealthy middleware checks required before opening an alert, integer 1–10. Changing this value resets a pending streak; existing incidents stay open until recovery.
+   * @param {object} [request.body.checks] Apache, nginx, and middleware_api booleans; omission keeps the saved selection. Turning a check off takes effect on the next heartbeat without a new script; turning Middleware API on requires a saved health_api_url (422 otherwise).
    * @param {import("express").Response<void>} response Empty success response.
    * @returns {Promise<void>} Resolves after configuration replacement and audit persistence.
    */
+  /**
+   * PATCH /api/v1/projects/:project_id/agent-checks
+   * Sets Apache, Nginx, and Middleware API checks on several agents at once, each to its own values.
+   * Turning a check off applies on the next heartbeat; Middleware API can only be on for agents with a saved health_api_url.
+   * Authorization: full admin or a sub-admin with view_projects and edit_agent_settings.
+   * @param {string} request.params.project_id Public identifier of the owning project.
+   * @param {Array<{agent_id: string, checks: {apache: boolean, nginx: boolean, middleware_api: boolean}}>} request.body.agents 1–500 distinct active agents of the project.
+   * @param {import("express").Response<BulkAgentChecksResult>} response updated_count.
+   * @returns {Promise<void>} Returns 200; 404 if any agent is not an active agent of the project; 422 for invalid input or Middleware API on without a URL (nothing is saved).
+   */
+  router.patch(
+    "/:project_id/agent-checks",
+    requirePermission("edit_agent_settings"),
+    requireCsrf,
+    asyncHandler(async (request: Request<{ project_id: string }>, response) => {
+      const body = bulkAgentChecksBodySchema.parse(request.body);
+      const project = await findProject(config, request.params.project_id);
+      const now = Date.now();
+      const result = await withTransaction(config, async (connection) => {
+        const [rows] = await connection.execute<RowDataPacket[]>(
+          `SELECT id, public_id, server_name, health_api_url FROM agents
+           WHERE project_id = ? AND is_delete = 0 AND public_id IN (${body.agents.map(() => "?").join(",")}) FOR UPDATE`,
+          [project.id, ...body.agents.map((item) => item.agent_id)]
+        );
+        if (rows.length !== body.agents.length) {
+          throw new AppError(404, "agent_not_found", "One or more selected agents no longer exist in this project.");
+        }
+        const byId = new Map(rows.map((row) => [String(row.public_id), row]));
+        const missingUrl = body.agents.filter((item) => item.checks.middleware_api && byId.get(item.agent_id)!.health_api_url === null);
+        if (missingUrl.length) {
+          throw new AppError(422, "middleware_url_missing", `No Middleware API URL is saved for ${missingUrl.map((item) => byId.get(item.agent_id)!.server_name).join(", ")}. Rotate the secret to add one first.`);
+        }
+        for (const item of body.agents) {
+          await connection.execute("UPDATE agents SET check_configuration_json = ?, updated_at = ? WHERE id = ?",
+            [JSON.stringify(item.checks), now, byId.get(item.agent_id)!.id]);
+        }
+        await connection.execute(
+          `INSERT INTO audit_events (user_id, project_id, action, entity_type, entity_id, metadata_json, created_at, updated_at, is_delete)
+           VALUES (?, ?, 'agent.checks.bulk_update', 'project', ?, ?, ?, ?, 0)`,
+          [request.auth!.userInternalId, project.id, project.public_id, JSON.stringify({ agents: body.agents }), now, now]
+        );
+        return { updated_count: body.agents.length } satisfies BulkAgentChecksResult;
+      });
+      response.json(result);
+    })
+  );
+
   router.put(
     "/:project_id/agents/:agent_id",
     requirePermission("edit_agent_settings"),
@@ -702,12 +752,15 @@ export function createProjectsRouter(config: AppConfig): Router {
       const body = updateAgentBodySchema.parse(request.body);
       const project = await findProject(config, request.params.project_id);
       const agent = await findAgent(config, project.id, request.params.agent_id);
+      if (body.checks?.middleware_api && agent.health_api_url === null) {
+        throw new AppError(422, "middleware_url_missing", "This agent has no Middleware API URL. Rotate the secret to add one before turning the Middleware API check on.");
+      }
       const now = Date.now();
 
       await withTransaction(config, async (connection) => {
         const [result] = await connection.execute<ResultSetHeader>(
           `UPDATE agents
-           SET server_name = ?, ram_available_threshold_percent = ?,
+           SET server_name = ?, check_configuration_json = COALESCE(?, check_configuration_json), ram_available_threshold_percent = ?,
                disk_available_threshold_percent = ?,
                load_5_per_core_threshold = ?, heartbeat_interval_seconds = ?,
                telegram_alert_cooldown_seconds = ?,
@@ -718,6 +771,7 @@ export function createProjectsRouter(config: AppConfig): Router {
            WHERE id = ? AND project_id = ? AND is_delete = 0`,
           [
             body.server_name,
+            body.checks ? JSON.stringify(body.checks) : null,
             body.ram_available_threshold_percent,
             body.disk_available_threshold_percent,
             body.load_5_per_core_threshold,
@@ -753,6 +807,7 @@ export function createProjectsRouter(config: AppConfig): Router {
               telegram_alert_cooldown_seconds: body.telegram_alert_cooldown_seconds,
               telegram_recovery_cooldown_seconds: body.telegram_recovery_cooldown_seconds,
               middleware_failure_threshold: body.middleware_failure_threshold,
+              checks: body.checks ?? null,
               credential_rotated: false
             }),
             now,

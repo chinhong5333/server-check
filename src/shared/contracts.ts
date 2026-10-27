@@ -153,8 +153,17 @@ export const createAgentInstallationBodySchema = z
   .object({ ...agentEditableShape, ...scriptConfigurationShape }).strict().refine(validScriptConfiguration, {
     message: "health_api_url is required when checks.middleware_api is enabled and must be null otherwise.", path: ["health_api_url"]
   });
-export const updateAgentBodySchema = z.object(agentEditableShape).strict();
+// checks: optional on update; omission keeps the saved selection. Turning a check off needs no new script.
+export const updateAgentBodySchema = z.object({ ...agentEditableShape, checks: agentChecksSchema.optional() }).strict();
 export type AgentEditableInput = z.infer<typeof updateAgentBodySchema>;
+
+/** Bulk check change: each listed agent gets exactly its own apache/nginx/middleware_api values. */
+export const bulkAgentChecksBodySchema = z.object({
+  agents: z.array(z.object({ agent_id: z.string().uuid(), checks: agentChecksSchema }).strict()).min(1).max(500)
+    .refine((items) => new Set(items.map((item) => item.agent_id)).size === items.length, { message: "Each agent may appear only once." })
+}).strict();
+export type BulkAgentChecksInput = z.infer<typeof bulkAgentChecksBodySchema>;
+export interface BulkAgentChecksResult { updated_count: number }
 
 export const healthErrorCodeSchema = z.enum([
   "dns_error",

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PoolConnection } from "mysql2/promise";
 import { DEFAULT_AGENT_CHECKS, generateAgentScriptBodySchema, healthProbeSchema, type TelemetryPayload } from "../../src/shared/contracts";
-import { matchesConfiguredChecks, readAgentChecks } from "../../src/server/services/check-configuration";
+import { applyConfiguredChecks, missingConfiguredChecks, readAgentChecks } from "../../src/server/services/check-configuration";
 import { evaluateTelemetryIncidents } from "../../src/server/services/incidents";
 
 const payload: TelemetryPayload = {
@@ -27,10 +27,23 @@ describe("Optional monitoring contract", () => {
   it("rejects forged HTTP results for disabled checks", () => {
     expect(healthProbeSchema.safeParse({ ...payload.health_probe, http_status_code: 200 }).success).toBe(false);
   });
-  it("rejects payloads that silently disable a configured service", () => {
-    expect(matchesConfiguredChecks({ apache: false, nginx: false, middleware_api: false }, payload)).toBe(true);
-    expect(matchesConfiguredChecks({ apache: false, nginx: true, middleware_api: false }, payload)).toBe(false);
-    expect(matchesConfiguredChecks(DEFAULT_AGENT_CHECKS, payload)).toBe(false);
+  it("names enabled checks the installed script does not report", () => {
+    expect(missingConfiguredChecks({ apache: false, nginx: false, middleware_api: false }, payload)).toEqual([]);
+    expect(missingConfiguredChecks({ apache: false, nginx: true, middleware_api: false }, payload)).toEqual(["Nginx"]);
+    expect(missingConfiguredChecks(DEFAULT_AGENT_CHECKS, payload)).toEqual(["Apache", "Middleware API"]);
+  });
+  it("ignores results for checks turned off after the script was generated", () => {
+    const full: TelemetryPayload = { ...payload,
+      health_probe: { checked_at: 1, outcome: "unhealthy", http_status_code: 503, latency_ms: 40, error_code: "http_status_error", error_message: "HTTP 503" },
+      database_health: null,
+      service_checks: { apache: { service_name: "apache2", status: "inactive" }, nginx: { service_name: "nginx", status: "active" } } };
+    const off = { apache: false, nginx: true, middleware_api: false };
+    expect(missingConfiguredChecks(off, full)).toEqual([]);
+    const applied = applyConfiguredChecks(off, full);
+    expect(applied.service_checks.apache.status).toBe("disabled");
+    expect(applied.service_checks.nginx?.status).toBe("active");
+    expect(applied.health_probe).toMatchObject({ outcome: "disabled", http_status_code: null, latency_ms: null });
+    expect(healthProbeSchema.safeParse(applied.health_probe).success).toBe(true);
   });
 });
 
@@ -51,6 +64,14 @@ describe("Service incident evaluation", () => {
       { ...payload, health_probe: { ...payload.health_probe, outcome: "unhealthy", http_status_code: 503, error_code: "http_status_error" } }, 1000);
     expect(result.status).toBe("critical");
     expect(result.probableCause).toContain("middleware API");
+  });
+
+  it("closes an incident for a check turned off without announcing recovery", async () => {
+    const execute = vi.fn(async (sql: string) => sql.trim().startsWith("SELECT")
+      ? [[{ id: "3", public_id: "incident-test", incident_type: "apache_inactive" }]] : [{ insertId: 9 }]);
+    await evaluateTelemetryIncidents({ execute } as unknown as PoolConnection, policy, payload, 1000);
+    expect(execute.mock.calls.some(([sql]) => sql.includes("SET status = 'resolved'"))).toBe(true);
+    expect(execute.mock.calls.some(([sql]) => sql.includes("INSERT INTO notification_outbox"))).toBe(false);
   });
 
   it("does not announce recovery when an inactive service becomes unknown", async () => {
