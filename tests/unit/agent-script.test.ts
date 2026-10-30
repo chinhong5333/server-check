@@ -37,13 +37,24 @@ describe("agent script generator", () => {
     expect(script).toContain("df -PkP -x tmpfs -x devtmpfs");
     expect(script).toContain("/opt/lampp/lampp status");
     expect(script).toContain("for APACHE_CANDIDATE in apache2 httpd");
-    expect(script).toContain("--property=ActiveState --value");
+    // One systemctl call per service, parsed without --value so CentOS 7 era systemd works.
+    expect(script).toContain("--property=LoadState,ActiveState");
+    expect(script).not.toContain("ActiveState --value");
     expect(script.indexOf("/opt/lampp/lampp status")).toBeLessThan(
-      script.indexOf('APACHE_STATUS="$(systemd_state "$APACHE_CANDIDATE")"')
+      script.indexOf('APACHE_STATUS="$SERVICE_STATE"')
     );
     expect(script).not.toContain("APACHE_SERVICE_NAME='apache2'");
     expect(script).toContain("Authorization: Bearer $AGENT_CREDENTIAL");
+    // 1.5.0: every check always runs; the central server applies the on/off settings.
+    expect(script).not.toContain("CHECK_");
+    expect(script).toContain('if [ -n "$HEALTH_API_URL" ]; then');
+    expect(script).toContain("APACHE_STATUS='not_installed'");
+    expect(script).toContain("NGINX_STATUS='not_installed'");
+    expect(script).toContain('PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${PATH:+:$PATH}"');
     expect(script).toContain("mkdir \"$LOCK_DIR\"");
+    expect(script).toContain('find "$LOCK_DIR" -maxdepth 0 -mmin +5');
+    expect(script).toContain("ps -eo %cpu=,%mem=,comm= --sort=-%cpu");
+    expect(script).toContain('PAYLOAD="{\\"sequence_id\\":$SEQUENCE_ID,');
     expect(script).not.toMatch(/\beval\b/);
   });
 

@@ -18,7 +18,7 @@ export function AgentRosterChecks({ agent }: { agent: AgentSummary }) {
   return <table className="agent-roster-checks" aria-label={`Health Checks For ${agent.server_name}`}>
     <tbody>
     {items.map((item) => {
-      const view = checkPresentation(item.enabled, item.status === "disabled" ? undefined : item.status, stale);
+      const view = checkPresentation(item.enabled, item.status, stale);
       const label = item.name === "Database" && item.enabled && !item.status ? "Not Reported" : view.label;
       return <tr key={item.name} className={`agent-roster-check agent-roster-check--${view.tone}`}>
         <th scope="row" aria-label={item.name} title={item.name}>{item.name === "Middleware API" ? "API" : item.name}</th><td><span><view.Icon aria-hidden="true" />{label}</span></td>

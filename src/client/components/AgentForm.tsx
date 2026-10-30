@@ -198,7 +198,7 @@ export function AgentForm({
             {selectedChecks && checks ? <div {...panelProps("checks")}>
               <AgentScriptChecks value={selectedChecks} onChange={setSelectedChecks}
                 cannotEnable={checks.middlewareUrlSaved ? [] : ["middleware_api"]}
-                help={`Turning a check off takes effect on the next heartbeat. Turning one on needs a script that runs it${checks.middlewareUrlSaved ? "" : " (Middleware API needs a URL)"}; rotate the secret if the installed script does not.`} />
+                help={`Changes apply on the next heartbeat.${checks.middlewareUrlSaved ? "" : " Middleware API needs a saved URL."} Agents on a script older than 1.5.0 show Needs New Script for checks it does not run.`} />
             </div> : null}
             <div {...panelProps("resources")}>
           <fieldset className="form-section">

@@ -75,5 +75,7 @@ describe("Agent service health", () => {
     expect(checkPresentation(true, "unknown", false).label).toBe("Unknown");
     expect(checkPresentation(true, undefined, false).label).toBe("Awaiting Data");
     expect(checkPresentation(false, undefined, false).label).toBe("Not Monitored");
+    expect(checkPresentation(true, "disabled", true).label).toBe("Needs New Script");
+    expect(checkPresentation(true, "not_installed", false).label).toBe("Not Installed");
   });
 });

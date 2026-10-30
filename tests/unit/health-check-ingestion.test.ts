@@ -71,12 +71,15 @@ describe("Health result persistence", () => {
     const update = execute.mock.calls.find(([sql]) => sql.includes("last_service_checks_json = ?"));
     expect(JSON.parse(update?.[1][11]).nginx.status).toBe("disabled");
   });
-  it("rejects omitted enabled Nginx checks without accepting metrics", async () => {
-    const response = await request(app({ apache: true, nginx: true, middleware_api: true }))
+  it("accepts metrics when Nginx is turned on but the installed script does not run it", async () => {
+    // Apache turned off and Nginx turned on after an Apache-only script was installed.
+    const response = await request(app({ apache: false, nginx: true, middleware_api: true }))
       .post("/").set("authorization", `Bearer ${credential}`).send({ ...body, service_checks: { apache: body.service_checks.apache } });
-    expect(response.status).toBe(422); expect(response.body.telemetry_accepted).toBe(false);
-    expect(execute.mock.calls.some(([sql]) => sql.includes("INSERT INTO metric_samples"))).toBe(false);
-    expect(recordAgentCondition).toHaveBeenCalledWith(expect.anything(),expect.anything(),expect.objectContaining({type:"telemetry_invalid"}),expect.any(Number));
+    expect(response.status).toBe(202); expect(response.body.telemetry_accepted).toBe(true);
+    expect(execute.mock.calls.some(([sql]) => sql.includes("INSERT INTO metric_samples"))).toBe(true);
+    const snapshot = JSON.parse(execute.mock.calls.find(([sql]) => sql.includes("last_service_checks_json = ?"))?.[1][11]);
+    expect([snapshot.apache.status, snapshot.nginx.status]).toEqual(["disabled", "disabled"]);
+    expect(recordAgentCondition).not.toHaveBeenCalledWith(expect.anything(),expect.anything(),expect.objectContaining({type:"telemetry_invalid"}),expect.any(Number));
   });
   it("collects missing telemetry as a warning while accepting liveness",async()=>{
     const response=await request(app(null)).post("/").set("authorization",`Bearer ${credential}`).send();

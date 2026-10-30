@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PoolConnection } from "mysql2/promise";
 import { DEFAULT_AGENT_CHECKS, generateAgentScriptBodySchema, healthProbeSchema, type TelemetryPayload } from "../../src/shared/contracts";
-import { applyConfiguredChecks, missingConfiguredChecks, readAgentChecks } from "../../src/server/services/check-configuration";
+import { applyConfiguredChecks, readAgentChecks } from "../../src/server/services/check-configuration";
 import { evaluateTelemetryIncidents } from "../../src/server/services/incidents";
 
 const payload: TelemetryPayload = {
@@ -16,21 +16,20 @@ const policy = { agentInternalId: "1", agentPublicId: "agent-test", serverName: 
   projectName: "Test", ramThreshold: 15, diskThreshold: 10, loadThreshold: 1 };
 
 describe("Optional monitoring contract", () => {
-  it("preserves legacy configuration and requires an explicit null URL when disabled", () => {
+  it("preserves legacy configuration and allows a saved URL while Middleware API is off", () => {
     expect(readAgentChecks(null)).toEqual(DEFAULT_AGENT_CHECKS);
     expect(generateAgentScriptBodySchema.parse({ health_api_url: "https://example.test/health" }).checks).toEqual(DEFAULT_AGENT_CHECKS);
     expect(generateAgentScriptBodySchema.safeParse({ health_api_url: null, checks: { apache: false, nginx: true, middleware_api: false } }).success).toBe(true);
     expect(generateAgentScriptBodySchema.safeParse({ health_api_url: null, checks: DEFAULT_AGENT_CHECKS }).success).toBe(false);
-    expect(generateAgentScriptBodySchema.safeParse({ health_api_url: "https://example.test/", checks: { ...DEFAULT_AGENT_CHECKS, middleware_api: false } }).success).toBe(false);
+    expect(generateAgentScriptBodySchema.safeParse({ health_api_url: "https://example.test/", checks: { ...DEFAULT_AGENT_CHECKS, middleware_api: false } }).success).toBe(true);
     expect(generateAgentScriptBodySchema.safeParse({ health_api_url: null, checks: { apache: false, nginx: true, middlewareApi: false } }).success).toBe(false);
   });
   it("rejects forged HTTP results for disabled checks", () => {
     expect(healthProbeSchema.safeParse({ ...payload.health_probe, http_status_code: 200 }).success).toBe(false);
   });
-  it("names enabled checks the installed script does not report", () => {
-    expect(missingConfiguredChecks({ apache: false, nginx: false, middleware_api: false }, payload)).toEqual([]);
-    expect(missingConfiguredChecks({ apache: false, nginx: true, middleware_api: false }, payload)).toEqual(["Nginx"]);
-    expect(missingConfiguredChecks(DEFAULT_AGENT_CHECKS, payload)).toEqual(["Apache", "Middleware API"]);
+  it("keeps a turned-on check the installed script does not run as disabled", () => {
+    const applied = applyConfiguredChecks({ apache: true, nginx: true, middleware_api: false }, payload);
+    expect([applied.service_checks.apache.status, applied.service_checks.nginx?.status]).toEqual(["disabled", "disabled"]);
   });
   it("ignores results for checks turned off after the script was generated", () => {
     const full: TelemetryPayload = { ...payload,
@@ -38,7 +37,6 @@ describe("Optional monitoring contract", () => {
       database_health: null,
       service_checks: { apache: { service_name: "apache2", status: "inactive" }, nginx: { service_name: "nginx", status: "active" } } };
     const off = { apache: false, nginx: true, middleware_api: false };
-    expect(missingConfiguredChecks(off, full)).toEqual([]);
     const applied = applyConfiguredChecks(off, full);
     expect(applied.service_checks.apache.status).toBe("disabled");
     expect(applied.service_checks.nginx?.status).toBe("active");
@@ -48,7 +46,7 @@ describe("Optional monitoring contract", () => {
 });
 
 describe("Service incident evaluation", () => {
-  it.each([ ["active", "healthy"], ["inactive", "critical"], ["unknown", "warning"], ["disabled", "healthy"] ] as const)(
+  it.each([ ["active", "healthy"], ["inactive", "critical"], ["unknown", "warning"], ["disabled", "healthy"], ["not_installed", "warning"] ] as const)(
     "maps Nginx %s to %s without inventing health for unknown results", async (status, expected) => {
       const execute = vi.fn(async (sql: string) => sql.trim().startsWith("SELECT") ? [[]] : [{ insertId: 9 }]);
       const result = await evaluateTelemetryIncidents({ execute } as unknown as PoolConnection, policy,

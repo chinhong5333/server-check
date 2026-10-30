@@ -142,16 +142,17 @@ const scriptConfigurationShape = {
   // Compatibility: pre-1.3 callers omitted checks and always monitored Apache and the API.
   checks: agentChecksSchema.default(DEFAULT_AGENT_CHECKS)
 };
+/** A URL saved with Middleware API off lets the check be turned on later without a new script. */
 function validScriptConfiguration(value: { health_api_url: string | null; checks: AgentChecks }): boolean {
-  return value.checks.middleware_api ? value.health_api_url !== null : value.health_api_url === null;
+  return !value.checks.middleware_api || value.health_api_url !== null;
 }
 export const generateAgentScriptBodySchema = z
   .object(scriptConfigurationShape).strict().refine(validScriptConfiguration, {
-    message: "health_api_url is required when checks.middleware_api is enabled and must be null otherwise.", path: ["health_api_url"]
+    message: "health_api_url is required when checks.middleware_api is enabled.", path: ["health_api_url"]
   });
 export const createAgentInstallationBodySchema = z
   .object({ ...agentEditableShape, ...scriptConfigurationShape }).strict().refine(validScriptConfiguration, {
-    message: "health_api_url is required when checks.middleware_api is enabled and must be null otherwise.", path: ["health_api_url"]
+    message: "health_api_url is required when checks.middleware_api is enabled.", path: ["health_api_url"]
   });
 // checks: optional on update; omission keeps the saved selection. Turning a check off needs no new script.
 export const updateAgentBodySchema = z.object({ ...agentEditableShape, checks: agentChecksSchema.optional() }).strict();
@@ -258,7 +259,8 @@ export const processMetricSchema = z
   })
   .strict();
 
-export const serviceStatusSchema = z.enum(["active", "inactive", "unknown", "disabled"]);
+// not_installed: agent 1.5.0+ found no unit, process, or binary for the service.
+export const serviceStatusSchema = z.enum(["active", "inactive", "unknown", "disabled", "not_installed"]);
 export const serviceResultSchema = z.object({
   service_name: z.string().min(1).max(120), status: serviceStatusSchema
 }).strict();

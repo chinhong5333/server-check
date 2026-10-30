@@ -1,4 +1,4 @@
-import { CircleCheck, CircleDashed, CircleHelp, CircleX, Clock3, Link2, Server } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleDashed, CircleHelp, CircleSlash, CircleX, Clock3, Link2, Server } from "lucide-react";
 import type { AgentChecks, AgentHealthSnapshot, DatabaseHealthSnapshot } from "../../shared/contracts";
 import { formatDateTime, formatLatency } from "../lib/format";
 import { AgentDatabaseHealth } from "./AgentDatabaseHealth";
@@ -6,6 +6,10 @@ import { AgentDatabaseHealth } from "./AgentDatabaseHealth";
 export function checkPresentation(enabled: boolean, status: string | undefined, stale: boolean) {
   if (!enabled) return { label: "Not Monitored", tone: "new", Icon: CircleDashed };
   if (!status) return { label: "Awaiting Data", tone: "new", Icon: CircleDashed };
+  // Turned on after the script was generated: the installed script reports it as not run.
+  if (status === "disabled") return { label: "Needs New Script", tone: "warning", Icon: CircleAlert };
+  // Agent 1.5.0+ found no unit, process, or binary for this service on the server.
+  if (status === "not_installed") return { label: "Not Installed", tone: "warning", Icon: CircleSlash };
   if (stale) return { label: "Stale", tone: "stale", Icon: Clock3 };
   if (status === "active" || status === "healthy") return { label: "Healthy", tone: "healthy", Icon: CircleCheck };
   if (status === "inactive" || status === "unhealthy") return { label: "Error", tone: "critical", Icon: CircleX };
@@ -47,7 +51,9 @@ export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, las
                 <span className="field__help">Last Updated</span>
                 <time className="field__help" dateTime={new Date(lastMetricsAt).toISOString()}>{formatDateTime(lastMetricsAt)}</time>
               </div> : null}
-            </> : <p className="field__help">{checks[key] ? "Waiting for a report from the installed script." : "Disabled in the latest generated script."}</p>}
+            </> : <p className="field__help">{!checks[key] ? "Turned off for this agent."
+              : status === "disabled" ? "The installed script does not run this check. Rotate the secret to install one that does."
+              : "Waiting for a report from the installed script."}</p>}
           </div>;
         })}
       </div>

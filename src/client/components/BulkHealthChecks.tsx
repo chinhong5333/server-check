@@ -65,7 +65,7 @@ export function BulkHealthChecksButton({ projectApiBase, projectName, agents, on
 
   return <>
     <button ref={trigger} className="button button--secondary" type="button" aria-haspopup="dialog" aria-controls="bulk-health-checks-dialog"
-      disabled={!agents.length} onClick={show}><ListChecks aria-hidden="true" />Bulk Health Checks</button>
+      aria-label="Bulk Health Checks" disabled={!agents.length} onClick={show}><ListChecks aria-hidden="true" />Health Checks</button>
     <ModalDialog id="bulk-health-checks-dialog" open={open} labelledBy="bulk-health-checks-title" describedBy="bulk-health-checks-description"
       dialogClassName="agent-dialog--bulk-checks" surfaceClassName="agent-dialog__surface form-surface bulk-checks" restoreFocusTo={trigger.current} onDismiss={close}>
       <div className="section-heading">
@@ -96,7 +96,7 @@ export function BulkHealthChecksButton({ projectApiBase, projectName, agents, on
           })}</tbody>
         </table>
       </div>
-      <p className="field__help">Turning a check off applies on the next heartbeat. API (Middleware API) is unavailable for agents without a saved URL.</p>
+      <p className="field__help">Changes apply on the next heartbeat. Agents on a script older than 1.5.0 show Needs New Script for checks it does not run. API (Middleware API) is unavailable for agents without a saved URL.</p>
       {error ? <p className="field__help field__help--error" role="alert">{error}</p> : null}
       <div className="action-row">
         <button className="button button--secondary" type="button" disabled={saving} onClick={close}>Cancel</button>

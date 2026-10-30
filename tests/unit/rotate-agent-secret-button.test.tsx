@@ -41,7 +41,7 @@ it("confirms and displays the replacement script without leaving Agent Detail",a
   fireEvent.click(screen.getByText("View Script"));
   expect(screen.getByLabelText("Replacement Agent Script")).toHaveTextContent("synthetic replacement");
   fireEvent.click(screen.getByRole("button",{name:"Next: Run Setup"}));
-  expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent(/&& \/bin\/sh '\/opt\/server-check\/synthetic.sh'$/);
+  expect(screen.getByLabelText("One-Line Setup Command")).toHaveTextContent(/&& \/bin\/sh '\/root\/synthetic.sh'$/);
   expect(finished).not.toHaveBeenCalled();
   expect(api.mock.calls[0][0]).toBe("/api/v1/projects/project-1/agents/agent-1/credential-rotation");
   expect(JSON.parse(api.mock.calls[0][1].body)).toEqual({health_api_url:"https://example.test/health",checks:{apache:true,nginx:false,middleware_api:true}});

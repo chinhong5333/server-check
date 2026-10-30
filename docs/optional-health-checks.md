@@ -2,9 +2,17 @@
 
 Agent scripts generated as version 1.3.0 support independent Apache, Nginx, and Middleware API checks. The former Server Health API URL is the Middleware API URL; it is not a second endpoint.
 
+## Agent 1.5.0: The Server Decides
+
+Scripts generated as version 1.5.0 always check Apache and Nginx, and probe the Middleware API whenever a URL was saved. The central server keeps or discards each result using the agent's current on/off settings, so turning a check on or off in Manage or Bulk Health Checks never needs a new script. A Middleware API URL can be saved while that check is off, so it can be turned on later.
+
+A service with no LAMPP install, no loaded systemd unit, and no binary on the PATH reports `not_installed`; it shows Not Installed and, only while that check is on, raises a warning. A missing service or failing command never stops the heartbeat. The script adds the standard sbin directories to cron's minimal PATH so `nginx`, `apache2`, and `httpd` binaries are found.
+
+Scripts older than 1.5.0 still run only the checks selected when they were generated. Turning on a check such a script does not run keeps the rest of its telemetry accepted and shows that check as Needs New Script; rotate the secret to install a 1.5.0 script.
+
 ## Configuration
 
-During Register Agent → Generate Agent Script, choose the Health Checks to enable. Existing agents use the access-secret replacement dialog to choose checks and generate a replacement script. That action rotates the credential, so install the replacement script immediately. Changing monitoring policy in Edit Agent does not change these script selections or rotate credentials.
+During Register Agent → Generate Agent Script, choose the Health Checks to enable. Existing agents use the access-secret replacement dialog to choose checks and generate a replacement script. That action rotates the credential, so install the replacement script immediately. Since 1.5.0 these selections are the agent's saved on/off settings, editable later in Manage without a new script or credential rotation.
 
 The canonical script-generation body includes:
 
@@ -19,7 +27,7 @@ The canonical script-generation body includes:
 }
 ```
 
-`health_api_url` must be an HTTP(S) URL without embedded credentials when `checks.middleware_api` is true, and must be null when false. The registration endpoint combines these fields with the documented agent settings. Every check flag is a boolean; aliases are rejected. All checks may be disabled while resource telemetry and heartbeats continue.
+`health_api_url` must be an HTTP(S) URL without embedded credentials when `checks.middleware_api` is true; when false it may be null or a URL saved for later. The registration endpoint combines these fields with the documented agent settings. Every check flag is a boolean; aliases are rejected. All checks may be disabled while resource telemetry and heartbeats continue.
 
 Existing installations and pre-1.3 callers without a `checks` object retain Apache=true, Nginx=false, Middleware API=true. Existing telemetry without `service_checks.nginx` remains accepted and is normalized to an unmonitored Nginx result at ingestion. No existing script is automatically regenerated or installed.
 
@@ -28,19 +36,19 @@ Existing installations and pre-1.3 callers without a `checks` object retain Apac
 - Apache uses the executable `/opt/lampp/lampp` status output first; otherwise it checks the loaded `apache2` or `httpd` systemd service. Unsupported installations or unavailable status information report Unknown.
 - Nginx checks a loaded systemd unit first. If unavailable, it checks an exact local `nginx` process name with pgrep. A detected running process reports active; a known installed binary with no process reports inactive; unavailable detection reports unknown.
 - Middleware API performs the existing bounded curl request. HTTP 200 means healthy; non-200, DNS, connection, TLS, timeout, and other curl failures mean unhealthy. It does not validate the response body.
-- Disabled checks do not execute their probes. The middleware disabled result contains null HTTP status, latency, and error fields.
+- Scripts before 1.5.0 skip checks that were off at generation. The middleware disabled result contains null HTTP status, latency, and error fields.
 
 Web-server health is local service/process status, not proof that every virtual host or HTTP request works. See [systemd's service-state interface](https://github.com/systemd/systemd/blob/main/man/systemctl.xml) and [Nginx process control](https://nginx.org/en/docs/control.html) for the underlying service/process distinction.
 
 ## Agent Detail
 
-Health Checks displays Apache Web Server, Nginx Web Server, and Middleware API independently. Labels are Healthy, Error, Unknown, Not Monitored, Awaiting Data, and Stale. Each reported result includes its latest receipt timestamp and available service name or HTTP/latency/error diagnostics.
+Health Checks displays Apache Web Server, Nginx Web Server, and Middleware API independently. Labels are Healthy, Error, Unknown, Not Installed, Needs New Script, Not Monitored, Awaiting Data, and Stale. Each reported result includes its latest receipt timestamp and available service name or HTTP/latency/error diagnostics.
 
 Results become Stale if the latest heartbeat or valid telemetry exceeds the configured heartbeat interval, or telemetry is currently invalid/missing. Historical HTTP 200 is then marked as a last report, not current health. An agent with no persisted result shows Awaiting Data. Disabled checks show Not Monitored regardless of old results.
 
 ## Persistence And Alerts
 
-Migration 006 adds nullable saved-configuration and latest-result JSON columns to agents and allows a null health_api_url. Existing rows retain their data and interpret null configuration using the legacy defaults. Lifecycle columns remain last. Latest snapshots are updated only for newly accepted, valid telemetry; duplicate samples do not refresh metric freshness. Enabled/disabled payload states must match the saved configuration, preventing a payload from silently dropping an enabled check.
+Migration 006 adds nullable saved-configuration and latest-result JSON columns to agents and allows a null health_api_url. Existing rows retain their data and interpret null configuration using the legacy defaults. Lifecycle columns remain last. Latest snapshots are updated only for newly accepted, valid telemetry; duplicate samples do not refresh metric freshness. Results for checks turned off are stored as disabled. An enabled check the installed script does not run is stored as disabled and shown as Needs New Script, so it is visible rather than silently dropped.
 
 Both web-server results are retained in service_check_samples. Middleware uses the existing health_probe and metric columns. Disabled HTTP results are excluded from the health-success average and have no latency sample. No earlier history is erased.
 

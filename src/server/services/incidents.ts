@@ -137,7 +137,9 @@ function conditionsForPayload(
     conditions.push({
       type: `${name}_${service.status}`,
       severity: service.status === "inactive" ? "critical" : "warning",
-      probableCause: service.status === "inactive" ? `${service.service_name} is inactive` : `Unable to determine ${name === "apache" ? "Apache" : "Nginx"} service status`,
+      probableCause: service.status === "inactive" ? `${service.service_name} is inactive`
+        : service.status === "not_installed" ? `${name === "apache" ? "Apache" : "Nginx"} is not installed on this server`
+        : `Unable to determine ${name === "apache" ? "Apache" : "Nginx"} service status`,
       details: { service_name: service.service_name, service_status: service.status }
     });
   }

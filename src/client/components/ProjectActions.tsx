@@ -129,14 +129,14 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
     <div className="project-management-actions">
       <button className="button button--secondary" type="button"
         hidden={!hasPermission(user, "edit_project_settings")} aria-haspopup="dialog" aria-controls="rename-project-dialog"
-        onClick={(event) => openRenameDialog(project, event)}>
-        <Settings aria-hidden="true" /> Rename Project
+        aria-label="Rename Project" onClick={(event) => openRenameDialog(project, event)}>
+        <Settings aria-hidden="true" /> Rename
       </button>
       {children}
       <button className="button button--secondary project-delete-action" type="button"
         hidden={!hasPermission(user, "delete_projects")} aria-haspopup="dialog" aria-controls="delete-project-dialog"
-        onClick={(event) => openDeleteDialog(project, event)}>
-        <Trash2 aria-hidden="true" /> Delete Project
+        aria-label="Delete Project" onClick={(event) => openDeleteDialog(project, event)}>
+        <Trash2 aria-hidden="true" /> Delete
       </button>
       <ModalDialog
         id="rename-project-dialog"

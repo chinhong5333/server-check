@@ -22,7 +22,7 @@ it("moves from download to setup and exposes three separate commands ending in a
   expect(screen.getByRole("button",{name:"Copy Setup Command"})).toHaveTextContent(/^Copy$/);
   expect(screen.getByText("Paste it on the server as root. It adds a crontab job that pings the central server every minute.")).toBeInTheDocument();
   expect(screen.queryByText(/^Run as the server user who runs PM2/)).not.toBeInTheDocument();
-  expect(screen.getByText("Use Separate Commands").parentElement).not.toHaveAttribute("open");
+  expect(screen.getByText("Use Separate Commands").closest("details")).not.toHaveAttribute("open");
   fireEvent.click(screen.getByText("Use Separate Commands"));
   expect(screen.getByRole("button",{name:"Copy Permissions Command"})).toHaveTextContent(/^Copy$/);
   expect(screen.getByRole("button",{name:"Copy Cron Command"})).toHaveTextContent(/^Copy$/);

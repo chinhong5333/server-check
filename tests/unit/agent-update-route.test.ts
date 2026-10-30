@@ -173,8 +173,8 @@ describe("agent settings update route", () => {
       load_5_per_core_threshold: 1.5, heartbeat_interval_seconds: 120, telegram_alert_cooldown_seconds: 900
     });
     expect(response.status).toBe(201);
-    expect(response.body.script).toContain("CHECK_NGINX=1");
-    expect(response.body.script).toContain("CHECK_MIDDLEWARE_API=0");
+    expect(response.body.script).toContain("HEALTH_API_URL=''");
+    expect(response.body.script).not.toContain("CHECK_");
     const insert = transactionExecuteMock.mock.calls.find(([sql]) => String(sql).includes("INSERT INTO agents"));
     expect(insert?.[1][3]).toBeNull();
     expect(JSON.parse(insert?.[1][4])).toEqual(checks);

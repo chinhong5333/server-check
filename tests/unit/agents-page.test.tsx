@@ -137,6 +137,14 @@ function prepareActions(name: string) {
   vi.spyOn(panel, "matches").mockImplementation(() => open);
 }
 
+/** Row actions live in the More menu; open it and return the named action. */
+async function rowAction(name: string, action: string) {
+  await screen.findByText(name);
+  prepareActions(name);
+  fireEvent.click(screen.getByRole("button", { name: `More Actions For ${name}` }));
+  return screen.getByRole("button", { name: action });
+}
+
 describe("project-scoped agents page", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -488,7 +496,7 @@ describe("project-scoped agents page", () => {
 
     renderAgentsPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit atlas-web-01" }));
+    fireEvent.click(await rowAction("atlas-web-01", "Edit atlas-web-01"));
     expect(
       screen.getByRole("dialog", { name: "Edit atlas-web-01" })
     ).toHaveClass("agent-dialog--agent-form");
@@ -514,7 +522,8 @@ describe("project-scoped agents page", () => {
             heartbeat_interval_seconds: 120,
             telegram_alert_cooldown_seconds: 900,
             telegram_recovery_cooldown_seconds: 30,
-            middleware_failure_threshold: 2
+            middleware_failure_threshold: 2,
+            checks: { apache: true, nginx: false, middleware_api: true }
           })
         }
       )
@@ -531,11 +540,10 @@ describe("project-scoped agents page", () => {
 
     renderAgentsPage();
 
-    const editButton = await screen.findByRole("button", { name: "Edit atlas-web-01" });
-    fireEvent.click(editButton);
+    fireEvent.click(await rowAction("atlas-web-01", "Edit atlas-web-01"));
     await waitFor(() => expect(screen.getByLabelText("Server Name")).toHaveFocus());
     fireEvent.click(screen.getByRole("button", { name: "Close Edit Form" }));
-    await waitFor(() => expect(editButton).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("button", { name: "More Actions For atlas-web-01" })).toHaveFocus());
   });
 
   it("opens the requested agent rotation setup without rotating automatically", async () => {
@@ -571,7 +579,7 @@ describe("project-scoped agents page", () => {
 
     renderAgentsPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Rotate atlas-web-01 Access Secret" }));
+    fireEvent.click(await rowAction("atlas-web-01", "Rotate atlas-web-01 Access Secret"));
     expect(screen.getByRole("dialog", { name: "Rotate Access Secret For atlas-web-01?" })).toBeInTheDocument();
     expect(screen.getByLabelText("Middleware API URL")).toHaveValue("https://atlas.example.com/api/health");
     expect(screen.getByText(/current script will stop authenticating immediately/i)).toBeInTheDocument();
@@ -587,23 +595,23 @@ describe("project-scoped agents page", () => {
       )
     );
     expect(await screen.findByRole("dialog", { name: "Access Secret Rotated" })).toBeInTheDocument();
-    expect(screen.getByText(/old secret is revoked/i)).toBeInTheDocument();
+    expect(screen.getByText(/old secret revoked/i)).toBeInTheDocument();
     expect(
       within(screen.getByRole("region", { name: "Notifications" })).getByRole("status")
     ).toHaveTextContent("Access secret rotated. Install the replacement script.");
   });
 
-  it("can generate a replacement with Nginx enabled and Middleware API disabled", async () => {
+  it("keeps the saved Middleware API URL when its check is turned off for a replacement", async () => {
     apiFetchMock.mockImplementation((_path, init) => init?.method === "POST" ? Promise.resolve(replacementInstallation) : Promise.resolve(agents));
     renderAgentsPage();
-    fireEvent.click(await screen.findByRole("button", { name: "Rotate atlas-web-01 Access Secret" }));
+    fireEvent.click(await rowAction("atlas-web-01", "Rotate atlas-web-01 Access Secret"));
     fireEvent.click(screen.getByRole("checkbox", { name: /^Middleware API/ }));
     fireEvent.click(screen.getByRole("checkbox", { name: /^Nginx/ }));
     expect(screen.queryByLabelText("Middleware API URL")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Rotate And Generate Script" }));
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith(
       "/api/v1/projects/project-1/agents/agent-1/credential-rotation", {
-        method: "POST", body: JSON.stringify({ health_api_url: null, checks: { apache: true, nginx: true, middleware_api: false } })
+        method: "POST", body: JSON.stringify({ health_api_url: "https://atlas.example.com/api/health", checks: { apache: true, nginx: true, middleware_api: false } })
       }
     ));
   });
@@ -615,8 +623,7 @@ describe("project-scoped agents page", () => {
 
     renderAgentsPage();
 
-    const deleteButton = await screen.findByRole("button", { name: "Delete atlas-web-01" });
-    fireEvent.click(deleteButton);
+    fireEvent.click(await rowAction("atlas-web-01", "Delete atlas-web-01"));
     expect(
       screen.getByRole("dialog", { name: "Delete atlas-web-01?" })
     ).toBeInTheDocument();
@@ -626,8 +633,10 @@ describe("project-scoped agents page", () => {
     const closeDeleteButton = screen.getByRole("button", { name: "Close Deletion Confirmation" });
     await waitFor(() => expect(closeDeleteButton).toHaveFocus());
     fireEvent.click(closeDeleteButton);
-    await waitFor(() => expect(deleteButton).toHaveFocus());
-    fireEvent.click(deleteButton);
+    const moreButton = screen.getByRole("button", { name: "More Actions For atlas-web-01" });
+    await waitFor(() => expect(moreButton).toHaveFocus());
+    fireEvent.click(moreButton);
+    fireEvent.click(screen.getByRole("button", { name: "Delete atlas-web-01" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete Agent" }));
 
     await waitFor(() =>

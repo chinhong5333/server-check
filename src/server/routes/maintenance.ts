@@ -18,11 +18,11 @@ const DAY = 86400000;
 
 type MaintenanceTarget = Awaited<ReturnType<typeof maintenanceTarget>>;
 
-/** Rejects past, over-long, or far-future windows; returns the effective start in Unix milliseconds. */
+/** Rejects past or far-future starts and ends that are not after the start; duration is unlimited. Returns the effective start in Unix milliseconds. */
 function windowStart(body: z.infer<typeof createMaintenanceBodySchema>, now: number): number {
   const startsAt = body.starts_at ?? now;
-  if (startsAt < now - 5000 || startsAt > now + 90 * DAY || body.ends_at <= Math.max(now, startsAt) || body.ends_at - startsAt > 30 * DAY) {
-    throw new AppError(422, "invalid_maintenance_time", "Choose a future end after the start, with a maximum 30-day duration and a start within 90 days.");
+  if (startsAt < now - 5000 || startsAt > now + 90 * DAY || body.ends_at <= Math.max(now, startsAt)) {
+    throw new AppError(422, "invalid_maintenance_time", "Choose a future end after the start, with a start within 90 days.");
   }
   return startsAt;
 }
@@ -95,8 +95,8 @@ export function createMaintenanceRouter(config: AppConfig): Router {
      * @param {string} request.params.project_id Active project's public UUID.
      * @param {string} [request.params.agent_id] Active agent's public UUID belonging to the project.
      * @param {number|null} request.body.starts_at Unix milliseconds, or null to start immediately; at most 90 days ahead.
-     * @param {number} request.body.ends_at Future Unix milliseconds after starts_at; duration at most 30 days.
-     * @param {string} request.body.reason Trimmed reason, 3–500 characters.
+     * @param {number} request.body.ends_at Future Unix milliseconds after starts_at; no maximum duration.
+     * @param {string} request.body.reason Trimmed reason, 3â€“500 characters.
      * @param {import("express").Response<MaintenanceState>} response Updated own/inherited maintenance state.
      * @returns {Promise<void>} Returns 201 after atomic window/audit persistence; 409 if the target already has a current/upcoming window.
      */
@@ -191,8 +191,8 @@ export function createAllProjectsMaintenanceRouter(config: AppConfig): Router {
    * Creates a project window on every active project without a current/upcoming project window; admin and CSRF required.
    * @param {Request} request Authenticated admin request; query must be empty.
    * @param {number|null} request.body.starts_at Unix milliseconds, or null to start immediately; at most 90 days ahead.
-   * @param {number} request.body.ends_at Future Unix milliseconds after starts_at; duration at most 30 days.
-   * @param {string} request.body.reason Trimmed reason, 3–500 characters.
+   * @param {number} request.body.ends_at Future Unix milliseconds after starts_at; no maximum duration.
+   * @param {string} request.body.reason Trimmed reason, 3â€“500 characters.
    * @param {import("express").Response<MaintenanceState>} response The new batch state.
    * @returns {Promise<void>} Returns 201; 409 when a batch is already current or every project already has a window.
    */

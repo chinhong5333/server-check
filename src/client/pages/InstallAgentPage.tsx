@@ -250,7 +250,9 @@ export function InstallAgentPage() {
   const createAgent = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!pendingRegistration) return;
-    const validation = generateAgentScriptBodySchema.safeParse({ health_api_url: registrationChecks.middleware_api ? registrationHealthUrl : null, checks: registrationChecks });
+    // The URL field is shown only while its check is on; when off, no URL is registered.
+    const url = registrationChecks.middleware_api && registrationHealthUrl.trim() ? registrationHealthUrl : null;
+    const validation = generateAgentScriptBodySchema.safeParse({ health_api_url: url, checks: registrationChecks });
     if (!validation.success) {
       const message = "Enter a valid Middleware API URL before generating the script.";
       setError(message);
@@ -290,7 +292,9 @@ export function InstallAgentPage() {
 
   const rotateAgentCredential = async () => {
     if (!agentPendingRotation) return;
-    const validation = generateAgentScriptBodySchema.safeParse({ health_api_url: rotationChecks.middleware_api ? rotationHealthUrl : null, checks: rotationChecks });
+    // Check off means the field is hidden: keep the agent's saved URL untouched so the check can be re-enabled later.
+    const url = rotationChecks.middleware_api ? (rotationHealthUrl.trim() ? rotationHealthUrl : null) : agentPendingRotation.health_api_url ?? null;
+    const validation = generateAgentScriptBodySchema.safeParse({ health_api_url: url, checks: rotationChecks });
     if (!validation.success) {
       const message = "Enter a valid Middleware API URL before generating the replacement script.";
       setError(message);
@@ -382,7 +386,7 @@ export function InstallAgentPage() {
           <div className="agent-setup-dialog-heading">
             <div><h2 id="agent-script-setup-title">{rotated ? "Access Secret Rotated" : "Agent Registered"}</h2>
               <p className="agent-setup-context">{installationAgentName ?? "This Agent"} · {installationProjectName ?? selectedProject.name}</p>
-              <p id="agent-script-setup-description">{rotated ? "The old secret is revoked. Save this replacement before closing; it cannot be retrieved again." : "Save this one-time script before closing; it cannot be retrieved again."}</p></div>
+              <p id="agent-script-setup-description">{rotated ? "Old secret revoked. Save this replacement now; it is shown only once." : "Save this one-time script before closing; it cannot be retrieved again."}</p></div>
             <button ref={installationBackButtonRef} data-dialog-initial-focus className="icon-button" type="button" aria-label="Close Agent Setup" onClick={() => setInstallationExitStep(1)}><X aria-hidden="true" /></button>
           </div>
           <AgentScriptSetup key={installation.agent_id} installation={installation} compact={rotated} onDone={returnToOverview} />
@@ -551,8 +555,7 @@ export function InstallAgentPage() {
             {error ? <div className="form-banner form-banner--error" role="alert">{error}</div> : null}
             <form className="form-grid agent-settings-form agent-settings-form--wizard" onSubmit={(event) => void createAgent(event)} noValidate aria-busy={submitting}>
               <WizardSteps steps={REGISTRATION_STEPS} current={3} label="Agent Registration Progress" />
-              <AgentScriptChecks value={registrationChecks} onChange={setRegistrationChecks} disabled={submitting}
-                help="Unchecked services are not monitored. These choices go into the generated script." />
+              <AgentScriptChecks value={registrationChecks} onChange={setRegistrationChecks} disabled={submitting} />
               {registrationChecks.middleware_api ? <div className="field field--wide">
                 <label htmlFor="registration-health-api-url">Middleware API URL</label>
                 <input
@@ -569,7 +572,7 @@ export function InstallAgentPage() {
                   placeholder="http://127.0.0.1:3000/health"
                   required
                 />
-                <span className="field__help">Saved as the middleware endpoint used by this generated script.</span>
+                <span className="field__help">The agent calls this endpoint every minute.</span>
               </div> : null}
               <div className="agent-settings-actions agent-wizard-actions field--wide">
                 <button className="button button--secondary" type="button" disabled={submitting}
@@ -647,7 +650,7 @@ export function InstallAgentPage() {
               <KeyRound aria-hidden="true" />
               <div>
                 <h2 id="rotate-agent-credential-title">Rotate Access Secret For {agentPendingRotation.server_name}?</h2>
-                <p id="rotate-agent-credential-description">Choose checks for the replacement script. The current script will stop authenticating immediately.</p>
+                <p id="rotate-agent-credential-description">Choose checks for this agent. The current script will stop authenticating immediately.</p>
               </div>
               <button
                 className="icon-button"

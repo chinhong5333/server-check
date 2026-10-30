@@ -1,9 +1,10 @@
 /* Hallmark · Cobalt operational UI · roomy two-step setup · existing tokens and one-time-secret lifecycle */
-import { ArrowLeft, ArrowRight, Check, Download, FileCode2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, FileCode2, ListOrdered, SquareTerminal } from "lucide-react";
 import { useEffect, useId, useRef, useState, type CSSProperties, type SyntheticEvent } from "react";
 import type { AgentInstallationResponse } from "../../shared/contracts";
 import { buildAgentSetup } from "../lib/agent-setup";
 import { CopyButton } from "./CopyButton";
+import { WizardSteps } from "./WizardSteps";
 
 const HOLD_SECONDS = 2;
 
@@ -67,16 +68,11 @@ export function AgentScriptSetup({ installation, compact = false, onDone }: {
   }
   const scheduleLabel = (setup.scheduleLabel ?? buildAgentSetup(installation.crontab_entry, defaultScriptPath).scheduleLabel)?.toLowerCase();
   const steps = [
-    { number: 1, title: "Download Script", hint: "Save the one-time file" },
-    { number: 2, title: "Run Setup", hint: "Paste one command" }
+    { title: "Download Script", hint: "Save the one-time file" },
+    { title: "Run Setup", hint: "Paste one command" }
   ] as const;
   return <div className="agent-script-setup">
-    <ol className="agent-setup-steps" aria-label="Agent Setup Progress">
-      {steps.map(item => <li key={item.number} aria-current={step === item.number ? "step" : undefined} data-state={step > item.number ? "done" : step === item.number ? "current" : "upcoming"}>
-        <span className="agent-setup-steps__marker" aria-hidden="true">{step > item.number ? <Check /> : item.number}</span>
-        <span className="agent-setup-steps__text"><strong>{item.title}</strong><small>{item.hint}</small></span>
-      </li>)}
-    </ol>
+    <WizardSteps steps={steps} current={step - 1} label="Agent Setup Progress" />
     <div className="agent-setup-heading"><h3 ref={heading} tabIndex={-1} className={step === 2 ? "visually-hidden" : undefined}>{step === 1 ? "Download The Agent Script" : "Run Setup"}</h3>
       {step === 1 ? <p>Save this one-time script, then upload it to the path below on your server.</p>
         : <p>Paste it on the server as root. It adds a crontab job that pings the central server {scheduleLabel ?? "on its cron schedule"}.</p>}</div>
@@ -89,11 +85,21 @@ export function AgentScriptSetup({ installation, compact = false, onDone }: {
       {setup.error && <p id={`${pathInputId}-error`} className="field__help field__help--error" role="alert">{setup.error}</p>}
     </div>
       {setup.command && setup.commands ? <>
-        <details className="agent-setup-disclosure" open={commandView === "one-line"} onToggle={toggleView("one-line")}><summary>One-Line Setup Command</summary>
+        <details className="agent-setup-disclosure agent-setup-disclosure--option" open={commandView === "one-line"} onToggle={toggleView("one-line")}><summary>
+          <span className="status-tile status-tile--sm status-tile--accent" aria-hidden="true"><SquareTerminal /></span>
+          <span className="agent-setup-disclosure__text">
+            <span className="agent-setup-disclosure__title-row"><span className="agent-setup-disclosure__title">One-Line Setup Command</span><span className="agent-setup-disclosure__badge">Recommended</span></span>
+            <span className="agent-setup-disclosure__hint">Paste once to set permissions, add the cron job and run the first check.</span>
+          </span></summary>
           <section className="code-surface agent-setup-command"><div className="code-surface__header"><strong>Run As Root</strong><CopyButton value={setup.command} label="Copy Setup Command" /></div><pre tabIndex={0} aria-label="One-Line Setup Command"><code>{setup.command}</code></pre>
           </section>
         </details>
-        <details className="agent-setup-disclosure" open={commandView === "separate"} onToggle={toggleView("separate")}><summary>Use Separate Commands</summary>
+        <details className="agent-setup-disclosure agent-setup-disclosure--option" open={commandView === "separate"} onToggle={toggleView("separate")}><summary>
+          <span className="status-tile status-tile--sm status-tile--accent" aria-hidden="true"><ListOrdered /></span>
+          <span className="agent-setup-disclosure__text">
+            <span className="agent-setup-disclosure__title-row"><span className="agent-setup-disclosure__title">Use Separate Commands</span></span>
+            <span className="agent-setup-disclosure__hint">Run each step yourself: permissions, cron job, then the first run.</span>
+          </span></summary>
           <div className="agent-setup-separate">{[
             { title: "1. Set File Permissions", label: "Copy Permissions Command", value: setup.commands.permissions },
             { title: "2. Register The Cron Job", label: "Copy Cron Command", value: setup.commands.cron },
@@ -107,8 +113,7 @@ export function AgentScriptSetup({ installation, compact = false, onDone }: {
         <div className="agent-setup-file"><span className="status-tile status-tile--accent" aria-hidden="true"><FileCode2 /></span>
           <div><strong>{setup.filename ?? installation.script_filename}</strong><p>Upload To <code>{scriptPath}</code></p></div></div>
         <div className="action-row"><button className="button button--primary" type="button" onClick={download}><Download aria-hidden="true" />Download Script</button><CopyButton value={installation.script} label="Copy Script" /></div>
-      </section>
-      <details key="script-preview" className="agent-setup-disclosure"><summary>View Script</summary>
+      </section>      <details key="script-preview" className="agent-setup-disclosure"><summary>View Script</summary>
         <div className="code-surface"><pre tabIndex={0} aria-label={compact ? "Replacement Agent Script" : "Generated Agent Script"}><code>{installation.script}</code></pre></div>
       </details>
     </> : null}

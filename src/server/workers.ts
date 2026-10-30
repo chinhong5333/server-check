@@ -106,7 +106,8 @@ export function telegramText(payload: Record<string, unknown>): string {
     const labels: Record<string, string> = { ram_low: "RAM", disk_low: "Root Storage", load_high: "CPU Load",
       health_api_unhealthy: "Middleware API", database_not_alive: "Database", heartbeat_missed: "Heartbeat",
       apache_inactive: "Apache Availability", nginx_inactive: "Nginx Availability",
-      apache_unknown: "Apache Status Detection", nginx_unknown: "Nginx Status Detection", telemetry_invalid: "Agent Metrics" };
+      apache_unknown: "Apache Status Detection", nginx_unknown: "Nginx Status Detection",
+      apache_not_installed: "Apache Installation", nginx_not_installed: "Nginx Installation", telemetry_invalid: "Agent Metrics" };
     const recoveredCheck = labels[type] ?? type.replaceAll("_", " ");
     const remaining = Number(payload.remaining_open_incidents ?? 0);
     return `[RECOVERY] ${serverName}\nProject: ${projectName}\nRecovered Check: ${recoveredCheck}\n${type === "telemetry_invalid" ? "Valid monitoring data is being received again.\n" : ""}${remaining > 0 ? `Other Open Issues: ${remaining}. This agent still needs attention.` : "No other open issues are currently recorded."}`.slice(0, 4096);

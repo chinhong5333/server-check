@@ -587,7 +587,6 @@ export function createProjectsRouter(config: AppConfig): Router {
           credential: credential.credential,
           centralApiUrl,
           healthApiUrl,
-          checks: body.checks,
           healthRequestTimeoutSeconds: DEFAULT_HEALTH_REQUEST_TIMEOUT_SECONDS
         }),
         crontab_entry: agentCronEntry(scriptPath),
@@ -1029,7 +1028,6 @@ export function createProjectsRouter(config: AppConfig): Router {
         credential: credential.credential,
         centralApiUrl,
         healthApiUrl,
-        checks: body.checks,
         healthRequestTimeoutSeconds: DEFAULT_HEALTH_REQUEST_TIMEOUT_SECONDS
       });
       const payload: AgentInstallationResponse = {

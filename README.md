@@ -102,7 +102,7 @@ A validated agent report containing a non-`alive` `database_health.status` opens
 
 ### Maintenance Mode
 
-Project Overview and Agent Detail offer **Schedule Maintenance** to users with the matching project/agent edit permission; viewers see active/scheduled windows but cannot modify them. Start immediately or within the next 90 days, supply a reason, and choose a required end with a maximum 30-day duration. One current/upcoming window is allowed per scope. Project maintenance covers all its agents, including newly registered ones; separate agent windows may overlap it. Times are stored as Unix milliseconds and displayed in the browser's timezone.
+Project Overview and Agent Detail offer **Schedule Maintenance** to users with the matching project/agent edit permission; viewers see active/scheduled windows but cannot modify them. Start immediately or within the next 90 days, supply a reason, and choose a required end; there is no maximum duration. One current/upcoming window is allowed per scope. Project maintenance covers all its agents, including newly registered ones; separate agent windows may overlap it. Times are stored as Unix milliseconds and displayed in the browser's timezone.
 
 Monitoring, status evaluation, metric storage, and incident history continue during `starts_at <= now < ends_at`. Telegram alert/recovery collection and delivery are muted. Already-pending scoped messages become cancelled delivery logs with a maintenance reason; alerts already sent or in flight before activation cannot be retracted. **End Maintenance Now** ends an active window, while **Cancel Maintenance** cancels a future window. Both are audited and preserve window history.
 

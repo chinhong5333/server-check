@@ -23,7 +23,7 @@ export function AgentScriptChecks({ value, onChange, disabled = false, help, can
           </label>
         ))}
       </div>
-      <p className="field__help">{help ?? "Unchecked services are not monitored. These choices are applied by the generated script."}</p>
+      <p className="field__help">{help ?? "Unchecked services are not monitored. You can change this later in Manage without a new script."}</p>
     </fieldset>
   );
 }

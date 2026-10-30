@@ -45,7 +45,8 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
   }
   async function rotate() {
     if (busy || installation || armingSeconds > 0) return;
-    const input = generateAgentScriptBodySchema.safeParse({ checks: draftChecks, health_api_url: draftChecks.middleware_api ? url : null });
+    // Check off means the field is hidden: keep the saved URL untouched so the check can be re-enabled later.
+    const input = generateAgentScriptBodySchema.safeParse({ checks: draftChecks, health_api_url: draftChecks.middleware_api ? (url.trim() ? url : null) : healthApiUrl ?? null });
     if (!input.success) { setError("Enter a valid Middleware API URL or disable its check."); return; }
     setBusy(true); setError(null);
     try {
@@ -58,7 +59,7 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
     } finally { setBusy(false); }
   }
   return <>
-    <button ref={trigger} className="button button--secondary" type="button" aria-haspopup="dialog" aria-controls="detail-rotate-secret"
+    <button ref={trigger} className="button button--secondary agent-rotate-action" type="button" aria-haspopup="dialog" aria-controls="detail-rotate-secret"
       onClick={() => { setDraftChecks({ ...(checks ?? DEFAULT_AGENT_CHECKS) }); setUrl(healthApiUrl ?? ""); setError(null); setArmingSeconds(ROTATION_ARM_SECONDS); setOpen(true); }}><KeyRound aria-hidden="true" />Rotate Secret</button>
     <ModalDialog id="detail-rotate-secret" open={open} labelledBy="detail-rotate-title" describedBy="detail-rotate-description"
       dialogClassName={installation ? "agent-dialog--script-setup" : undefined}
@@ -66,13 +67,15 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
       <div className={installation ? "agent-setup-dialog-heading" : undefined}>
         {!installation && <KeyRound aria-hidden="true" />}
         <div><h2 id="detail-rotate-title">{installation ? "Access Secret Rotated" : `Rotate Access Secret For ${agentName}?`}</h2>
-          <p id="detail-rotate-description">{installation ? "The old secret is revoked. Save and install this replacement before closing; it cannot be retrieved again." : "Choose checks for the replacement script. Confirming immediately stops the old script from authenticating."}</p></div>
+          <p id="detail-rotate-description">{installation ? "Old secret revoked. Save this replacement now; it is shown only once." : "Choose checks for this agent. Confirming immediately stops the old script from authenticating."}</p></div>
         <button ref={closeTrigger} className="icon-button" type="button" data-dialog-initial-focus aria-label="Close Secret Rotation" disabled={busy} onClick={close}><X aria-hidden="true" /></button>
       </div>
       {installation ? <AgentScriptSetup key={installation.agent_id} installation={installation} compact /> : <>
         <AgentScriptChecks value={draftChecks} onChange={setDraftChecks} disabled={busy} />
-        {draftChecks.middleware_api && <div className="field"><label htmlFor="detail-rotation-url">Middleware API URL</label>
-          <input id="detail-rotation-url" type="url" value={url} disabled={busy} onChange={(event) => setUrl(event.target.value)} /></div>}
+        {/* Shown only while its check is on; a saved URL stays in state and is still sent, so the check can be re-enabled later. */}
+        {draftChecks.middleware_api ? <div className="field"><label htmlFor="detail-rotation-url">Middleware API URL</label>
+          <input id="detail-rotation-url" type="url" value={url} disabled={busy} required onChange={(event) => setUrl(event.target.value)} />
+          <span className="field__help">The agent calls this endpoint every minute.</span></div> : null}
         {error && <p role="alert" className="field__help field__help--error">{error}</p>}
         <div className="action-row"><button className="button button--secondary" type="button" disabled={busy} onClick={close}>Cancel</button>
           <button className="button button--danger" type="button" disabled={busy || armingSeconds > 0} onClick={() => void rotate()}>
