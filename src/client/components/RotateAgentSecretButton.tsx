@@ -4,10 +4,8 @@ import { DEFAULT_AGENT_CHECKS, generateAgentScriptBodySchema, type AgentChecks, 
 import { apiFetch } from "../api";
 import { AgentScriptChecks } from "./AgentScriptChecks";
 import { AgentScriptSetup } from "./AgentScriptSetup";
-import { InlineLoader } from "./Feedback";
+import { HoldConfirmButton } from "./HoldConfirmButton";
 import { ModalDialog } from "./ModalDialog";
-
-const ROTATION_ARM_SECONDS = 3;
 
 export function RotateAgentSecretButton({ agentId, projectId, agentName, checks, healthApiUrl, onFinished }: {
   agentId: string; projectId: string; agentName: string; checks?: AgentChecks;
@@ -20,7 +18,8 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
   const [error, setError] = useState<string | null>(null);
   const [installation, setInstallation] = useState<AgentInstallationResponse | null>(null);
   const [leaveStep, setLeaveStep] = useState(0);
-  const [armingSeconds, setArmingSeconds] = useState(0);
+  // Remounts the confirm button on every open so its lock restarts; the dialog keeps its content mounted while closed.
+  const [openCount, setOpenCount] = useState(0);
   const trigger = useRef<HTMLButtonElement>(null);
   const closeTrigger = useRef<HTMLButtonElement>(null);
 
@@ -32,19 +31,13 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
     return () => window.removeEventListener("beforeunload", warn);
   }, [installation, busy]);
 
-  useEffect(() => {
-    if (!open || installation || armingSeconds <= 0) return;
-    const timer = window.setTimeout(() => setArmingSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
-    return () => window.clearTimeout(timer);
-  }, [open, installation, armingSeconds]);
-
   function close() {
     if (busy) return;
     if (installation) setLeaveStep(1);
-    else { setArmingSeconds(0); setOpen(false); }
+    else setOpen(false);
   }
   async function rotate() {
-    if (busy || installation || armingSeconds > 0) return;
+    if (busy || installation) return;
     // Check off means the field is hidden: keep the saved URL untouched so the check can be re-enabled later.
     const input = generateAgentScriptBodySchema.safeParse({ checks: draftChecks, health_api_url: draftChecks.middleware_api ? (url.trim() ? url : null) : healthApiUrl ?? null });
     if (!input.success) { setError("Enter a valid Middleware API URL or disable its check."); return; }
@@ -60,7 +53,7 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
   }
   return <>
     <button ref={trigger} className="button button--secondary agent-rotate-action" type="button" aria-haspopup="dialog" aria-controls="detail-rotate-secret"
-      onClick={() => { setDraftChecks({ ...(checks ?? DEFAULT_AGENT_CHECKS) }); setUrl(healthApiUrl ?? ""); setError(null); setArmingSeconds(ROTATION_ARM_SECONDS); setOpen(true); }}><KeyRound aria-hidden="true" />Rotate Secret</button>
+      onClick={() => { setDraftChecks({ ...(checks ?? DEFAULT_AGENT_CHECKS) }); setUrl(healthApiUrl ?? ""); setError(null); setOpenCount((count) => count + 1); setOpen(true); }}><KeyRound aria-hidden="true" />Rotate Secret</button>
     <ModalDialog id="detail-rotate-secret" open={open} labelledBy="detail-rotate-title" describedBy="detail-rotate-description"
       dialogClassName={installation ? "agent-dialog--script-setup" : undefined}
       surfaceClassName={installation ? "agent-dialog__surface agent-setup-surface" : "agent-dialog__surface agent-rotation-confirmation"} restoreFocusTo={trigger.current} onDismiss={installation ? close : undefined}>
@@ -78,11 +71,7 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
           <span className="field__help">The agent calls this endpoint every minute.</span></div> : null}
         {error && <p role="alert" className="field__help field__help--error">{error}</p>}
         <div className="action-row"><button className="button button--secondary" type="button" disabled={busy} onClick={close}>Cancel</button>
-          <button className="button button--danger" type="button" disabled={busy || armingSeconds > 0} onClick={() => void rotate()}>
-            {busy ? "Rotating Secret…" : armingSeconds > 0
-              ? <InlineLoader label={`Rotate Available In ${armingSeconds}s`} />
-              : "Rotate And Generate Script"}
-          </button></div>
+          <HoldConfirmButton key={openCount} label="Rotate And Generate Script" busy={busy} busyLabel="Rotating Secret" onConfirm={() => void rotate()} /></div>
       </>}
     </ModalDialog>
     <ModalDialog id="detail-leave-secret" open={leaveStep > 0} labelledBy="detail-leave-title" describedBy="detail-leave-description"
@@ -90,10 +79,8 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
       <div className="section-heading"><div><h2 id="detail-leave-title">{leaveStep === 1 ? "Close Replacement Script?" : "Confirm Closing Script"}</h2>
         <p id="detail-leave-description">{leaveStep === 1 ? "Save the replacement script before continuing. It cannot be reopened after closing." : "Final confirmation: close this one-time script? You will need another rotation if it was not saved."}</p></div></div>
       <div className="form-grid"><button data-dialog-initial-focus className="button button--secondary" type="button" onClick={() => setLeaveStep(0)}>Keep Script Open</button>
-        <button className="button button--danger" type="button" onClick={() => {
-          if (leaveStep === 1) setLeaveStep(2);
-          else { setLeaveStep(0); setInstallation(null); setOpen(false); onFinished(); }
-        }}>{leaveStep === 1 ? "Continue" : "Close Script"}</button></div>
+        {leaveStep === 1 ? <button className="button button--danger" type="button" onClick={() => setLeaveStep(2)}>Continue</button>
+          : <HoldConfirmButton label="Close Script" onConfirm={() => { setLeaveStep(0); setInstallation(null); setOpen(false); onFinished(); }} />}</div>
     </ModalDialog>
   </>;
 }

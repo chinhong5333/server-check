@@ -120,6 +120,9 @@ export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false 
   const uptimeReceived = agent.uptime_received_at ?? null;
   const uptimeStale = uptimeReceived !== null && now >= uptimeReceived + agent.heartbeat_interval_seconds * 1000;
   const notice = statusNotice(agent, summary);
+  // Share of the heartbeat window left before the agent is marked overdue, for the countdown bar.
+  const remaining = summary.deadline === null || summary.overdue ? 0
+    : Math.min(1, (summary.deadline - now) / (agent.heartbeat_interval_seconds * 1000));
   const delivery = notificationsMuted ? "TG Muted During Maintenance" : notice?.delivery;
   const statusAnnouncement = [summary.status, summary.qualifier, notice?.title, notice?.message, delivery]
     .filter(Boolean).join(". ");
@@ -177,6 +180,10 @@ export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false 
             {summary.timing !== null ? <strong className="agent-heartbeat-summary__metric-value agent-heartbeat-summary__metric-value--timer" role="timer" aria-live="off">{summary.timing}</strong> : (
               <strong className="agent-heartbeat-summary__metric-value">Awaiting Data</strong>
             )}
+            {/* Decorative: the timer text above is the accessible value. */}
+            {summary.deadline !== null ? <span className={`agent-heartbeat-summary__countdown${summary.overdue ? " agent-heartbeat-summary__countdown--overdue" : remaining <= 0.25 ? " agent-heartbeat-summary__countdown--low" : ""}`} aria-hidden="true">
+              <span style={{ transform: `scaleX(${remaining})` }} />
+            </span> : null}
             <p>{summary.deadline === null ? "A deadline starts after the first heartbeat." : <>Deadline: <time dateTime={new Date(summary.deadline).toISOString()}>{formatDateTime(summary.deadline)}</time></>}</p>
           </div>
         </article>

@@ -37,7 +37,7 @@ export function TradingViewMetricChart({ title, points, formatter }: {
       handleScale: false,
       handleScroll: { pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false, mouseWheel: false },
       kineticScroll: { mouse: false, touch: false },
-      rightPriceScale: { visible: false }, leftPriceScale: { visible: true, borderVisible: false },
+      rightPriceScale: { visible: false }, leftPriceScale: { visible: true, borderVisible: false, entireTextOnly: true },
       timeScale: { timeVisible: true, secondsVisible: false, fixLeftEdge: true, fixRightEdge: true,
         lockVisibleTimeRangeOnResize: true, borderVisible: false, shiftVisibleRangeOnNewBar: false,
         tickMarkMaxCharacterLength: 9,

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { updateProjectBodySchema, type ProjectSummary } from "../../shared/contracts";
 import { ApiError, apiFetch } from "../api";
 import { InlineLoader } from "./Feedback";
+import { HoldConfirmButton } from "./HoldConfirmButton";
 import { ModalDialog } from "./ModalDialog";
 import { useToast } from "./ToastProvider";
 import { useProjects } from "../projects/ProjectProvider";
@@ -276,14 +277,13 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
                   </p>
                 ) : null}
                 <div className="action-row">
-                  <button
-                    className="button button--danger"
-                    type="button"
-                    disabled={deleting || confirmationName !== projectPendingDelete.name}
-                    onClick={() => void deleteProject()}
-                  >
-                    {deleting ? <InlineLoader label="Deleting Project" /> : "Delete Project"}
-                  </button>
+                  <HoldConfirmButton
+                    label="Delete Project"
+                    busy={deleting}
+                    busyLabel="Deleting Project"
+                    disabled={confirmationName !== projectPendingDelete.name}
+                    onConfirm={() => void deleteProject()}
+                  />
                 </div>
               </>
             )}

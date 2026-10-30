@@ -1,40 +1,11 @@
 /* Hallmark · Cobalt operational UI · roomy two-step setup · existing tokens and one-time-secret lifecycle */
 import { ArrowLeft, ArrowRight, Check, Download, FileCode2, ListOrdered, SquareTerminal } from "lucide-react";
-import { useEffect, useId, useRef, useState, type CSSProperties, type SyntheticEvent } from "react";
+import { useEffect, useId, useRef, useState, type SyntheticEvent } from "react";
 import type { AgentInstallationResponse } from "../../shared/contracts";
 import { buildAgentSetup } from "../lib/agent-setup";
 import { CopyButton } from "./CopyButton";
+import { HOLD_CONFIRM_SECONDS, HoldConfirmButton } from "./HoldConfirmButton";
 import { WizardSteps } from "./WizardSteps";
-
-const HOLD_SECONDS = 2;
-
-/** Press-and-hold confirm (pointer, Space or Enter): the fill sweeps over HOLD_SECONDS and onComplete fires only if held to the end. */
-function HoldToConfirmButton({ label, onComplete }: { label: string; onComplete: () => void }) {
-  const [holding, setHolding] = useState(false);
-  const timers = useRef<number[]>([]);
-  const hintId = useId();
-  const clear = () => { timers.current.forEach((id) => window.clearTimeout(id)); timers.current = []; };
-  useEffect(() => clear, []);
-  function start() {
-    if (timers.current.length) return;
-    setHolding(true);
-    timers.current.push(window.setTimeout(() => { clear(); setHolding(false); onComplete(); }, HOLD_SECONDS * 1000));
-  }
-  function cancel() { clear(); setHolding(false); }
-  const isActivationKey = (key: string) => key === " " || key === "Enter";
-  return <>
-    <button type="button" className={`button button--primary hold-button${holding ? " hold-button--holding" : ""}`} aria-describedby={hintId}
-      style={{ "--hold-duration": `${HOLD_SECONDS}s` } as CSSProperties}
-      onPointerDown={(event) => { if (event.button === 0) start(); }} onPointerUp={cancel} onPointerLeave={cancel} onPointerCancel={cancel}
-      onKeyDown={(event) => { if (isActivationKey(event.key)) { event.preventDefault(); if (!event.repeat) start(); } }}
-      onKeyUp={(event) => { if (isActivationKey(event.key)) cancel(); }} onBlur={cancel} onContextMenu={(event) => event.preventDefault()}>
-      <span className="hold-button__fill" aria-hidden="true" />
-      <Check aria-hidden="true" />{holding ? "Keep Holding…" : label}
-      {holding ? null : <span className="hold-button__hint" aria-hidden="true">Hold</span>}
-    </button>
-    <span id={hintId} className="visually-hidden">Press and hold for {HOLD_SECONDS} seconds to close.</span>
-  </>;
-}
 
 /** Keeps download filename, cron path and one-line setup command synchronized without changing the embedded credential. */
 export function AgentScriptSetup({ installation, compact = false, onDone }: {
@@ -119,6 +90,7 @@ export function AgentScriptSetup({ installation, compact = false, onDone }: {
     </> : null}
     {step === 1 && setup.error ? <p className="field__help field__help--error" role="alert">{setup.error}</p> : null}
     <div className="agent-setup-footer">{step === 1 ? <><p>Keep this window open until the script is saved.</p><button className="button button--secondary" type="button" disabled={Boolean(initialSetupError)} onClick={() => setStep(2)}>Next: Run Setup<ArrowRight aria-hidden="true" /></button></> : <><button className="button button--secondary" type="button" onClick={() => setStep(1)}><ArrowLeft aria-hidden="true" />Back To Download</button>
-      {onDone ? <HoldToConfirmButton label="Done Setup" onComplete={onDone} /> : null}</>}</div>
+      {onDone ? <HoldConfirmButton tone="primary" lockSeconds={0} icon={<Check aria-hidden="true" />} label="Done Setup"
+        description={`Press and hold for ${HOLD_CONFIRM_SECONDS} seconds to close.`} onConfirm={onDone} /> : null}</>}</div>
   </div>;
 }

@@ -7,9 +7,10 @@ vi.mock("../../src/client/api", () => ({ apiFetch: api }));
 import { CancelPendingTelegram } from "../../src/client/components/CancelPendingTelegram";
 import { ProjectSortMode } from "../../src/client/components/ProjectSortMode";
 import { AdminManagement } from "../../src/client/components/AdminManagement";
+import { holdToConfirm } from "./helpers/hold-confirm";
 const projects = [{id:"one",name:"One"},{id:"two",name:"Two"}].map(project => ({...project,slug:project.id,healthy_agents:1,new_agents:0,warning_agents:0,critical_agents:0,stale_agents:0})) as ProjectSummary[];
 beforeEach(() => { api.mockReset(); api.mockResolvedValue([]); });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("admin control interfaces", () => {
   it("explains that admins have full access when the Admin role is selected", async () => {
@@ -55,6 +56,7 @@ describe("admin control interfaces", () => {
     expect(screen.getByLabelText("New Password")).toHaveValue("");
   });
   it("requires both confirmation steps before cancelling agent messages", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     api.mockResolvedValue({cancelled_count:3}); const done = vi.fn();
     render(<CancelPendingTelegram agentId="agent-1" agentName="Atlas" onCancelled={done} />);
     fireEvent.click(screen.getByText("Clear Pending Messages"));
@@ -63,7 +65,7 @@ describe("admin control interfaces", () => {
     fireEvent.click(screen.getByText("Continue"));
     expect(screen.getByRole("heading",{name:"Confirm Cancellation"})).toBeInTheDocument();
     expect(api).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Confirm Clear Pending"));
+    holdToConfirm(screen.getByRole("button", { name: "Confirm Clear Pending" }));
     await waitFor(() => expect(done).toHaveBeenCalledOnce());
     expect(api).toHaveBeenCalledWith("/api/v1/agents/agent-1/telegram-deliveries/cancel-pending",{method:"POST",body:'{"confirm":true}'});
     expect(screen.getByRole("status")).toHaveTextContent("3 pending");

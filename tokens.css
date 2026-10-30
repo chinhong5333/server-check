@@ -7,6 +7,7 @@
   --font-mono: "IBM Plex Mono", "Cascadia Mono", monospace;
 
   --color-paper: #F3F5F9;
+  --color-dot: rgb(205 211 220 / 0.8);
   --color-paper-2: #F7F9FC;
   --color-paper-3: #EEF1F5;
   --color-surface-raised: #FFFFFF;
@@ -116,6 +117,7 @@
        soft borders, off-white ink and calmer status hues. Text pairs keep ≥ 4.5:1. */
     color-scheme: dark;
     --color-paper: #111317;
+    --color-dot: rgb(38 42 49 / 0.8);
     --color-paper-2: #1C1F24;
     --color-paper-3: #22252B;
     --color-surface-raised: #171A1E;

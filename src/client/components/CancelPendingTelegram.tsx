@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { apiFetch } from "../api";
+import { HoldConfirmButton } from "./HoldConfirmButton";
 import { ModalDialog } from "./ModalDialog";
 
 export function CancelPendingTelegram({ agentId, agentName, onCancelled }: {
@@ -34,8 +35,8 @@ export function CancelPendingTelegram({ agentId, agentName, onCancelled }: {
           : `Please confirm again: all pending Telegram messages for ${agentName} will stop retrying. A message already being sent may still arrive. This cannot be undone.`}</p>
         {error && <p role="alert" className="field--wide field__help--error">{error}</p>}
         <button data-dialog-initial-focus type="button" className="button button--secondary" disabled={busy} onClick={() => setStep(0)}>Keep Messages</button>
-        <button type="button" className="button button--danger" disabled={busy}
-          onClick={() => step === 1 ? setStep(2) : void cancelPending()}>{busy ? "Cancelling Messages…" : step === 1 ? "Continue" : "Confirm Clear Pending"}</button>
+        {step === 1 ? <button type="button" className="button button--danger" onClick={() => setStep(2)}>Continue</button>
+          : <HoldConfirmButton label="Confirm Clear Pending" busy={busy} busyLabel="Cancelling Messages" onConfirm={() => void cancelPending()} />}
       </div>
     </ModalDialog>
   </>;

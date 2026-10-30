@@ -1,0 +1,40 @@
+// @vitest-environment jsdom
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { HoldConfirmButton } from "../../src/client/components/HoldConfirmButton";
+beforeEach(() => { vi.useFakeTimers(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); });
+it("stays locked for three seconds, then confirms only after a full two-second hold", () => {
+  const onConfirm = vi.fn();
+  render(<HoldConfirmButton label="Delete Agent" onConfirm={onConfirm} />);
+  const button = screen.getByRole("button", { name: "Delete Agent" });
+  expect(button).toHaveAttribute("aria-disabled", "true");
+  expect(button).toHaveAccessibleDescription("Available in 3 seconds. Press and hold for 2 seconds to confirm.");
+  fireEvent.pointerDown(button, { button: 0 });
+  act(() => { vi.advanceTimersByTime(1000); });
+  act(() => { vi.advanceTimersByTime(1000); });
+  act(() => { vi.advanceTimersByTime(1000); });
+  expect(onConfirm).not.toHaveBeenCalled();
+  expect(button).not.toHaveAttribute("aria-disabled");
+  expect(button).toHaveAccessibleDescription("Press and hold for 2 seconds to confirm.");
+  fireEvent.click(button);
+  expect(onConfirm).not.toHaveBeenCalled();
+  fireEvent.pointerDown(button, { button: 0 });
+  act(() => { vi.advanceTimersByTime(1900); });
+  expect(button).toHaveTextContent("Keep Holding…");
+  fireEvent.pointerUp(button);
+  act(() => { vi.advanceTimersByTime(500); });
+  expect(onConfirm).not.toHaveBeenCalled();
+  fireEvent.keyDown(button, { key: "Enter" });
+  act(() => { vi.advanceTimersByTime(2000); });
+  expect(onConfirm).toHaveBeenCalledOnce();
+});
+it("cannot be held while busy or disabled", () => {
+  const onConfirm = vi.fn();
+  const view = render(<HoldConfirmButton label="Delete Project" lockSeconds={0} disabled onConfirm={onConfirm} />);
+  fireEvent.keyDown(screen.getByRole("button", { name: "Delete Project" }), { key: "Enter" });
+  view.rerender(<HoldConfirmButton label="Delete Project" lockSeconds={0} busy busyLabel="Deleting Project" onConfirm={onConfirm} />);
+  expect(screen.getByRole("button", { name: "Deleting Project" })).toBeDisabled();
+  act(() => { vi.advanceTimersByTime(5000); });
+  expect(onConfirm).not.toHaveBeenCalled();
+});

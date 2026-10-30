@@ -55,8 +55,9 @@ import { CreateProjectPage } from "../../src/client/pages/CreateProjectPage";
 import { ProjectActions } from "../../src/client/components/ProjectActions";
 import { ProjectsPage } from "../../src/client/pages/ProjectsPage";
 import { ToastProvider } from "../../src/client/components/ToastProvider";
+import { holdToConfirm } from "./helpers/hold-confirm";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("Projects collection flow", () => {
   beforeEach(() => {
@@ -189,6 +190,7 @@ describe("Projects collection flow", () => {
   });
 
   it("requires two confirmations before deleting a project", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     apiFetchMock.mockResolvedValue(undefined);
 
     render(
@@ -216,7 +218,7 @@ describe("Projects collection flow", () => {
     expect(finalDelete).toBeDisabled();
     fireEvent.change(confirmationInput, { target: { value: "Project Atlas" } });
     expect(finalDelete).toBeEnabled();
-    fireEvent.click(finalDelete);
+    holdToConfirm(finalDelete);
 
     await waitFor(() =>
       expect(apiFetchMock).toHaveBeenCalledWith("/api/v1/projects/project-1", {

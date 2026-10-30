@@ -52,6 +52,7 @@ vi.mock("../../src/client/hooks/useMediaQuery", () => ({
 import { InstallAgentPage } from "../../src/client/pages/InstallAgentPage";
 import { AppShell } from "../../src/client/components/AppShell";
 import { ToastProvider } from "../../src/client/components/ToastProvider";
+import { holdToConfirm } from "./helpers/hold-confirm";
 
 const agents: AgentSummary[] = [
   {
@@ -155,6 +156,7 @@ describe("project-scoped agents page", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("opens agent details when a non-interactive row cell is clicked", async () => {
@@ -454,6 +456,7 @@ describe("project-scoped agents page", () => {
   });
 
   it("opens the two-step setup modal and requires two confirmations before discarding the one-time secret", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     apiFetchMock.mockImplementation((_path, init) =>
       init?.method === "POST" ? Promise.resolve(replacementInstallation) : Promise.resolve(agents)
     );
@@ -484,7 +487,7 @@ describe("project-scoped agents page", () => {
     expect(screen.getByRole("dialog", { name: "Confirm Leaving the Access Secret Page" })).toBeInTheDocument();
     expect(screen.getByText(/cannot be reopened/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Close Page And Return To Overview" }));
+    holdToConfirm(screen.getByRole("button", { name: "Close Page And Return To Overview" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Operations Overview" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Agent Registered" })).not.toBeInTheDocument();
   });
@@ -573,6 +576,7 @@ describe("project-scoped agents page", () => {
   });
 
   it("rotates an agent secret only through explicit confirmation", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     apiFetchMock.mockImplementation((_path, init) =>
       init?.method === "POST" ? Promise.resolve(replacementInstallation) : Promise.resolve(agents)
     );
@@ -583,7 +587,7 @@ describe("project-scoped agents page", () => {
     expect(screen.getByRole("dialog", { name: "Rotate Access Secret For atlas-web-01?" })).toBeInTheDocument();
     expect(screen.getByLabelText("Middleware API URL")).toHaveValue("https://atlas.example.com/api/health");
     expect(screen.getByText(/current script will stop authenticating immediately/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Rotate And Generate Script" }));
+    holdToConfirm(screen.getByRole("button", { name: "Rotate And Generate Script" }));
 
     await waitFor(() =>
       expect(apiFetchMock).toHaveBeenCalledWith(
@@ -602,13 +606,14 @@ describe("project-scoped agents page", () => {
   });
 
   it("keeps the saved Middleware API URL when its check is turned off for a replacement", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     apiFetchMock.mockImplementation((_path, init) => init?.method === "POST" ? Promise.resolve(replacementInstallation) : Promise.resolve(agents));
     renderAgentsPage();
     fireEvent.click(await rowAction("atlas-web-01", "Rotate atlas-web-01 Access Secret"));
     fireEvent.click(screen.getByRole("checkbox", { name: /^Middleware API/ }));
     fireEvent.click(screen.getByRole("checkbox", { name: /^Nginx/ }));
     expect(screen.queryByLabelText("Middleware API URL")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Rotate And Generate Script" }));
+    holdToConfirm(screen.getByRole("button", { name: "Rotate And Generate Script" }));
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith(
       "/api/v1/projects/project-1/agents/agent-1/credential-rotation", {
         method: "POST", body: JSON.stringify({ health_api_url: "https://atlas.example.com/api/health", checks: { apache: true, nginx: true, middleware_api: false } })
@@ -617,6 +622,7 @@ describe("project-scoped agents page", () => {
   });
 
   it("requires confirmation before deleting and revoking an agent", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     apiFetchMock.mockImplementation((_path, init) =>
       init?.method === "DELETE" ? Promise.resolve(undefined) : Promise.resolve(agents)
     );
@@ -637,7 +643,7 @@ describe("project-scoped agents page", () => {
     await waitFor(() => expect(moreButton).toHaveFocus());
     fireEvent.click(moreButton);
     fireEvent.click(screen.getByRole("button", { name: "Delete atlas-web-01" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete Agent" }));
+    holdToConfirm(screen.getByRole("button", { name: "Delete Agent" }));
 
     await waitFor(() =>
       expect(apiFetchMock).toHaveBeenCalledWith(

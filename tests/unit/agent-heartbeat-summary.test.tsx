@@ -104,5 +104,21 @@ describe("Merged heartbeat summary", () => {
     expect(screen.getByText("No Heartbeat Received")).toBeInTheDocument();
     expect(screen.getByText("Waiting For First Heartbeat")).toBeInTheDocument();
     expect(screen.queryByRole("timer")).not.toBeInTheDocument();
+    expect(document.querySelector(".agent-heartbeat-summary__countdown")).toBeNull();
+  });
+  it("drains a decorative countdown bar toward the deadline and refills on a new heartbeat", () => {
+    const timely = { ...agent, last_heartbeat_at: now - 30000, heartbeat_interval_seconds: 120 };
+    const view = render(<AgentHeartbeatSummary agent={timely} help={null} />);
+    const bar = () => document.querySelector(".agent-heartbeat-summary__countdown")!;
+    expect(bar()).toHaveAttribute("aria-hidden", "true");
+    expect(bar().className).toBe("agent-heartbeat-summary__countdown");
+    expect(bar().firstElementChild).toHaveStyle({ transform: "scaleX(0.75)" });
+    act(() => { vi.advanceTimersByTime(60000); });
+    expect(bar()).toHaveClass("agent-heartbeat-summary__countdown--low");
+    act(() => { vi.advanceTimersByTime(30000); });
+    expect(bar()).toHaveClass("agent-heartbeat-summary__countdown--overdue");
+    expect(bar().firstElementChild).toHaveStyle({ transform: "scaleX(0)" });
+    view.rerender(<AgentHeartbeatSummary agent={{ ...timely, last_heartbeat_at: Date.now() }} help={null} />);
+    expect(bar().firstElementChild).toHaveStyle({ transform: "scaleX(1)" });
   });
 });

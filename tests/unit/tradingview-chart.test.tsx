@@ -47,7 +47,7 @@ it("uses native horizontal dragging with zoom disabled and cleans up", () => {
   const view = render(<TradingViewMetricChart title="RAM" points={[{at:1000,value:1}]} formatter={formatter} />);
   expect(mocks.create.mock.calls[0][1]).toMatchObject({ handleScale: false,
     handleScroll: { pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false, mouseWheel: false },
-    layout: { attributionLogo: true } });
+    layout: { attributionLogo: true }, leftPriceScale: { entireTextOnly: true } });
   expect(mocks.setData).toHaveBeenCalledWith([{time:1,value:1}]);
   view.unmount(); expect(mocks.remove).toHaveBeenCalledOnce();
 });

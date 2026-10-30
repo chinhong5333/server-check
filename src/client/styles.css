@@ -67,6 +67,9 @@ html {
 body {
   margin: 0;
   background: var(--color-paper);
+  /* Faint dot grid on the page canvas; cards and the sidebar paint over it. */
+  background-image: radial-gradient(circle, var(--color-dot) 1px, transparent 1.5px);
+  background-size: 20px 20px;
   color: var(--color-ink-2);
   font-family: var(--font-body);
   font-size: var(--text-base);
@@ -3395,9 +3398,24 @@ button.back-link {
 }
 @container agent-status (min-width: 64rem) {
   .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  /* Icon above the text so long values such as uptime keep one line in a quarter-width card. */
-  .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric { grid-template-columns: minmax(0, 1fr); padding: var(--space-md) var(--space-sm); }
+  /* Tighter padding and value size so long values such as uptime keep one line in a quarter-width card. */
+  .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric { padding: var(--space-md) var(--space-sm); }
   .agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric-value { font-size: 1.1rem; }
+}
+/* Icon and label share the top row; the value, countdown and caption span the full card width. */
+.agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--space-sm); row-gap: var(--space-2xs); }
+.agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric > div { display: contents; }
+.agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric > div > :not(.agent-heartbeat-summary__metric-label) { grid-column: 1 / -1; }
+.agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric-icon { width: 2.25rem; height: 2.25rem; }
+.agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric-icon svg { width: 1.1rem; height: 1.1rem; }
+.agent-heartbeat-summary--uptime .agent-heartbeat-summary__metric-value { margin-block-start: var(--space-xs); }
+/* Heartbeat window left before the agent is marked overdue; refills on each heartbeat. */
+.agent-heartbeat-summary__countdown { display: block; height: 0.375rem; margin-block: var(--space-2xs); overflow: hidden; border-radius: var(--radius-pill); background: var(--color-paper-3); }
+.agent-heartbeat-summary__countdown > span { display: block; height: 100%; border-radius: inherit; background: var(--color-accent); transform-origin: left center; }
+.agent-heartbeat-summary__countdown--low > span { background: var(--color-warning); }
+.agent-heartbeat-summary__countdown--overdue { background: var(--color-error-line); }
+@media (prefers-reduced-motion: no-preference) {
+  .agent-heartbeat-summary__countdown > span { transition: transform 1s linear, background-color 200ms ease; }
 }
 @media (max-width: 40rem) {
   .agent-setup-dialog-heading, .agent-setup-surface > .agent-script-setup { padding: var(--space-md); }
@@ -3434,7 +3452,9 @@ button.back-link {
 .chart-surface { container: metric-chart / inline-size; }
 .chart-grid > .chart-surface { display: flex; flex-direction: column; }
 .chart-grid > .chart-surface > .section-heading { min-height: var(--chart-header-height, auto); box-sizing: border-box; }
-.chart-body { min-width: 0; }
+/* Inset the canvas so axis labels, the line and its pulse dot never touch the header rule or the card edge. */
+.chart-body { min-width: 0; padding: var(--space-sm) var(--space-md) 0; }
+.chart-body .tradingview-caption { padding-inline: 0; }
 .chart-surface > .section-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-sm); }
 .chart-surface > .section-heading > div:first-child { min-width: 0; overflow-wrap: anywhere; }
 @container metric-chart (max-width: 34rem) {
@@ -4357,6 +4377,13 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
 .hold-button--holding { transform: scale(0.98); }
 .hold-button--holding .hold-button__fill { transform: scaleX(1); transition: transform var(--hold-duration, 2s) linear; }
 .hold-button__hint { padding: 1px var(--space-xs); border-radius: var(--radius-pill); background: rgb(255 255 255 / 0.2); font-size: var(--text-xs); font-weight: 600; }
+/* Destructive holds (HoldConfirmButton): darker red sweep; while locked the hint shows a lock and countdown and the button stays focusable. */
+.button--danger.hold-button .hold-button__fill { background: color-mix(in srgb, var(--color-error-solid) 62%, #000000); }
+/* Keep the solid red under white text while hovered or held; the dark-theme hover red is too light for it. */
+.button--danger.hold-button:hover { background: var(--color-error-solid); border-color: var(--color-error-solid); color: #FFFFFF; }
+.hold-button__hint { display: inline-flex; align-items: center; gap: 0.2rem; font-variant-numeric: tabular-nums; }
+.hold-button__hint svg { width: 0.75rem; height: 0.75rem; }
+.hold-button[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 /* Bulk Health Checks: one row per agent, a checkbox per check, select-all per column; changed rows carry an accent edge. */
 .bulk-checks { display: grid; gap: var(--space-md); }

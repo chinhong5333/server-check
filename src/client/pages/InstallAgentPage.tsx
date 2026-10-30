@@ -21,6 +21,7 @@ import { AgentActionsMenu } from "../components/AgentActionsMenu";
 import { formatServerUptime } from "../../shared/uptime";
 import { AgentScriptSetup } from "../components/AgentScriptSetup";
 import { EmptyState, ErrorState, InlineLoader, PageSkeleton } from "../components/Feedback";
+import { HoldConfirmButton } from "../components/HoldConfirmButton";
 import { ModalDialog } from "../components/ModalDialog";
 import { MaintenanceControl } from "../components/MaintenanceControl";
 import { BulkHealthChecksButton } from "../components/BulkHealthChecks";
@@ -436,14 +437,11 @@ export function InstallAgentPage() {
                   I Saved The Script — Continue
                 </button>
               ) : (
-                <button
+                <HoldConfirmButton
                   ref={installationExitActionRef}
-                  className="button button--danger"
-                  type="button"
-                  onClick={returnToOverview}
-                >
-                  Close Page And Return To Overview
-                </button>
+                  label="Close Page And Return To Overview"
+                  onConfirm={returnToOverview}
+                />
               )}
             </div>
           </>
@@ -686,9 +684,8 @@ export function InstallAgentPage() {
             </div> : null}
             {error ? <p className="field__help field__help--error" role="alert">{error}</p> : null}
             <div className="action-row">
-              <button className="button button--danger" type="button" disabled={rotating} onClick={() => void rotateAgentCredential()}>
-                {rotating ? <InlineLoader label="Rotating Access Secret" /> : "Rotate And Generate Script"}
-              </button>
+              <HoldConfirmButton label="Rotate And Generate Script" busy={rotating} busyLabel="Rotating Access Secret"
+                onConfirm={() => void rotateAgentCredential()} />
             </div>
           </>
         ) : null}
@@ -729,9 +726,7 @@ export function InstallAgentPage() {
             </div>
             {deleteError ? <p className="field__help field__help--error" role="alert">{deleteError}</p> : null}
             <div className="action-row">
-              <button className="button button--danger" type="button" disabled={deleting} onClick={() => void deleteAgent()}>
-                {deleting ? <InlineLoader label="Deleting Agent" /> : "Delete Agent"}
-              </button>
+              <HoldConfirmButton label="Delete Agent" busy={deleting} busyLabel="Deleting Agent" onConfirm={() => void deleteAgent()} />
             </div>
           </>
         ) : null}
