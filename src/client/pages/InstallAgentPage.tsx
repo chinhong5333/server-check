@@ -812,10 +812,10 @@ export function InstallAgentPage() {
                       <div className="roster-identity">
                         <span className="entity-name"><Link className="roster-agent-link" title="View Agent Detail"
                           aria-label={`View Agent Detail For ${agent.server_name}`} to={`${projectBase}/agents/${encodeURIComponent(agent.id)}`}>
-                          <strong>{agent.server_name}</strong></Link><MaintenanceIcon maintenance={agent.maintenance} /></span>
+                          <strong title={agent.server_name}>{agent.server_name}</strong></Link><MaintenanceIcon maintenance={agent.maintenance} /></span>
                         <div className="roster-identity__meta"><StatusBadge status={agent.status} />
                           <span>{agent.agent_version ? `v${agent.agent_version}` : "Version Pending"}</span></div>
-                        {agentStateCause(agent.status, agent.probable_cause) ? <p className="roster-identity__cause">{agentStateCause(agent.status, agent.probable_cause)}</p> : null}
+                        {agentStateCause(agent.status, agent.probable_cause) ? <p className="roster-identity__cause" title={agentStateCause(agent.status, agent.probable_cause) ?? undefined}>{agentStateCause(agent.status, agent.probable_cause)}</p> : null}
                       </div>
                       </div>
                     </th>

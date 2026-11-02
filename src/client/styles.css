@@ -4440,3 +4440,75 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
   .agent-setup-steps.wizard-steps li { --chevron: 0.55rem; padding-inline: calc(var(--chevron) + 2px) calc(var(--chevron) - 2px); }
   .agent-setup-steps.wizard-steps li:first-child { padding-inline-start: var(--space-2xs); }
 }
+
+/* Compact agent roster (desktop table): one line per metric, tight label/value stacks and single-line names,
+ * so a long roster scans row by row. Card layout below 70rem is unchanged. */
+@container agent-roster (width > 70rem) {
+  .agent-roster-surface--inventory .agent-roster-table > thead > tr > th:first-child { width: 27%; }
+  .agent-roster-surface--inventory .agent-roster-table > thead > tr > th:nth-child(2) { width: 22%; }
+  .agent-roster-surface--inventory .agent-roster-table > thead > tr > th:nth-child(3) { width: 24%; }
+  .agent-roster-surface--inventory .agent-roster-table > thead > tr > th:nth-child(4) { width: 21%; }
+  .agent-roster-surface--inventory .agent-roster-table > thead > tr > th:last-child { width: 6%; }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr { height: auto; }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr > th,
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr > td { padding-block: var(--space-sm); }
+  .agent-roster-surface--inventory .roster-identity-row { align-items: center; gap: var(--space-sm); }
+  .agent-roster-surface--inventory .roster-identity-row > .status-tile { width: 2.25rem; height: 2.25rem; }
+  .agent-roster-surface--inventory .roster-identity { gap: var(--space-2xs); }
+  .agent-roster-surface--inventory .roster-identity .entity-name { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
+  .agent-roster-surface--inventory .roster-agent-link { min-width: 0; overflow: hidden; }
+  .agent-roster-surface--inventory .agent-roster-table .server-cell strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-roster-surface--inventory .roster-identity__meta { flex-wrap: nowrap; gap: var(--space-xs); }
+  .agent-roster-surface--inventory .roster-identity__cause { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); line-height: 1.4; }
+  /* Each metric on one line: label, bar, value. Load has no bar, so its value keeps the third column. */
+  .agent-roster-surface--inventory .roster-resources { gap: 0.4rem; }
+  .agent-roster-surface--inventory .roster-resource { grid-template-columns: 4.75rem minmax(0, 1fr) 4rem; align-items: center; column-gap: var(--space-sm); }
+  .agent-roster-surface--inventory .roster-resource > div { display: contents; }
+  .agent-roster-surface--inventory .roster-resource > div > :first-child { grid-column: 1; grid-row: 1; }
+  .agent-roster-surface--inventory .roster-resource > div > :last-child { grid-column: 3; grid-row: 1; justify-self: end; }
+  .agent-roster-surface--inventory .roster-resource progress,
+  .agent-roster-surface--inventory .roster-resource__empty { grid-column: 2; grid-row: 1; height: 0.45rem; }
+  .agent-roster-surface--inventory .roster-resource:nth-child(3) .numeric { padding-block: 0; }
+  .agent-roster-surface--inventory .roster-resource-freshness { font-size: var(--text-xs); }
+  .agent-roster-surface--inventory .agent-roster-table .agent-roster-checks > tbody { gap: 0.3rem; }
+  .agent-roster-surface--inventory .agent-roster-table .agent-roster-checks tr { min-height: 1.75rem; }
+  .agent-roster-surface--inventory .agent-report-stack { gap: 0.4rem; }
+  .agent-roster-surface--inventory .agent-report-stack > div { gap: 0; }
+  .agent-roster-surface--inventory .agent-report-stack small { font-size: var(--text-xs); }
+}
+
+
+/* Roster rows as separate cards with a small gap, still one agent per row; same card treatment as the Health Checks cards. */
+.agent-roster-surface--inventory { --roster-card-bg: var(--color-paper-2); --roster-card-radius: 0.75rem;
+  /* Hover: accent border and a faint accent wash so the row under the pointer stands out. */
+  --roster-card-hover-line: var(--color-accent); --roster-card-hover-bg: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface-raised)); }
+:root[data-theme="dark"] .agent-roster-surface--inventory { --roster-card-bg: var(--color-paper); }
+@container agent-roster (width > 70rem) {
+  .agent-roster-surface--inventory .table-wrap { padding: 0 var(--space-md) var(--space-xs); }
+  .agent-roster-surface--inventory .agent-roster-table { border-collapse: separate; border-spacing: 0 var(--space-xs); }
+  .agent-roster-surface--inventory .agent-roster-table > thead > tr > th { background: transparent; border: 0; }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr,
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr:hover,
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr:focus-within { background: transparent; }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr > * {
+    background: var(--roster-card-bg); border: 0; border-block: var(--rule-thin) solid var(--color-rule);
+    transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
+  }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr > :first-child {
+    border-inline-start: var(--rule-thin) solid var(--color-rule); border-start-start-radius: var(--roster-card-radius); border-end-start-radius: var(--roster-card-radius);
+  }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr > :last-child {
+    border-inline-end: var(--rule-thin) solid var(--color-rule); border-start-end-radius: var(--roster-card-radius); border-end-end-radius: var(--roster-card-radius);
+  }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr:hover > *,
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr:focus-within > * { border-color: var(--roster-card-hover-line); background: var(--roster-card-hover-bg); }
+}
+@container agent-roster (max-width: 70rem) {
+  .agent-roster-surface--inventory .agent-roster-table > tbody { display: grid; gap: var(--space-xs); padding: var(--space-sm) var(--space-md); }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr {
+    border: var(--rule-thin) solid var(--color-rule); border-radius: var(--roster-card-radius); background: var(--roster-card-bg);
+    transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
+  }
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr:hover,
+  .agent-roster-surface--inventory .agent-roster-table > tbody > tr:focus-within { border-color: var(--roster-card-hover-line); background: var(--roster-card-hover-bg); }
+}
