@@ -219,8 +219,10 @@ If an existing PM2 process wraps `npm start` rather than the compiled entry poin
 For subsequent updates, from the repository:
 
 ```bash
-bash scripts/update-production.sh
+npm run update:production
 ```
+
+This runs `scripts/update-production.sh`. Use `bash scripts/update-production.sh` directly when `npm` is not on the shell's `PATH`, or for the first update from a checkout whose `package.json` does not have this command yet.
 
 The script loads nvm and runs `nvm use 24` automatically before checking npm/PM2 or changing the deployment. Install Node 24 once with `nvm install 24`; the updater does not install runtimes automatically. It respects `NVM_DIR`, otherwise uses the standard `$XDG_CONFIG_HOME/nvm` or `$HOME/.nvm` location. PM2 must be installed under the selected Node 24 environment. See the [official nvm loading instructions](https://github.com/nvm-sh/nvm#installing-and-updating).
 

@@ -18,6 +18,7 @@
     "setup": "node dist/server/server/scripts/setup.js",
     "create-admin": "npm run build:server --silent && node scripts/create-admin.mjs",
     "migrate": "node dist/server/server/scripts/migrate.js",
+    "update:production": "bash scripts/update-production.sh",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",

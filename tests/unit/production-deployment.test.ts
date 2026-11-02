@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const require = createRequire(import.meta.url);
 const ecosystem = require("../../ecosystem.config.cjs");
 const script = readFileSync(new URL("../../scripts/update-production.sh", import.meta.url), "utf8");
+const packageJson = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
 
 describe("production deployment configuration", () => {
   it("runs one compiled backend with a sufficient shutdown grace period", () => {
@@ -36,5 +37,11 @@ describe("production deployment configuration", () => {
     expect(script.indexOf('nvm use 24')).toBeLessThan(script.indexOf('for tool in git node npm pm2 flock'));
     expect(script).toContain('Run nvm install 24');
     expect(script).toContain('!== 24');
+  });
+
+  it("runs through npm and clears npm's injected settings before loading nvm", () => {
+    expect(packageJson.scripts["update:production"]).toBe("bash scripts/update-production.sh");
+    expect(script.indexOf('unset -v "${!npm_@}"')).toBeGreaterThan(-1);
+    expect(script.indexOf('unset -v "${!npm_@}"')).toBeLessThan(script.indexOf('source "$NVM_DIR/nvm.sh" --no-use'));
   });
 });

@@ -11,6 +11,8 @@ fi
 
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd -- "$project_dir"
+# `npm run update:production` injects npm_* settings, and nvm rejects npm_config_prefix. This script selects its own Node.
+unset -v "${!npm_@}"
 # Non-interactive Bash does not normally load nvm from the user's shell profile.
 if [[ -z "${NVM_DIR:-}" ]]; then
   if [[ -n "${XDG_CONFIG_HOME:-}" ]]; then
