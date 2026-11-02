@@ -17,6 +17,7 @@ interface ProjectContextValue {
   selectedProject: ProjectSummary | null;
   status: "loading" | "success" | "error";
   error: Error | null;
+  refreshFailures: number;
   reloadProjects: () => void;
 }
 
@@ -55,9 +56,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       selectedProject,
       status: resource.status,
       error: resource.error,
+      refreshFailures: resource.refreshFailures,
       reloadProjects: resource.reload
     }),
-    [projects, selectedProject, resource.status, resource.error, resource.reload]
+    [projects, selectedProject, resource.status, resource.error, resource.refreshFailures, resource.reload]
   );
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
 }

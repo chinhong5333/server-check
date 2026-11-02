@@ -1,13 +1,15 @@
 import type { AgentSummary } from "../../shared/contracts";
 import { DEFAULT_AGENT_CHECKS } from "../../shared/contracts";
+import { statusClock } from "../lib/status-clock";
 import { checkPresentation } from "./AgentHealthChecks";
 
 /** Aligned check/status table; absence and stale reports never imply health. */
-export function AgentRosterChecks({ agent }: { agent: AgentSummary }) {
+export function AgentRosterChecks({ agent, fetchedAt }: { agent: AgentSummary; fetchedAt?: number | null }) {
   const checks = agent.checks ?? DEFAULT_AGENT_CHECKS;
+  const asOf = statusClock(fetchedAt);
   const stale = agent.status === "stale" || agent.last_metrics_at === null || agent.last_heartbeat_at === null
-    || Date.now() >= agent.last_metrics_at + agent.heartbeat_interval_seconds * 1000
-    || Date.now() >= agent.last_heartbeat_at + agent.heartbeat_interval_seconds * 1000;
+    || asOf >= agent.last_metrics_at + agent.heartbeat_interval_seconds * 1000
+    || asOf >= agent.last_heartbeat_at + agent.heartbeat_interval_seconds * 1000;
   const items = [
     { name: "Apache", enabled: checks.apache, status: agent.service_health?.apache.status },
     { name: "Nginx", enabled: checks.nginx, status: agent.service_health?.nginx.status },

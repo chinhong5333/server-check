@@ -17,6 +17,7 @@ export function useChartInterval<T extends { at: number }>(agentId: string, defa
     if (interval === 1800) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
+    let loaded = false;
     const load = async () => {
       try {
         const to = Date.now();
@@ -25,9 +26,10 @@ export function useChartInterval<T extends { at: number }>(agentId: string, defa
           `/api/v1/agents/${encodeURIComponent(agentId)}/history?from=${from}&to=${to}&bucket_seconds=${interval}`,
           { signal: controller.signal }
         );
-        if (!controller.signal.aborted) { setResult({ key, points: response.points }); setError(null); }
+        if (!controller.signal.aborted) { loaded = true; setResult({ key, points: response.points }); setError(null); }
       } catch {
-        if (!controller.signal.aborted) setError("Could not load this chart. Try again.");
+        // A failed background refresh keeps the loaded chart and retries on the next timer.
+        if (!controller.signal.aborted && !loaded) setError("Could not load this chart. Try again.");
       } finally {
         if (!controller.signal.aborted) timer = setTimeout(() => void load(), 60_000);
       }

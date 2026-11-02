@@ -1,6 +1,7 @@
 import { CircleAlert, CircleCheck, CircleDashed, CircleHelp, CircleSlash, CircleX, Clock3, Link2, Server } from "lucide-react";
 import type { AgentChecks, AgentHealthSnapshot, DatabaseHealthSnapshot } from "../../shared/contracts";
 import { formatDateTime, formatLatency } from "../lib/format";
+import { statusClock } from "../lib/status-clock";
 import { AgentDatabaseHealth } from "./AgentDatabaseHealth";
 
 export function checkPresentation(enabled: boolean, status: string | undefined, stale: boolean) {
@@ -16,14 +17,15 @@ export function checkPresentation(enabled: boolean, status: string | undefined, 
   return { label: "Unknown", tone: "warning", Icon: CircleHelp };
 }
 
-export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale }: {
+export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale, fetchedAt }: {
   checks: AgentChecks; snapshot: AgentHealthSnapshot | null; lastMetricsAt: number | null;
   databaseHealth?: DatabaseHealthSnapshot | null; lastHeartbeatAt: number | null;
-  intervalSeconds: number; telemetryStale: boolean;
+  intervalSeconds: number; telemetryStale: boolean; fetchedAt?: number | null;
 }) {
+  const asOf = statusClock(fetchedAt);
   const expired = telemetryStale || lastMetricsAt === null || lastHeartbeatAt === null
-    || Date.now() >= lastMetricsAt + intervalSeconds * 1000
-    || Date.now() >= lastHeartbeatAt + intervalSeconds * 1000;
+    || asOf >= lastMetricsAt + intervalSeconds * 1000
+    || asOf >= lastHeartbeatAt + intervalSeconds * 1000;
   return (
     <section className="agent-health-checks" aria-labelledby="agent-health-checks-title">
       <div className="section-heading"><div><h2 id="agent-health-checks-title">Health Checks</h2>

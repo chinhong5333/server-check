@@ -5,6 +5,7 @@ import { formatDateTime, formatLatency } from "../lib/format";
 import { agentStateCause } from "./AgentStateDisplay";
 import { StatusBadge } from "./StatusBadge";
 import { formatServerUptime } from "../../shared/uptime";
+import { statusClock } from "../lib/status-clock";
 
 type SummaryAgent = Pick<AgentSummary, "status" | "probable_cause" | "last_heartbeat_at" | "heartbeat_interval_seconds" | "agent_version"> & {
   service_health?: AgentHealthSnapshot | null;
@@ -109,20 +110,21 @@ function statusNotice(agent: SummaryAgent, summary: ReturnType<typeof heartbeatS
   };
 }
 
-export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false }: { agent: SummaryAgent; help: ReactNode; notificationsMuted?: boolean }) {
+export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false, fetchedAt }: { agent: SummaryAgent; help: ReactNode; notificationsMuted?: boolean; fetchedAt?: number | null }) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const tick = () => setNow(Date.now());
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
   }, []);
-  const summary = heartbeatSummary(agent, now);
+  const asOf = statusClock(fetchedAt, now);
+  const summary = heartbeatSummary(agent, asOf);
   const uptimeReceived = agent.uptime_received_at ?? null;
-  const uptimeStale = uptimeReceived !== null && now >= uptimeReceived + agent.heartbeat_interval_seconds * 1000;
+  const uptimeStale = uptimeReceived !== null && asOf >= uptimeReceived + agent.heartbeat_interval_seconds * 1000;
   const notice = statusNotice(agent, summary);
   // Share of the heartbeat window left before the agent is marked overdue, for the countdown bar.
   const remaining = summary.deadline === null || summary.overdue ? 0
-    : Math.min(1, (summary.deadline - now) / (agent.heartbeat_interval_seconds * 1000));
+    : Math.min(1, (summary.deadline - asOf) / (agent.heartbeat_interval_seconds * 1000));
   const delivery = notificationsMuted ? "TG Muted During Maintenance" : notice?.delivery;
   const statusAnnouncement = [summary.status, summary.qualifier, notice?.title, notice?.message, delivery]
     .filter(Boolean).join(". ");

@@ -4512,3 +4512,7 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
   .agent-roster-surface--inventory .agent-roster-table > tbody > tr:hover,
   .agent-roster-surface--inventory .agent-roster-table > tbody > tr:focus-within { border-color: var(--roster-card-hover-line); background: var(--roster-card-hover-bg); }
 }
+
+/* Shown only after repeated refresh failures, so a blip as a tab returns stays silent. */
+.connection-notice { display: flex; align-items: center; gap: var(--space-xs); margin-block-end: var(--space-md); }
+.connection-notice svg { width: 1rem; height: 1rem; flex: none; }

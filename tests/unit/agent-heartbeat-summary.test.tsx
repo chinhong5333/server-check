@@ -98,6 +98,20 @@ describe("Merged heartbeat summary", () => {
     expect(screen.getByText("Http Status Error · HTTP 503 · 412 ms")).toBeInTheDocument();
     expect(screen.getByText("Alert Queued")).toBeInTheDocument();
   });
+  it("does not report a missed heartbeat from data older than the refresh it is waiting for", () => {
+    const fetchedAt = now;
+    const timely = { ...agent, last_heartbeat_at: now - 20_000, heartbeat_interval_seconds: 120 };
+    const view = render(<AgentHeartbeatSummary agent={timely} fetchedAt={fetchedAt} help={null} />);
+    act(() => { vi.advanceTimersByTime(600_000); });
+    expect(screen.getByText("Receiving Heartbeats")).toBeInTheDocument();
+    expect(screen.queryByText("No Heartbeat Received")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alert Queued")).not.toBeInTheDocument();
+
+    view.rerender(<AgentHeartbeatSummary agent={timely} fetchedAt={Date.now()} help={null} />);
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(screen.getByText("Heartbeat Overdue")).toBeInTheDocument();
+    expect(screen.getByText("No Heartbeat Received")).toBeInTheDocument();
+  });
   it("does not invent a due time before the first heartbeat", () => {
     render(<AgentHeartbeatSummary agent={{ ...agent, status: "new", last_heartbeat_at: null }} help={null} />);
     expect(screen.getAllByText("Awaiting Data")).toHaveLength(2);

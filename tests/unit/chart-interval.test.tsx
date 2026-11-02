@@ -40,6 +40,21 @@ it("rejects unsupported intervals and ignores late responses after switching", a
   expect(signal.aborted).toBe(true);
   expect(view.result.current.points).toEqual([{ at: now - 3000 }] );
 });
+it("keeps a loaded chart without an error when a later background refresh fails", async () => {
+  vi.useFakeTimers();
+  try {
+    const loaded = [{ at: 1 }];
+    fetchMock.mockResolvedValueOnce({ points: loaded }).mockRejectedValueOnce(new Error("Network error"));
+    const view = renderHook(() => useChartInterval("agent-1", points));
+    await act(async () => { view.result.current.setInterval(300); await vi.advanceTimersByTimeAsync(0); });
+    expect(view.result.current.points).toEqual(loaded);
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(view.result.current.error).toBeNull();
+    expect(view.result.current.points).toEqual(loaded);
+    view.unmount();
+  } finally { vi.useRealTimers(); }
+});
 it("handles failed loads, retries, empty results, and cancellation", async () => {
   fetchMock.mockRejectedValueOnce(new Error("Network error")).mockResolvedValue({ points: [] });
   const view = renderHook(() => useChartInterval("agent-1", points));

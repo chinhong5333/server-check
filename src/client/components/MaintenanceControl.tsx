@@ -99,13 +99,13 @@ export function MaintenanceControl({ endpoint, scope, canManage, onChanged, onAc
       </div>)}
       {state && !windows.length ? <p className="field__help maintenance-control__note"><Info aria-hidden="true" />Monitoring continues. Telegram is muted only during an active window.</p> : null}
       {active ? <p className="maintenance-control__aside">Incidents and metrics keep recording. Alerts muted now are not sent later.</p> : null}
-      {resource.error ? <div className="maintenance-control__error" role="alert"><p>Could not load maintenance. Try again.</p><button className="button button--secondary" type="button" onClick={resource.reload}>Retry</button></div> : null}
+      {resource.status === "error" ? <div className="maintenance-control__error" role="alert"><p>Could not load maintenance. Try again.</p><button className="button button--secondary" type="button" onClick={resource.reload}>Retry</button></div> : null}
       {!open && error ? <p className="field__help field__help--error" role="alert">{error}</p> : null}
     </div>
     {panelActions || endAction ? <div className="maintenance-control__actions">{panelActions}{endAction}</div> : null}
   </section> : null;
   return <>
-    {detailsTargetId ? <>{scheduleAction}{resource.error && !windows.length && canManage ? <button type="button" className="button button--secondary" onClick={resource.reload}>Retry Maintenance</button> : null}</> : null}
+    {detailsTargetId ? <>{scheduleAction}{resource.status === "error" && !windows.length && canManage ? <button type="button" className="button button--secondary" onClick={resource.reload}>Retry Maintenance</button> : null}</> : null}
     {detailsTargetId ? detailsTarget && panel ? createPortal(panel, detailsTarget) : null : panel}
     <ModalDialog id={`${id}-dialog`} open={open} labelledBy={`${id}-title`} restoreFocusTo={trigger.current}
       onDismiss={close} dialogClassName="agent-dialog--maintenance" surfaceClassName="agent-dialog__surface form-surface">

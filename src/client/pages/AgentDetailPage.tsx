@@ -289,7 +289,7 @@ export function AgentDetailPage() {
 
       <div id="agent-maintenance-details" className="maintenance-details-slot" />
 
-      <AgentHeartbeatSummary agent={agent} notificationsMuted={maintenanceActive} help={
+      <AgentHeartbeatSummary agent={agent} fetchedAt={resource.fetchedAt} notificationsMuted={maintenanceActive} help={
           <button
             ref={serverStateHelpTriggerRef}
             className="icon-button"
@@ -340,7 +340,7 @@ export function AgentDetailPage() {
       <AgentHealthChecks checks={agent.checks ?? DEFAULT_AGENT_CHECKS} snapshot={agent.service_health ?? null}
         databaseHealth={resource.data.latest_database_health ?? null}
         lastMetricsAt={agent.last_metrics_at} lastHeartbeatAt={agent.last_heartbeat_at}
-        intervalSeconds={agent.heartbeat_interval_seconds} telemetryStale={agent.status === "stale"} />
+        intervalSeconds={agent.heartbeat_interval_seconds} telemetryStale={agent.status === "stale"} fetchedAt={resource.fetchedAt} />
 
       <section className="agent-script-configuration" aria-labelledby="latest-script-configuration-title">
         <div>

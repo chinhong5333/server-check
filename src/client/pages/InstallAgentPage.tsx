@@ -38,20 +38,22 @@ import {
   formatRelativeTime,
   utilizationFromAvailable
 } from "../lib/format";
+import { statusClock } from "../lib/status-clock";
 import { useProjects } from "../projects/ProjectProvider";
 
-function AgentHeartbeatStatus({ agent }: { agent: AgentSummary }) {
+function AgentHeartbeatStatus({ agent, fetchedAt }: { agent: AgentSummary; fetchedAt: number | null }) {
+  const asOf = statusClock(fetchedAt);
   const heartbeatOverdue = agent.last_heartbeat_at !== null
-    && Date.now() >= agent.last_heartbeat_at + agent.heartbeat_interval_seconds * 1000;
+    && asOf >= agent.last_heartbeat_at + agent.heartbeat_interval_seconds * 1000;
   const uptimeStale = agent.uptime_received_at != null
-    && Date.now() >= agent.uptime_received_at + agent.heartbeat_interval_seconds * 1000;
+    && asOf >= agent.uptime_received_at + agent.heartbeat_interval_seconds * 1000;
 
   const live = agent.last_heartbeat_at !== null && !heartbeatOverdue && agent.status !== "stale" && agent.status !== "new";
 
   return (
     <div className="agent-report-stack">
       <div className="agent-heartbeat"><small>Last Heartbeat</small>
-        <span className="roster-heartbeat-value"><span className={`live-dot live-dot--${live ? "live" : "idle"}`} aria-hidden="true" /><span className="numeric">{formatRelativeTime(agent.last_heartbeat_at)}</span>
+        <span className="roster-heartbeat-value"><span className={`live-dot live-dot--${live ? "live" : "idle"}`} aria-hidden="true" /><span className="numeric">{formatRelativeTime(agent.last_heartbeat_at, asOf)}</span>
           {heartbeatOverdue ? <span className="roster-overdue"><TriangleAlert aria-hidden="true" />Overdue</span> : null}
         </span>
       </div>
@@ -61,9 +63,9 @@ function AgentHeartbeatStatus({ agent }: { agent: AgentSummary }) {
   );
 }
 
-function AgentRosterResources({ agent }: { agent: AgentSummary }) {
+function AgentRosterResources({ agent, fetchedAt }: { agent: AgentSummary; fetchedAt: number | null }) {
   const stale = agent.last_metrics_at !== null && (agent.status === "stale"
-    || Date.now() >= agent.last_metrics_at + agent.heartbeat_interval_seconds * 1000);
+    || statusClock(fetchedAt) >= agent.last_metrics_at + agent.heartbeat_interval_seconds * 1000);
   const metrics = [
     { label: "RAM", value: utilizationFromAvailable(agent.ram_available_percent), capacity: true },
     { label: "Root Disk", value: utilizationFromAvailable(agent.disk_available_percent), capacity: true },
@@ -820,17 +822,17 @@ export function InstallAgentPage() {
                       </div>
                     </th>
                     <td data-label="Resource Use">
-                      <AgentRosterResources agent={agent} />
+                      <AgentRosterResources agent={agent} fetchedAt={agents.fetchedAt} />
                     </td>
                     <td data-label="Health Checks">
-                      <AgentRosterChecks agent={agent} />
+                      <AgentRosterChecks agent={agent} fetchedAt={agents.fetchedAt} />
                     </td>
                     <td
                       data-label="Activity"
                       className="agent-heartbeat-cell"
                       title={agent.last_heartbeat_at ? new Date(agent.last_heartbeat_at).toISOString() : undefined}
                     >
-                      <AgentHeartbeatStatus agent={agent} />
+                      <AgentHeartbeatStatus agent={agent} fetchedAt={agents.fetchedAt} />
                     </td>
                     <td className="row-action">
                       <div className="agent-row-actions">

@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   Settings,
+  WifiOff,
   X
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -41,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const sidebarRef = useRef<HTMLElement>(null);
   const desktopNavigation = useMediaQuery("(min-width: 60rem)");
   const { user, logout } = useAuth();
-  const { selectedProject } = useProjects();
+  const { selectedProject, refreshFailures } = useProjects();
   const projectBase = selectedProject
     ? `/projects/${encodeURIComponent(selectedProject.id)}`
     : null;
@@ -209,6 +210,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         aria-hidden={menuOpen && !desktopNavigation}
         inert={menuOpen && !desktopNavigation}
       >
+        {/* One failure can be a blip as a tab returns; repeated failures mean the page is showing old data. */}
+        {refreshFailures >= 2 ? (
+          <div className="form-banner form-banner--warning connection-notice" role="status">
+            <WifiOff aria-hidden="true" />
+            <p>Can't reach the server. Showing the last received data until the connection returns.</p>
+          </div>
+        ) : null}
         {children}
         <footer className="system-footer">
           <span>Server Monitor 0.1.0</span>

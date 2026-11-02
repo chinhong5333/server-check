@@ -80,9 +80,9 @@ export function formatDateTime(value: number | null | undefined): string {
   }).format(new Date(value));
 }
 
-export function formatRelativeTime(value: number | null | undefined): string {
+export function formatRelativeTime(value: number | null | undefined, now = Date.now()): string {
   if (!valid(value)) return "Never";
-  const seconds = Math.round((value - Date.now()) / 1000);
+  const seconds = Math.round((value - now) / 1000);
   const formatter = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
   if (Math.abs(seconds) < 60) return formatter.format(seconds, "second");
   const minutes = Math.round(seconds / 60);
