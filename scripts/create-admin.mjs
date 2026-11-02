@@ -5,7 +5,7 @@ import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { pathToFileURL } from "node:url";
 
-const HELP = `Create an internal Server Check administrator.
+const HELP = `Create an internal Server Monitor administrator.
 
 Usage:
   npm run create-admin

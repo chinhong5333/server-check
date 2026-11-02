@@ -1,4 +1,4 @@
-# Server Check
+# Server Monitor
 
 ### Central Healthcheck
 
@@ -71,7 +71,7 @@ Never point that test at development, shared, or production data. It exercises r
 
 Retention limits record age, not total disk usage. Capacity still depends on agent count, report frequency, filesystems, and protected unresolved records. InnoDB generally reuses deleted space internally rather than shrinking its files automatically. Track free space on the actual MySQL data volume separately (for example, warn below 20% free, critical below 10%); database allocation estimates do not include MySQL binary logs, backups, or PM2/application logs. Configure their rotation/expiry separately with the database/backup operator, respecting replication and recovery requirements. Investigate persistent backlog or rising allocation rather than deleting protected or recent data to meet an arbitrary size cap. Any physical table rebuild requires a planned maintenance window, backup, and enough free disk space.
 
-Server Check is an internal, multi-project server-monitoring service. A generated one-file Linux agent probes a server-local health API, collects host metrics, and reports to a central Node.js API. The central service retains seven days of raw history, evaluates agent-specific thresholds, records incidents, sends Telegram notifications, and serves a React/TypeScript backoffice.
+Server Monitor is an internal, multi-project server-monitoring service. A generated one-file Linux agent probes a server-local health API, collects host metrics, and reports to a central Node.js API. The central service retains seven days of raw history, evaluates agent-specific thresholds, records incidents, sends Telegram notifications, and serves a React/TypeScript backoffice.
 
 ## Current verification status
 

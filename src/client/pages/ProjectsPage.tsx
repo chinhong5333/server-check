@@ -61,7 +61,7 @@ export function ProjectsPage() {
         <div>
           <nav className="page-breadcrumb" aria-label="Breadcrumb">
             <ol>
-              <li>Server Check</li>
+              <li>Server Monitor</li>
               <li aria-current="page">Projects</li>
             </ol>
           </nav>

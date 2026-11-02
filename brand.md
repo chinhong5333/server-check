@@ -1,4 +1,4 @@
-# Brand — Server Check
+# Brand — Server Monitor
 
 _Status: deferred_
 

@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="mobile-header">
         <NavLink className="wordmark" to={hasPermission(user, "view_projects") ? "/projects" : "/settings/password"}>
           <span className="brand-mark" aria-hidden="true"><Activity /></span>
-          Server Check
+          Server Monitor
         </NavLink>
         <button
           ref={menuButtonRef}
@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <NavLink className="wordmark sidebar__wordmark" to={hasPermission(user, "view_projects") ? "/projects" : "/settings/password"} onClick={() => setMenuOpen(false)}>
           <span className="brand-mark" aria-hidden="true"><Activity /></span>
           <span>
-            Server Check
+            Server Monitor
             <small>Internal Operations</small>
           </span>
         </NavLink>
@@ -211,7 +211,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         {children}
         <footer className="system-footer">
-          <span>Server Check 0.1.0</span>
+          <span>Server Monitor 0.1.0</span>
         </footer>
       </main>
     </div>

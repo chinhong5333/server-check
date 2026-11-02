@@ -242,7 +242,7 @@ export function createSettingsRouter(config: AppConfig): Router {
         await sendTelegramMessage({
           botToken,
           chatId: settings.telegram_chat_id,
-          text: `[TEST] Server Check\nPlatform Telegram delivery is configured and working.\nSent at: ${new Date().toISOString()}`
+          text: `[TEST] Server Monitor\nPlatform Telegram delivery is configured and working.\nSent at: ${new Date().toISOString()}`
         });
       } catch {
         throw new AppError(

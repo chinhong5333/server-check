@@ -185,7 +185,7 @@ export function TelegramSettingsForm({
       <div className="section-heading">
         <div>
           <h2 id="telegram-title">Telegram Alerts</h2>
-          <p>Prepare one channel or group where Server Check sends every alert and recovery.</p>
+          <p>Prepare one channel or group where Server Monitor sends every alert and recovery.</p>
         </div>
       </div>
 

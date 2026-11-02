@@ -42,7 +42,7 @@ flock -n 9 || { echo "Another update is already running." >&2; exit 1; }
 [[ -z "$(git status --porcelain)" ]] || { echo "Working tree is not clean. Commit or preserve local changes before updating." >&2; exit 1; }
 git rev-parse --abbrev-ref '@{upstream}' >/dev/null
 
-echo "This update briefly stops Server Check, installs/builds dependencies, and applies pending database migrations."
+echo "This update briefly stops Server Monitor, installs/builds dependencies, and applies pending database migrations."
 
 phase="pull"
 trap 'echo "Update failed during $phase. Do not restart against a partially migrated schema; inspect the error and repair before rerunning. The app may remain stopped." >&2' ERR

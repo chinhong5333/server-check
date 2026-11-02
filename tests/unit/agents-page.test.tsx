@@ -233,7 +233,7 @@ describe("project-scoped agents page", () => {
       name: "Switch Project: Project Atlas"
     });
 
-    expect(screen.getByRole("link", { name: /Server Check\s*Internal Operations/ })).toHaveAttribute("href", "/projects");
+    expect(screen.getByRole("link", { name: /Server Monitor\s*Internal Operations/ })).toHaveAttribute("href", "/projects");
     expect(screen.queryByRole("link", { name: "All projects" })).not.toBeInTheDocument();
     expect(settingsLink).toHaveAttribute("href", "/settings");
     expect(overviewLink).toHaveAttribute(

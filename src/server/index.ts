@@ -14,12 +14,12 @@ async function main(): Promise<void> {
   server.listen(config.port, config.host, () => {
     logger.info(
       { host: config.host, port: config.port, environment: config.nodeEnv },
-      "Server Check is listening"
+      "Server Monitor is listening"
     );
   });
 
   const shutdown = async (signal: string) => {
-    logger.info({ signal }, "Shutting down Server Check");
+    logger.info({ signal }, "Shutting down Server Monitor");
     stopWorkers();
     server.close(async () => {
       await closePool();

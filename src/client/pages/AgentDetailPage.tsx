@@ -315,7 +315,7 @@ export function AgentDetailPage() {
         <div className="section-heading">
           <div>
             <h2 id="server-state-definitions-title">Server State Definitions</h2>
-            <p id="server-state-definitions-description">How Server Check classifies the current condition of an agent.</p>
+            <p id="server-state-definitions-description">How Server Monitor classifies the current condition of an agent.</p>
           </div>
           <button
             className="icon-button"

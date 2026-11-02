@@ -1,5 +1,5 @@
 [Unit]
-Description=Server Check central monitoring service
+Description=Server Monitor central monitoring service
 After=network-online.target mysql.service
 Wants=network-online.target
 

@@ -54,7 +54,7 @@ export function LoginPage() {
           <div className="wordmark login-wordmark">
             <ShieldCheck aria-hidden="true" />
             <span>
-              Server Check
+              Server Monitor
               <small>Internal Operations</small>
             </span>
           </div>

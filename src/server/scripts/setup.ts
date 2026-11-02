@@ -6,7 +6,7 @@ async function main(): Promise<void> {
   const config = loadConfig();
   await verifyDatabaseConnection(config);
   await runMigrations(config);
-  process.stdout.write("Server Check database setup completed.\n");
+  process.stdout.write("Server Monitor database setup completed.\n");
   process.stdout.write("Run npm run create-admin to create an internal administrator.\n");
 }
 

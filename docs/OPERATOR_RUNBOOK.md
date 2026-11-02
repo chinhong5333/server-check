@@ -9,7 +9,7 @@
 
 ## Alert interpretation
 
-An incident appearing in history means Server Check detected the condition and queued a notification. It does not confirm Telegram delivery. Open the agent's **Telegram delivery log** to see whether each alert or recovery is pending, sent, or permanently failed, together with attempts, delivery time, next attempt, and any final error.
+An incident appearing in history means Server Monitor detected the condition and queued a notification. It does not confirm Telegram delivery. Open the agent's **Telegram delivery log** to see whether each alert or recovery is pending, sent, or permanently failed, together with attempts, delivery time, next attempt, and any final error.
 
 - **Heartbeat overdue**: the server, cron, agent, outbound network path, or central ingress may be unavailable. It does not prove the server is powered off.
 - **Health API unhealthy**: the agent reached the central service, but the configured server-local API returned non-200 or a transport error.

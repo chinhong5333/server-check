@@ -31,7 +31,8 @@ vi.mock("../../src/server/middleware/auth.js", () => ({
     };
     next();
   },
-  requireRole: () => (_request: Request, _response: Response, next: NextFunction) => next()
+  requireRole: () => (_request: Request, _response: Response, next: NextFunction) => next(),
+  requirePermission: () => (_request: Request, _response: Response, next: NextFunction) => next()
 }));
 
 vi.mock("../../src/server/middleware/csrf.js", () => ({
@@ -96,7 +97,7 @@ describe("platform Telegram test route", () => {
     expect(sendTelegramMessageMock).toHaveBeenCalledWith({
       botToken,
       chatId: "@ops_alerts",
-      text: expect.stringMatching(/^\[TEST\] Server Check/)
+      text: expect.stringMatching(/^\[TEST\] Server Monitor/)
     });
   });
 
