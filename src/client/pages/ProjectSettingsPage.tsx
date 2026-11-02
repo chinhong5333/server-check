@@ -6,6 +6,7 @@ import { ApiError, apiFetch } from "../api";
 import { EmptyState, ErrorState, InlineLoader, PageSkeleton } from "../components/Feedback";
 import { useToast } from "../components/ToastProvider";
 import { useProjects } from "../projects/ProjectProvider";
+import { t } from "../i18n";
 
 export function ProjectSettingsPage() {
   const { showToast } = useToast();
@@ -27,14 +28,14 @@ export function ProjectSettingsPage() {
 
   if (status === "loading") return <PageSkeleton rows={5} />;
   if (status === "error") {
-    return <ErrorState title="Couldn't Load Projects" message={error?.message ?? "Try again."} onRetry={reloadProjects} />;
+    return <ErrorState title={t("Couldn't Load Projects")} message={error?.message ?? t("Try again.")} onRetry={reloadProjects} />;
   }
   if (!selectedProject) {
     return (
       <EmptyState
-        title="Project Not Found"
-        message="Open a project before changing its settings."
-        action={<Link className="button button--primary" to="/projects">View Projects</Link>}
+        title={t("Project Not Found")}
+        message={t("Open a project before changing its settings.")}
+        action={<Link className="button button--primary" to="/projects">{t("View Projects")}</Link>}
       />
     );
   }
@@ -49,7 +50,7 @@ export function ProjectSettingsPage() {
     };
     const validation = updateProjectPolicyBodySchema.safeParse(body);
     if (!validation.success) {
-      const nextMessage = "Complete every policy field with a value inside its documented range.";
+      const nextMessage = t("Complete every policy field with a value inside its documented range.");
       setMessage(nextMessage);
       showToast({ tone: "error", message: nextMessage });
       return;
@@ -63,9 +64,9 @@ export function ProjectSettingsPage() {
       });
       setMessage(null);
       reloadProjects();
-      showToast({ tone: "success", message: "Project settings saved." });
+      showToast({ tone: "success", message: t("Project settings saved.") });
     } catch (cause) {
-      const nextMessage = cause instanceof ApiError ? cause.message : "The threshold settings could not be saved.";
+      const nextMessage = cause instanceof ApiError ? cause.message : t("The threshold settings could not be saved.");
       setMessage(nextMessage);
       showToast({ tone: "error", message: nextMessage });
     } finally {
@@ -78,8 +79,8 @@ export function ProjectSettingsPage() {
       <header className="page-header">
         <div>
           <p className="page-context">{selectedProject.name}</p>
-          <h1>Project Setting</h1>
-          <p>Manage monitoring thresholds and heartbeat timing for this project.</p>
+          <h1>{t("Project Setting")}</h1>
+          <p>{t("Manage monitoring thresholds and heartbeat timing for this project.")}</p>
         </div>
         <SlidersHorizontal aria-hidden="true" />
       </header>
@@ -87,8 +88,8 @@ export function ProjectSettingsPage() {
       <section className="form-surface form-surface--wide" aria-labelledby="policy-title">
         <div className="section-heading">
           <div>
-            <h2 id="policy-title">Project Thresholds</h2>
-            <p>Changes apply to subsequent central evaluations for all registered agents.</p>
+            <h2 id="policy-title">{t("Project Thresholds")}</h2>
+            <p>{t("Changes apply to subsequent central evaluations for all registered agents.")}</p>
           </div>
         </div>
         {message ? (
@@ -98,31 +99,31 @@ export function ProjectSettingsPage() {
         ) : null}
         <form className="form-grid" onSubmit={savePolicy} noValidate aria-busy={saving}>
           <div className="field">
-            <label htmlFor="policy-ram">RAM Available Below (%)</label>
+            <label htmlFor="policy-ram">{t("RAM Available Below (%)")}</label>
             <input id="policy-ram" inputMode="decimal" value={policy.ram} onChange={(event) => setPolicy((value) => ({ ...value, ram: event.target.value }))} required />
-            <span className="field__help">Range: 0.1–99.9.</span>
+            <span className="field__help">{t("Range: 0.1–99.9.")}</span>
           </div>
           <div className="field">
-            <label htmlFor="policy-disk">Storage Available Below (%)</label>
+            <label htmlFor="policy-disk">{t("Storage Available Below (%)")}</label>
             <input id="policy-disk" inputMode="decimal" value={policy.disk} onChange={(event) => setPolicy((value) => ({ ...value, disk: event.target.value }))} required />
-            <span className="field__help">Evaluated per filesystem.</span>
+            <span className="field__help">{t("Evaluated per filesystem.")}</span>
           </div>
           <div className="field">
-            <label htmlFor="policy-load">5-Minute Load Per Core</label>
+            <label htmlFor="policy-load">{t("5-Minute Load Per Core")}</label>
             <input id="policy-load" inputMode="decimal" value={policy.load} onChange={(event) => setPolicy((value) => ({ ...value, load: event.target.value }))} required />
-            <span className="field__help">Normalized by logical CPU count.</span>
+            <span className="field__help">{t("Normalized by logical CPU count.")}</span>
           </div>
           <div className="field">
-            <label htmlFor="policy-interval">Heartbeat Interval</label>
+            <label htmlFor="policy-interval">{t("Heartbeat Interval")}</label>
             <select id="policy-interval" value={policy.interval} onChange={(event) => setPolicy((value) => ({ ...value, interval: event.target.value }))} required>
               {[1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60].map((minutes) => (
-                <option value={minutes * 60} key={minutes}>{minutes} min</option>
+                <option value={minutes * 60} key={minutes}>{t("{0} min", minutes)}</option>
               ))}
             </select>
-            <span className="field__help">New generated scripts use this schedule.</span>
+            <span className="field__help">{t("New generated scripts use this schedule.")}</span>
           </div>
           <button className="button button--primary field--wide" type="submit" disabled={saving}>
-            {saving ? <InlineLoader label="Saving Thresholds" /> : "Save Thresholds"}
+            {saving ? <InlineLoader label={t("Saving Thresholds")} /> : t("Save Thresholds")}
           </button>
         </form>
       </section>

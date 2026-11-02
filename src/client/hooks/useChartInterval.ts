@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api";
+import { t } from "../i18n";
 export const CHART_INTERVALS = [
-  { seconds: 60, label: "1 Min" }, { seconds: 300, label: "5 Min" },
-  { seconds: 1800, label: "30 Min" }, { seconds: 3600, label: "1 Hour" }
+  { seconds: 60, get label() { return t("1 Min"); } }, { seconds: 300, get label() { return t("5 Min"); } },
+  { seconds: 1800, get label() { return t("30 Min"); } }, { seconds: 3600, get label() { return t("1 Hour"); } }
 ] as const;
 
 /** Native Canvas panning uses loaded history, never a fetch on pointer release. */
@@ -29,7 +30,7 @@ export function useChartInterval<T extends { at: number }>(agentId: string, defa
         if (!controller.signal.aborted) { loaded = true; setResult({ key, points: response.points }); setError(null); }
       } catch {
         // A failed background refresh keeps the loaded chart and retries on the next timer.
-        if (!controller.signal.aborted && !loaded) setError("Could not load this chart. Try again.");
+        if (!controller.signal.aborted && !loaded) setError(t("Could not load this chart. Try again."));
       } finally {
         if (!controller.signal.aborted) timer = setTimeout(() => void load(), 60_000);
       }

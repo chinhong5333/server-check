@@ -7,6 +7,7 @@ import { ApiError, apiFetch } from "../api";
 import { useAuth } from "../auth/AuthProvider";
 import { InlineLoader } from "../components/Feedback";
 import { useToast } from "../components/ToastProvider";
+import { t } from "../i18n";
 
 export function AccountPage() {
   const { user, restore } = useAuth();
@@ -24,7 +25,7 @@ export function AccountPage() {
     event.preventDefault();
     const input = changePasswordBodySchema.safeParse({ current_password: currentPassword, new_password: newPassword });
     if (!input.success || newPassword !== confirmation) {
-      setError(newPassword !== confirmation ? "The new passwords do not match." : "Use a different password with 8–128 characters, uppercase, lowercase, a number, and a symbol.");
+      setError(newPassword !== confirmation ? t("The new passwords do not match.") : t("Use a different password with 8–128 characters, uppercase, lowercase, a number, and a symbol."));
       return;
     }
     setPending(true);
@@ -33,10 +34,10 @@ export function AccountPage() {
       await apiFetch<void>("/api/v1/auth/password", { method: "POST", body: JSON.stringify(input.data) });
       setCurrentPassword(""); setNewPassword(""); setConfirmation("");
       await restore();
-      showToast({ tone: "success", message: "Password changed. Sign in with your new password." });
+      showToast({ tone: "success", message: t("Password changed. Sign in with your new password.") });
       navigate("/login", { replace: true });
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "The password could not be changed. Try again.");
+      setError(cause instanceof ApiError ? cause.message : t("The password could not be changed. Try again."));
     } finally {
       setPending(false);
     }
@@ -45,28 +46,28 @@ export function AccountPage() {
   return (
     <div className="page-stack">
       <div className="settings-page-intro">
-      {hasPermission(user, "view_projects") && <Link className="back-link" to="/projects"><ArrowLeft aria-hidden="true" /> Back To Projects</Link>}
-      <header className="page-header"><div><h1>Change Password</h1><p>{user?.email}</p></div></header>
+      {hasPermission(user, "view_projects") && <Link className="back-link" to="/projects"><ArrowLeft aria-hidden="true" />{" "}{t("Back To Projects")}</Link>}
+      <header className="page-header"><div><h1>{t("Change Password")}</h1><p>{user?.email}</p></div></header>
       </div>
       <section className="form-surface account-password" aria-labelledby="change-password-title">
-        <div className="section-heading"><div><h2 id="change-password-title">Change Password</h2>
-          <p>Changing your password signs you out on every device.</p></div></div>
+        <div className="section-heading"><div><h2 id="change-password-title">{t("Change Password")}</h2>
+          <p>{t("Changing your password signs you out on every device.")}</p></div></div>
         <form className="form-grid" onSubmit={(event) => void submit(event)}>
-          <div className="field field--wide"><label htmlFor="current-password">Current Password</label>
+          <div className="field field--wide"><label htmlFor="current-password">{t("Current Password")}</label>
             <input id="current-password" type="password" autoComplete="current-password" required maxLength={1024}
               aria-describedby={error ? "password-change-error" : undefined}
               value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></div>
-          <div className="field"><label htmlFor="new-password">New Password</label>
+          <div className="field"><label htmlFor="new-password">{t("New Password")}</label>
             <input id="new-password" type="password" autoComplete="new-password" required minLength={8} maxLength={128}
               aria-describedby={error ? "new-password-help password-change-error" : "new-password-help"} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
-            <span className="field__help" id="new-password-help">Use 8–128 characters with uppercase, lowercase, a number, and a symbol.</span></div>
-          <div className="field"><label htmlFor="confirm-password">Confirm New Password</label>
+            <span className="field__help" id="new-password-help">{t("Use 8–128 characters with uppercase, lowercase, a number, and a symbol.")}</span></div>
+          <div className="field"><label htmlFor="confirm-password">{t("Confirm New Password")}</label>
             <input id="confirm-password" type="password" autoComplete="new-password" required maxLength={128}
               aria-describedby={error ? "password-change-error" : undefined}
               value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></div>
           {error ? <p ref={errorRef} tabIndex={-1} id="password-change-error" className="field__help field__help--error field--wide" role="alert">{error}</p> : null}
           <div className="field--wide"><button className="button button--primary" disabled={pending} type="submit">
-            {pending ? <InlineLoader label="Changing Password" /> : "Change Password"}</button></div>
+            {pending ? <InlineLoader label={t("Changing Password")} /> : t("Change Password")}</button></div>
         </form>
       </section>
     </div>

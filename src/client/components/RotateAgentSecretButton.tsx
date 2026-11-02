@@ -6,6 +6,7 @@ import { AgentScriptChecks } from "./AgentScriptChecks";
 import { AgentScriptSetup } from "./AgentScriptSetup";
 import { HoldConfirmButton } from "./HoldConfirmButton";
 import { ModalDialog } from "./ModalDialog";
+import { t } from "../i18n";
 
 export function RotateAgentSecretButton({ agentId, projectId, agentName, checks, healthApiUrl, onFinished }: {
   agentId: string; projectId: string; agentName: string; checks?: AgentChecks;
@@ -40,7 +41,7 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
     if (busy || installation) return;
     // Check off means the field is hidden: keep the saved URL untouched so the check can be re-enabled later.
     const input = generateAgentScriptBodySchema.safeParse({ checks: draftChecks, health_api_url: draftChecks.middleware_api ? (url.trim() ? url : null) : healthApiUrl ?? null });
-    if (!input.success) { setError("Enter a valid Middleware API URL or disable its check."); return; }
+    if (!input.success) { setError(t("Enter a valid Middleware API URL or disable its check.")); return; }
     setBusy(true); setError(null);
     try {
       const result = await apiFetch<AgentInstallationResponse>(`/api/v1/projects/${encodeURIComponent(projectId)}/agents/${encodeURIComponent(agentId)}/credential-rotation`,
@@ -48,39 +49,39 @@ export function RotateAgentSecretButton({ agentId, projectId, agentName, checks,
       // Do not reload the parent here: the one-time script must stay mounted until explicitly closed.
       setInstallation(result);
     } catch (cause) {
-      setError(`${cause instanceof Error ? cause.message : "Could not rotate the secret."} If the response was lost, retry rotation to obtain a new replacement script.`);
+      setError(t("{0} If the response was lost, retry rotation to obtain a new replacement script.", cause instanceof Error ? cause.message : t("Could not rotate the secret.")));
     } finally { setBusy(false); }
   }
   return <>
     <button ref={trigger} className="button button--secondary agent-rotate-action" type="button" aria-haspopup="dialog" aria-controls="detail-rotate-secret"
-      onClick={() => { setDraftChecks({ ...(checks ?? DEFAULT_AGENT_CHECKS) }); setUrl(healthApiUrl ?? ""); setError(null); setOpenCount((count) => count + 1); setOpen(true); }}><KeyRound aria-hidden="true" />Rotate Secret</button>
+      onClick={() => { setDraftChecks({ ...(checks ?? DEFAULT_AGENT_CHECKS) }); setUrl(healthApiUrl ?? ""); setError(null); setOpenCount((count) => count + 1); setOpen(true); }}><KeyRound aria-hidden="true" />{t("Rotate Secret")}</button>
     <ModalDialog id="detail-rotate-secret" open={open} labelledBy="detail-rotate-title" describedBy="detail-rotate-description"
       dialogClassName={installation ? "agent-dialog--script-setup" : undefined}
       surfaceClassName={installation ? "agent-dialog__surface agent-setup-surface" : "agent-dialog__surface agent-rotation-confirmation"} restoreFocusTo={trigger.current} onDismiss={installation ? close : undefined}>
       <div className={installation ? "agent-setup-dialog-heading" : undefined}>
         {!installation && <KeyRound aria-hidden="true" />}
-        <div><h2 id="detail-rotate-title">{installation ? "Access Secret Rotated" : `Rotate Access Secret For ${agentName}?`}</h2>
-          <p id="detail-rotate-description">{installation ? "Old secret revoked. Save this replacement now; it is shown only once." : "Choose checks for this agent. Confirming immediately stops the old script from authenticating."}</p></div>
-        <button ref={closeTrigger} className="icon-button" type="button" data-dialog-initial-focus aria-label="Close Secret Rotation" disabled={busy} onClick={close}><X aria-hidden="true" /></button>
+        <div><h2 id="detail-rotate-title">{installation ? t("Access Secret Rotated") : t("Rotate Access Secret For {0}?", agentName)}</h2>
+          <p id="detail-rotate-description">{installation ? t("Old secret revoked. Save this replacement now; it is shown only once.") : t("Choose checks for this agent. Confirming immediately stops the old script from authenticating.")}</p></div>
+        <button ref={closeTrigger} className="icon-button" type="button" data-dialog-initial-focus aria-label={t("Close Secret Rotation")} disabled={busy} onClick={close}><X aria-hidden="true" /></button>
       </div>
       {installation ? <AgentScriptSetup key={installation.agent_id} installation={installation} compact /> : <>
         <AgentScriptChecks value={draftChecks} onChange={setDraftChecks} disabled={busy} />
         {/* Shown only while its check is on; a saved URL stays in state and is still sent, so the check can be re-enabled later. */}
-        {draftChecks.middleware_api ? <div className="field"><label htmlFor="detail-rotation-url">Middleware API URL</label>
+        {draftChecks.middleware_api ? <div className="field"><label htmlFor="detail-rotation-url">{t("Middleware API URL")}</label>
           <input id="detail-rotation-url" type="url" value={url} disabled={busy} required onChange={(event) => setUrl(event.target.value)} />
-          <span className="field__help">The agent calls this endpoint every minute.</span></div> : null}
+          <span className="field__help">{t("The agent calls this endpoint every minute.")}</span></div> : null}
         {error && <p role="alert" className="field__help field__help--error">{error}</p>}
-        <div className="action-row"><button className="button button--secondary" type="button" disabled={busy} onClick={close}>Cancel</button>
-          <HoldConfirmButton key={openCount} label="Rotate And Generate Script" busy={busy} busyLabel="Rotating Secret" onConfirm={() => void rotate()} /></div>
+        <div className="action-row"><button className="button button--secondary" type="button" disabled={busy} onClick={close}>{t("Cancel")}</button>
+          <HoldConfirmButton key={openCount} label={t("Rotate And Generate Script")} busy={busy} busyLabel={t("Rotating Secret")} onConfirm={() => void rotate()} /></div>
       </>}
     </ModalDialog>
     <ModalDialog id="detail-leave-secret" open={leaveStep > 0} labelledBy="detail-leave-title" describedBy="detail-leave-description"
       surfaceClassName="agent-dialog__surface form-surface" restoreFocusTo={closeTrigger.current}>
-      <div className="section-heading"><div><h2 id="detail-leave-title">{leaveStep === 1 ? "Close Replacement Script?" : "Confirm Closing Script"}</h2>
-        <p id="detail-leave-description">{leaveStep === 1 ? "Save the replacement script before continuing. It cannot be reopened after closing." : "Final confirmation: close this one-time script? You will need another rotation if it was not saved."}</p></div></div>
-      <div className="form-grid"><button data-dialog-initial-focus className="button button--secondary" type="button" onClick={() => setLeaveStep(0)}>Keep Script Open</button>
-        {leaveStep === 1 ? <button className="button button--danger" type="button" onClick={() => setLeaveStep(2)}>Continue</button>
-          : <HoldConfirmButton label="Close Script" onConfirm={() => { setLeaveStep(0); setInstallation(null); setOpen(false); onFinished(); }} />}</div>
+      <div className="section-heading"><div><h2 id="detail-leave-title">{leaveStep === 1 ? t("Close Replacement Script?") : t("Confirm Closing Script")}</h2>
+        <p id="detail-leave-description">{leaveStep === 1 ? t("Save the replacement script before continuing. It cannot be reopened after closing.") : t("Final confirmation: close this one-time script? You will need another rotation if it was not saved.")}</p></div></div>
+      <div className="form-grid"><button data-dialog-initial-focus className="button button--secondary" type="button" onClick={() => setLeaveStep(0)}>{t("Keep Script Open")}</button>
+        {leaveStep === 1 ? <button className="button button--danger" type="button" onClick={() => setLeaveStep(2)}>{t("Continue")}</button>
+          : <HoldConfirmButton label={t("Close Script")} onConfirm={() => { setLeaveStep(0); setInstallation(null); setOpen(false); onFinished(); }} />}</div>
     </ModalDialog>
   </>;
 }

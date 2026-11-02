@@ -10,6 +10,7 @@ import {
   type FocusEvent,
   type ReactNode
 } from "react";
+import { t, useLocale } from "../i18n";
 
 type ToastTone = "success" | "error";
 
@@ -29,6 +30,7 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  useLocale();
   const nextIdRef = useRef(1);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [paused, setPaused] = useState(false);
@@ -54,7 +56,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="toast-region" role="region" aria-label="Notifications">
+      <div className="toast-region" role="region" aria-label={t("Notifications")}>
         {toast ? (
           <div
             key={toast.id}
@@ -74,7 +76,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <button
               className="icon-button toast__close"
               type="button"
-              aria-label="Dismiss Notification"
+              aria-label={t("Dismiss Notification")}
               onClick={dismissToast}
             >
               <X aria-hidden="true" />

@@ -4,6 +4,7 @@ import { telegramGroupUrlSchema } from "../../shared/contracts";
 import { apiFetch } from "../api";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useToast } from "./ToastProvider";
+import { t } from "../i18n";
 
 const endpoint = "/api/v1/settings/telegram/group-link";
 type GroupLink = { telegram_group_url: string | null; telegram_group_enabled: boolean };
@@ -25,15 +26,15 @@ export function NotificationGroupBar({ placement = "page" }: { placement?: "page
   }, [active]);
   if (!active || !url) return null;
   if (placement === "sidebar") {
-    return <a className="sidebar-alert-link" href={url} target="_blank" rel="noopener noreferrer" aria-label="Open Telegram Alerts">
+    return <a className="sidebar-alert-link" href={url} target="_blank" rel="noopener noreferrer" aria-label={t("Open Telegram Alerts")}>
       <span className="sidebar-alert-link__icon" aria-hidden="true"><Send /></span>
-      <span className="sidebar-alert-link__text"><strong>Telegram Alerts</strong><small>Alert Destination</small></span>
+      <span className="sidebar-alert-link__text"><strong>{t("Telegram Alerts")}</strong><small>{t("Alert Destination")}</small></span>
       <ExternalLink aria-hidden="true" />
     </a>;
   }
-  return <aside className="notification-group-bar" aria-label="Telegram Notifications">
-    <span><Send aria-hidden="true" />Access our Telegram alert destination.</span>
-    <a href={url} target="_blank" rel="noopener noreferrer"><Send className="notification-group-bar__mobile-icon" aria-hidden="true" />Open Telegram Alerts<ExternalLink aria-hidden="true" /></a>
+  return <aside className="notification-group-bar" aria-label={t("Telegram Notifications")}>
+    <span><Send aria-hidden="true" />{t("Access our Telegram alert destination.")}</span>
+    <a href={url} target="_blank" rel="noopener noreferrer"><Send className="notification-group-bar__mobile-icon" aria-hidden="true" />{t("Open Telegram Alerts")}<ExternalLink aria-hidden="true" /></a>
   </aside>;
 }
 
@@ -57,15 +58,15 @@ export function NotificationGroupSettings({ linkAvailable }: { linkAvailable: bo
     setSaving(true);
     try {
       await apiFetch(endpoint, { method: "PATCH", body: JSON.stringify({ telegram_group_enabled: !enabled }) });
-      setEnabled(!enabled); showToast({ tone: "success", message: "Notification bar visibility saved." });
-    } catch { showToast({ tone: "error", message: "Could not save notification visibility. Try again." }); }
+      setEnabled(!enabled); showToast({ tone: "success", message: t("Notification bar visibility saved.") });
+    } catch { showToast({ tone: "error", message: t("Could not save notification visibility. Try again.") }); }
     finally { setSaving(false); }
   }
   if (!loaded) return null;
   return <div className="bot-link-visibility" aria-busy={saving || loading}>
     <button id="group-visibility-switch" className="bot-visibility-switch" type="button" role="switch"
-      aria-label="Show on Notification Bar" title="Show Alert Destination Link To All Team Members" aria-checked={enabled}
+      aria-label={t("Show on Notification Bar")} title={t("Show Alert Destination Link To All Team Members")} aria-checked={enabled}
       disabled={loading || saving || !loaded || (!linkAvailable && !enabled)} onClick={() => void toggle()}><span /></button>
-    <label htmlFor="group-visibility-switch">Show on Notification Bar</label>
+    <label htmlFor="group-visibility-switch">{t("Show on Notification Bar")}</label>
   </div>;
 }

@@ -5,6 +5,7 @@ import { ApiError, apiFetch } from "../api";
 import { InlineLoader } from "../components/Feedback";
 import { useToast } from "../components/ToastProvider";
 import { useProjects } from "../projects/ProjectProvider";
+import { t } from "../i18n";
 
 interface ProjectForm {
   name: string;
@@ -40,7 +41,7 @@ export function CreateProjectForm({
     const body = { name: form.name };
     const validation = createProjectBodySchema.safeParse(body);
     if (!validation.success) {
-      const message = "Enter a project name between 2 and 120 characters.";
+      const message = t("Enter a project name between 2 and 120 characters.");
       setError(message);
       showToast({ tone: "error", message });
       return;
@@ -54,10 +55,10 @@ export function CreateProjectForm({
         body: JSON.stringify(validation.data)
       });
       reloadProjects();
-      showToast({ tone: "success", message: "Project created." });
+      showToast({ tone: "success", message: t("Project created.") });
       onCreated(result.id);
     } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : "The project could not be created. Try again.";
+      const message = cause instanceof ApiError ? cause.message : t("The project could not be created. Try again.");
       setError(message);
       showToast({ tone: "error", message });
     } finally {
@@ -87,7 +88,7 @@ export function CreateProjectForm({
         aria-describedby={error ? "create-project-error" : undefined}
       >
           <div className="field field--wide">
-            <label htmlFor="project-name">Project Name</label>
+            <label htmlFor="project-name">{t("Project Name")}</label>
             <input
               id="project-name"
               value={form.name}
@@ -95,13 +96,13 @@ export function CreateProjectForm({
               minLength={2}
               maxLength={120}
               required
-              placeholder="Production web"
+              placeholder={t("Production web")}
               data-dialog-initial-focus
             />
-            <span className="field__help">Used for grouping agents and Telegram messages.</span>
+            <span className="field__help">{t("Used for grouping agents and Telegram messages.")}</span>
           </div>
         <button className="button button--primary field--wide" type="submit" disabled={submitting}>
-          {submitting ? <InlineLoader label="Creating Project" /> : "Create Project"}
+          {submitting ? <InlineLoader label={t("Creating Project")} /> : t("Create Project")}
         </button>
       </form>
     </>

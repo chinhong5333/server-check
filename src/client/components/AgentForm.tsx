@@ -11,6 +11,7 @@ import { InlineLoader } from "./Feedback";
 import { useToast } from "./ToastProvider";
 import { WizardSteps, type WizardStep } from "./WizardSteps";
 import { availableFromUtilization, utilizationFromAvailable } from "../lib/format";
+import { t } from "../i18n";
 
 type SettingsSection = "server" | "checks" | "resources" | "timing";
 
@@ -40,8 +41,8 @@ interface AgentFormProps {
 
 const WIZARD_SECTIONS: SettingsSection[] = ["server", "resources", "timing"];
 const STEP_MESSAGES: Record<SettingsSection, string> = {
-  server: "Enter a server name.", checks: "Check the health check selection.",
-  resources: "Check the RAM, storage, and load thresholds.", timing: "Check the alert timing values."
+  get server() { return t("Enter a server name."); }, get checks() { return t("Check the health check selection."); },
+  get resources() { return t("Check the RAM, storage, and load thresholds."); }, get timing() { return t("Check the alert timing values."); }
 };
 
 export function AgentForm({
@@ -79,9 +80,9 @@ export function AgentForm({
   const formRef = useRef<HTMLFormElement>(null);
   const isActive = (key: SettingsSection) => wizard ? WIZARD_SECTIONS[wizardStep] === key : section === key;
   const sections = [
-    ...(checks ? [{ key: "checks", label: "Health Checks", short: "Checks", icon: ShieldCheck }] as const : []),
-    { key: "resources", label: "Resource Thresholds", short: "Resources", icon: Gauge },
-    { key: "timing", label: "Alert Timing", short: "Timing", icon: BellRing }
+    ...(checks ? [{ key: "checks", label: t("Health Checks"), short: t("Checks"), icon: ShieldCheck }] as const : []),
+    { key: "resources", label: t("Resource Thresholds"), short: t("Resources"), icon: Gauge },
+    { key: "timing", label: t("Alert Timing"), short: t("Timing"), icon: BellRing }
   ] as const;
 
   function moveSection(event: KeyboardEvent<HTMLButtonElement>, current: SettingsSection) {
@@ -117,7 +118,7 @@ export function AgentForm({
       const invalid = validation.error.issues.map((issue) => SECTION_BY_FIELD[String(issue.path[0])]).find(Boolean);
       if (invalid && wizard) setWizardStep(WIZARD_SECTIONS.indexOf(invalid));
       else if (invalid && invalid !== "server") setSection(invalid);
-      const message = wizard && invalid ? STEP_MESSAGES[invalid] : "Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram intervals.";
+      const message = wizard && invalid ? STEP_MESSAGES[invalid] : t("Check the server details, utilization thresholds, missing-heartbeat timeout, and Telegram intervals.");
       setValidationError(message);
       showToast({ tone: "error", message });
       return;
@@ -143,10 +144,10 @@ export function AgentForm({
   const message = validationError ?? error;
   const serverDetails = (
     <fieldset className="form-section field--wide">
-          <legend>Server Details</legend>
+          <legend>{t("Server Details")}</legend>
           <div className="form-section__grid">
             <div className="field">
-            <label htmlFor="agent-server-name">Server Name</label>
+            <label htmlFor="agent-server-name">{t("Server Name")}</label>
               <input
                 ref={nameInputRef}
                 data-dialog-initial-focus
@@ -156,7 +157,7 @@ export function AgentForm({
                 placeholder="prod-web-01"
                 required
               />
-              <span className="field__help">Used in incidents, Telegram alerts, and scripts.</span>
+              <span className="field__help">{t("Used in incidents, Telegram alerts, and scripts.")}</span>
             </div>
           </div>
     </fieldset>
@@ -180,10 +181,10 @@ export function AgentForm({
         aria-busy={submitting}
         aria-describedby={message ? "agent-form-error" : undefined}
       >
-        {wizard ? <WizardSteps steps={wizard.steps} current={wizardStep} label="Agent Registration Progress" /> : serverDetails}
+        {wizard ? <WizardSteps steps={wizard.steps} current={wizardStep} label={t("Agent Registration Progress")} /> : serverDetails}
 
         <div className="agent-settings-tabs field--wide">
-          {wizard ? null : <div className="history-tabs__list" role="tablist" aria-label="Agent Settings Sections">
+          {wizard ? null : <div className="history-tabs__list" role="tablist" aria-label={t("Agent Settings Sections")}>
             {sections.map(({ key, label, short, icon: Icon }) => <button key={key} id={`agent-settings-tab-${key}`} className="history-tabs__tab" type="button" role="tab" aria-label={label}
               aria-selected={section === key} aria-controls={`agent-settings-panel-${key}`} tabIndex={section === key ? 0 : -1}
               onClick={() => setSection(key)} onKeyDown={(event) => moveSection(event, key)}>
@@ -198,65 +199,65 @@ export function AgentForm({
             {selectedChecks && checks ? <div {...panelProps("checks")}>
               <AgentScriptChecks value={selectedChecks} onChange={setSelectedChecks}
                 cannotEnable={checks.middlewareUrlSaved ? [] : ["middleware_api"]}
-                help={`Changes apply on the next heartbeat.${checks.middlewareUrlSaved ? "" : " Middleware API needs a saved URL."} Agents on a script older than 1.5.0 show Needs New Script for checks it does not run.`} />
+                help={t("Changes apply on the next heartbeat.{0} Agents on a script older than 1.5.0 show Needs New Script for checks it does not run.", checks.middlewareUrlSaved ? "" : t(" Middleware API needs a saved URL."))} />
             </div> : null}
             <div {...panelProps("resources")}>
           <fieldset className="form-section">
-            <legend>Resource Thresholds</legend>
+            <legend>{t("Resource Thresholds")}</legend>
             <div className="form-section__grid form-section__grid--thresholds">
               <div className="field">
-                <label htmlFor="agent-ram-utilization">RAM Usage Threshold (%)</label>
+                <label htmlFor="agent-ram-utilization">{t("RAM Usage Threshold (%)")}</label>
                 <input id="agent-ram-utilization" inputMode="decimal" value={ramUtilization} onChange={(event) => setRamUtilization(event.target.value)} required />
-                <span className="field__help">Alerts at or above this RAM usage.</span>
+                <span className="field__help">{t("Alerts at or above this RAM usage.")}</span>
               </div>
               <div className="field">
-                <label htmlFor="agent-storage-utilization">Storage Usage Threshold (%)</label>
+                <label htmlFor="agent-storage-utilization">{t("Storage Usage Threshold (%)")}</label>
                 <input id="agent-storage-utilization" inputMode="decimal" value={storageUtilization} onChange={(event) => setStorageUtilization(event.target.value)} required />
-                <span className="field__help">Alerts at or above this storage usage.</span>
+                <span className="field__help">{t("Alerts at or above this storage usage.")}</span>
               </div>
               <div className="field field--wide">
-                <label htmlFor="agent-cpu-load">Load Per Core Threshold</label>
+                <label htmlFor="agent-cpu-load">{t("Load Per Core Threshold")}</label>
                 <input id="agent-cpu-load" inputMode="decimal" value={cpuLoad} onChange={(event) => setCpuLoad(event.target.value)} required />
-                <span className="field__help">Five-minute load divided by logical CPU count.</span>
+                <span className="field__help">{t("Five-minute load divided by logical CPU count.")}</span>
               </div>
             </div>
           </fieldset>
             </div>
             <div {...panelProps("timing")}>
           <fieldset className="form-section">
-            <legend>Alert Timing</legend>
+            <legend>{t("Alert Timing")}</legend>
             <div className="form-section__grid agent-settings-timing">
               <div className="field field--wide middleware-alert-policy">
-                <label htmlFor="agent-middleware-failures">Consecutive Failures Before Alert</label>
+                <label htmlFor="agent-middleware-failures">{t("Consecutive Failures Before Alert")}</label>
                 <select id="agent-middleware-failures" aria-describedby="agent-middleware-failures-help" value={middlewareFailureThreshold} onChange={event => setMiddlewareFailureThreshold(event.target.value)}>
                   {Array.from({length:10},(_,i)=>i+1).map(count=><option key={count} value={count}>{count}</option>)}
                 </select>
-                <span id="agent-middleware-failures-help" className="field__help">Middleware API failures required before alerting. A successful check resets the count.</span>
+                <span id="agent-middleware-failures-help" className="field__help">{t("Middleware API failures required before alerting. A successful check resets the count.")}</span>
               </div>
                 <div className="field">
-                <label htmlFor="agent-heartbeat-interval">Alert If No Heartbeat For</label>
+                <label htmlFor="agent-heartbeat-interval">{t("Alert If No Heartbeat For")}</label>
                   <select id="agent-heartbeat-interval" aria-describedby="agent-heartbeat-help" value={heartbeatInterval} onChange={(event) => setHeartbeatInterval(event.target.value)} required>
                     {[1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60].map((minutes) => (
-                      <option value={minutes * 60} key={minutes}>{minutes} min</option>
+                      <option value={minutes * 60} key={minutes}>{t("{0} min", minutes)}</option>
                     ))}
                   </select>
-                  <span id="agent-heartbeat-help" className="field__help">Queues an alert when no heartbeat arrives within this time. Other health checks are evaluated separately.</span>
+                  <span id="agent-heartbeat-help" className="field__help">{t("Queues an alert when no heartbeat arrives within this time. Other health checks are evaluated separately.")}</span>
                 </div>
                 <div className="field">
-                <label htmlFor="agent-telegram-cooldown">Issue Alert Interval</label>
+                <label htmlFor="agent-telegram-cooldown">{t("Issue Alert Interval")}</label>
                   <select id="agent-telegram-cooldown" aria-describedby="agent-telegram-cooldown-help" value={telegramCooldown} onChange={(event) => setTelegramCooldown(event.target.value)} required>
                     {[5, 10, 15, 30, 60, 120, 360, 720, 1440].map((minutes) => (
                       <option value={minutes * 60} key={minutes}>{minutes < 60 ? `${minutes} min` : `${minutes / 60} hr${minutes === 60 ? "" : "s"}`}</option>
                     ))}
                   </select>
-                  <span id="agent-telegram-cooldown-help" className="field__help">Minimum gap between successfully sent issue alerts.</span>
+                  <span id="agent-telegram-cooldown-help" className="field__help">{t("Minimum gap between successfully sent issue alerts.")}</span>
                 </div>
                 <div className="field">
-                  <label htmlFor="agent-telegram-recovery">Recovery Interval</label>
+                  <label htmlFor="agent-telegram-recovery">{t("Recovery Interval")}</label>
                   <select id="agent-telegram-recovery" aria-describedby="agent-telegram-recovery-help" value={recoveryCooldown} onChange={event => setRecoveryCooldown(event.target.value)} required>
                     {[...new Set([10, 15, 30, 60, 120, 300, Number(recoveryCooldown)])].sort((left, right) => left - right).map(seconds => <option key={seconds} value={seconds}>{seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} sec`}</option>)}
                   </select>
-                  <span id="agent-telegram-recovery-help" className="field__help">Short recovery delay; does not reset the issue interval.</span>
+                  <span id="agent-telegram-recovery-help" className="field__help">{t("Short recovery delay; does not reset the issue interval.")}</span>
                 </div>
               </div>
           </fieldset>
@@ -265,10 +266,10 @@ export function AgentForm({
         </div>
         {wizard ? <div className="agent-settings-actions agent-wizard-actions field--wide">
           {wizardStep > 0 ? <button className="button button--secondary" type="button" disabled={submitting}
-            onClick={() => { setValidationError(null); setWizardStep(wizardStep - 1); }}><ArrowLeft aria-hidden="true" />Back</button> : <span />}
+            onClick={() => { setValidationError(null); setWizardStep(wizardStep - 1); }}><ArrowLeft aria-hidden="true" />{t("Back")}</button> : <span />}
           <button className="button button--primary" type="submit" disabled={submitting} aria-label={submitting ? submittingLabel : undefined}>
             {submitting ? <InlineLoader label={submittingLabel} />
-              : <>{wizardStep < WIZARD_SECTIONS.length - 1 ? `Next: ${wizard.steps[wizardStep + 1].title}` : submitLabel}<ArrowRight aria-hidden="true" /></>}
+              : <>{wizardStep < WIZARD_SECTIONS.length - 1 ? t("Next: {0}", wizard.steps[wizardStep + 1].title) : submitLabel}<ArrowRight aria-hidden="true" /></>}
           </button>
         </div> : <div className="agent-settings-actions field--wide">
           <button className="button button--primary" type="submit" disabled={submitting} aria-label={submitting ? submittingLabel : undefined}>

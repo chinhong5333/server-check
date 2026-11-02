@@ -1,13 +1,14 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { applyTheme, savedTheme, THEME_STORAGE_KEY, type Theme } from "../lib/theme";
+import { t } from "../i18n";
 
 type ThemePreference = Theme | "system";
 
 const options = [
-  { value: "light", label: "Light Theme", Icon: Sun },
-  { value: "dark", label: "Dark Theme", Icon: Moon },
-  { value: "system", label: "System Theme", Icon: Monitor }
+  { value: "light", get label() { return t("Light Theme"); }, Icon: Sun },
+  { value: "dark", get label() { return t("Dark Theme"); }, Icon: Moon },
+  { value: "system", get label() { return t("System Theme"); }, Icon: Monitor }
 ] as const;
 
 function systemPrefersDark(): boolean {
@@ -50,7 +51,7 @@ export function ThemeToggle() {
   }
 
   return (
-    <div className="theme-toggle" role="group" aria-label="Theme">
+    <div className="theme-toggle" role="group" aria-label={t("Theme")}>
       {options.map(({ value, label, Icon }) => (
         <button key={value} className="theme-toggle__option" type="button" aria-label={label} title={label}
           aria-pressed={preference === value} onClick={() => choose(value)}>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent as ReactDragEv
 import type { ProjectSummary } from "../../shared/contracts";
 import { apiFetch } from "../api";
 import { ProjectCard } from "./ProjectCard";
+import { t } from "../i18n";
 
 export function ProjectSortMode({ projects, onClose, onSaved }: {
   projects: ProjectSummary[]; onClose: () => void; onSaved: () => void;
@@ -64,7 +65,7 @@ export function ProjectSortMode({ projects, onClose, onSaved }: {
     const from = next.findIndex((project) => project.id === id);
     if (from < 0 || from === target) return;
     const [item] = next.splice(from, 1); next.splice(target, 0, item);
-    setDraft(next); setAnnouncement(`${item.name} moved to position ${target + 1}.`);
+    setDraft(next); setAnnouncement(t("{0} moved to position {1}.", item.name, target + 1));
   }
   async function save() {
     setBusy(true); setError("");
@@ -73,13 +74,13 @@ export function ProjectSortMode({ projects, onClose, onSaved }: {
         ordered_ids: draft.map((p) => p.id), expected_ids: projects.map((p) => p.id)
       }) });
       onSaved();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save project order."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : t("Could not save project order.")); }
     finally { setBusy(false); }
   }
-  return <div className="project-sort" role="region" aria-label="Sort Projects">
-    <div className="section-heading project-sort-toolbar"><div><p>Drag the cards to change their order, then save.</p></div>
-      <div className="project-sort__actions"><button type="button" className="button button--secondary" disabled={busy} onClick={onClose}>Cancel</button>
-        <button type="button" className="button button--primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving Order…" : "Save Order"}</button></div>
+  return <div className="project-sort" role="region" aria-label={t("Sort Projects")}>
+    <div className="section-heading project-sort-toolbar"><div><p>{t("Drag the cards to change their order, then save.")}</p></div>
+      <div className="project-sort__actions"><button type="button" className="button button--secondary" disabled={busy} onClick={onClose}>{t("Cancel")}</button>
+        <button type="button" className="button button--primary" disabled={busy} onClick={() => void save()}>{busy ? t("Saving Order…") : t("Save Order")}</button></div>
     </div>
     {error && <p className="quiet-message field__help--error" role="alert">{error}</p>}
     <span className="visually-hidden" role="status">{announcement}</span>

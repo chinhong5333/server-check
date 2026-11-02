@@ -10,6 +10,7 @@ import { HoldConfirmButton } from "./HoldConfirmButton";
 import { ModalDialog } from "./ModalDialog";
 import { useToast } from "./ToastProvider";
 import { useProjects } from "../projects/ProjectProvider";
+import { t } from "../i18n";
 
 function agentCountFor(project: ProjectSummary): number {
   return project.healthy_agents + project.new_agents + project.warning_agents + project.critical_agents + project.stale_agents;
@@ -52,7 +53,7 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
     if (!projectPendingRename) return;
     const validation = updateProjectBodySchema.safeParse({ name: renameName });
     if (!validation.success) {
-      setRenameError("Enter a project name between 2 and 120 characters.");
+      setRenameError(t("Enter a project name between 2 and 120 characters."));
       return;
     }
 
@@ -66,9 +67,9 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
       setProjectPendingRename(null);
       setRenameName("");
       reloadProjects();
-      showToast({ tone: "success", message: "Project name updated." });
+      showToast({ tone: "success", message: t("Project name updated.") });
     } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : "The project name could not be updated.";
+      const message = cause instanceof ApiError ? cause.message : t("The project name could not be updated.");
       setRenameError(message);
       showToast({ tone: "error", message });
     } finally {
@@ -114,10 +115,10 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
       navigate("/projects", { replace: true });
       showToast({
         tone: "success",
-        message: "Project deleted. Agent access revoked."
+        message: t("Project deleted. Agent access revoked.")
       });
     } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : "The project could not be deleted.";
+      const message = cause instanceof ApiError ? cause.message : t("The project could not be deleted.");
       setDeleteError(message);
       showToast({ tone: "error", message });
     } finally {
@@ -130,14 +131,14 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
     <div className="project-management-actions">
       <button className="button button--secondary" type="button"
         hidden={!hasPermission(user, "edit_project_settings")} aria-haspopup="dialog" aria-controls="rename-project-dialog"
-        aria-label="Rename Project" onClick={(event) => openRenameDialog(project, event)}>
-        <Settings aria-hidden="true" /> Rename
+        aria-label={t("Rename Project")} onClick={(event) => openRenameDialog(project, event)}>
+        <Settings aria-hidden="true" />{" "}{t("Rename")}
       </button>
       {children}
       <button className="button button--secondary project-delete-action" type="button"
         hidden={!hasPermission(user, "delete_projects")} aria-haspopup="dialog" aria-controls="delete-project-dialog"
-        aria-label="Delete Project" onClick={(event) => openDeleteDialog(project, event)}>
-        <Trash2 aria-hidden="true" /> Delete
+        aria-label={t("Delete Project")} onClick={(event) => openDeleteDialog(project, event)}>
+        <Trash2 aria-hidden="true" />{" "}{t("Delete")}
       </button>
       <ModalDialog
         id="rename-project-dialog"
@@ -152,13 +153,13 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
           <>
             <div className="section-heading">
               <div>
-                <h2 id="rename-project-title">Rename Project</h2>
-                <p id="rename-project-description">Change the project name shown throughout the admin panel.</p>
+                <h2 id="rename-project-title">{t("Rename Project")}</h2>
+                <p id="rename-project-description">{t("Change the project name shown throughout the admin panel.")}</p>
               </div>
               <button
                 className="icon-button"
                 type="button"
-                aria-label="Close Project Rename"
+                aria-label={t("Close Project Rename")}
                 disabled={renaming}
                 onClick={closeRenameDialog}
               >
@@ -167,7 +168,7 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
             </div>
             <form className="form-grid" onSubmit={(event) => void renameProject(event)}>
               <div className="field field--wide">
-                <label htmlFor="project-rename-name">Project Name</label>
+                <label htmlFor="project-rename-name">{t("Project Name")}</label>
                 <input
                   id="project-rename-name"
                   data-dialog-initial-focus
@@ -197,7 +198,7 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
                   !updateProjectBodySchema.safeParse({ name: renameName }).success
                 }
               >
-                {renaming ? <InlineLoader label="Updating Project Name" /> : "Save Name"}
+                {renaming ? <InlineLoader label={t("Updating Project Name")} /> : t("Save Name")}
               </button>
             </form>
           </>
@@ -219,20 +220,20 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
               <div>
                 <h2 id="delete-project-title">
                   {deleteStep === 1
-                    ? `Delete ${projectPendingDelete.name}?`
-                    : "Final Confirmation"}
+                    ? t("Delete {0}?", projectPendingDelete.name)
+                    : t("Final Confirmation")}
                 </h2>
                 <p id="delete-project-description">
                   {deleteStep === 1
-                    ? `Confirmation 1 of 2. This revokes ${agentCountFor(projectPendingDelete)} registered agents, resolves open incidents, and cancels pending alerts. History is retained.`
-                    : `Confirmation 2 of 2. Type ${projectPendingDelete.name} exactly to enable deletion.`}
+                    ? t("Confirmation 1 of 2. This revokes {0} registered agents, resolves open incidents, and cancels pending alerts. History is retained.", agentCountFor(projectPendingDelete))
+                    : t("Confirmation 2 of 2. Type {0} exactly to enable deletion.", projectPendingDelete.name)}
                 </p>
               </div>
               <button
                 data-dialog-initial-focus={deleteStep === 1 ? true : undefined}
                 className="icon-button"
                 type="button"
-                aria-label="Close Project Deletion"
+                aria-label={t("Close Project Deletion")}
                 disabled={deleting}
                 onClick={closeDeleteDialog}
               >
@@ -247,14 +248,14 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
                   type="button"
                   onClick={() => setDeleteStep(2)}
                 >
-                  Continue Deletion
+                  {t("Continue Deletion")}
                 </button>
               </div>
             ) : (
               <>
                 <div className="field">
                   <label htmlFor="project-delete-confirmation-name">
-                    Project Name
+                    {t("Project Name")}
                   </label>
                   <input
                     id="project-delete-confirmation-name"
@@ -268,7 +269,7 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
                     aria-describedby="project-delete-confirmation-help"
                   />
                   <span id="project-delete-confirmation-help" className="field__help">
-                    Enter {projectPendingDelete.name} exactly.
+                    {t("Enter {0} exactly.", projectPendingDelete.name)}
                   </span>
                 </div>
                 {deleteError ? (
@@ -278,9 +279,9 @@ export function ProjectActions({ project, children }: { project: ProjectSummary;
                 ) : null}
                 <div className="action-row">
                   <HoldConfirmButton
-                    label="Delete Project"
+                    label={t("Delete Project")}
                     busy={deleting}
-                    busyLabel="Deleting Project"
+                    busyLabel={t("Deleting Project")}
                     disabled={confirmationName !== projectPendingDelete.name}
                     onConfirm={() => void deleteProject()}
                   />

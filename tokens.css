@@ -2,9 +2,9 @@
 :root {
   color-scheme: light;
 
-  --font-display: "Plus Jakarta Sans", "Segoe UI", sans-serif;
-  --font-body: "Plus Jakarta Sans", "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", "Cascadia Mono", monospace;
+  --font-display: "Plus Jakarta Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-body: "Plus Jakarta Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", monospace;
 
   --color-paper: #F3F5F9;
   --color-dot: rgb(205 211 220 / 0.8);

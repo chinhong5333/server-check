@@ -11,6 +11,7 @@ import { hasPermission } from "../../shared/permissions";
 import { useAuth } from "../auth/AuthProvider";
 import { apiFetch } from "../api";
 import { FAST_REFRESH_INTERVAL_MS, useApiResource } from "../hooks/useApiResource";
+import { t } from "../i18n";
 
 interface ProjectContextValue {
   projects: ProjectSummary[];

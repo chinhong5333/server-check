@@ -1,9 +1,10 @@
 import { AlertCircle, Inbox, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
+import { t } from "../i18n";
 
 export function PageSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="skeleton-stack" aria-busy="true" aria-label="Loading Content">
+    <div className="skeleton-stack" aria-busy="true" aria-label={t("Loading Content")}>
       <div className="skeleton skeleton--title" />
       {Array.from({ length: rows }).map((_, index) => (
         <div className="skeleton skeleton--row" key={index} />
@@ -47,7 +48,7 @@ export function ErrorState({
       <p>{message}</p>
       {onRetry ? (
         <button className="button button--secondary" type="button" onClick={onRetry}>
-          Try Again
+          {t("Try Again")}
         </button>
       ) : null}
     </section>

@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -27,6 +28,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     ...init,
     credentials: "same-origin",
     headers
+  }).catch((cause: unknown) => {
+    if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
+    throw new ApiError(0, "network_error", t("Could not reach the server. Check your connection and try again."));
   });
 
   if (response.status === 204) return undefined as T;
@@ -40,7 +44,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     throw new ApiError(
       response.status,
       error?.code ?? "request_failed",
-      error?.message ?? `Request failed with HTTP ${response.status}.`,
+      error?.message ? t(error.message) : t("Request failed with HTTP {0}.", response.status),
       error?.details
     );
   }

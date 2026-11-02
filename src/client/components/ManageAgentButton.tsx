@@ -5,6 +5,7 @@ import { apiFetch } from "../api";
 import { AgentForm } from "./AgentForm";
 import { ModalDialog } from "./ModalDialog";
 import { ErrorState, PageSkeleton } from "./Feedback";
+import { t } from "../i18n";
 
 export function ManageAgentButton({ agentId, projectId, agentName, onSaved }: {
   agentId: string; projectId: string; agentName: string; onSaved: () => void;
@@ -24,10 +25,10 @@ export function ManageAgentButton({ agentId, projectId, agentName, onSaved }: {
     void apiFetch<AgentSummary[]>(base, { signal: controller.signal }).then((agents) => {
       if (controller.signal.aborted) return;
       const found = agents.find((agent) => agent.id === agentId);
-      if (!found) throw new Error("The agent is no longer available.");
+      if (!found) throw new Error(t("The agent is no longer available."));
       setSettings(found);
     }).catch((cause) => {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load agent settings.");
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : t("Could not load agent settings."));
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [open, base, agentId, version]);
@@ -38,20 +39,20 @@ export function ManageAgentButton({ agentId, projectId, agentName, onSaved }: {
     try {
       await apiFetch<void>(`${base}/${encodeURIComponent(agentId)}`, { method: "PUT", body: JSON.stringify(values) });
       setOpen(false); onSaved();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save agent settings."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : t("Could not save agent settings.")); }
     finally { setSaving(false); }
   }
   return <>
     <button ref={trigger} className="button button--secondary" type="button" aria-haspopup="dialog"
-      aria-controls="manage-agent-dialog" onClick={() => { setSettings(null); setError(null); setLoading(true); setOpen(true); }}><Settings aria-hidden="true" />Manage</button>
+      aria-controls="manage-agent-dialog" onClick={() => { setSettings(null); setError(null); setLoading(true); setOpen(true); }}><Settings aria-hidden="true" />{t("Manage")}</button>
     <ModalDialog id="manage-agent-dialog" open={open} labelledBy="manage-agent-title" dialogClassName="agent-dialog--agent-form"
       surfaceClassName="agent-dialog__surface form-surface" restoreFocusTo={trigger.current}>
-      <div className="section-heading"><h2 id="manage-agent-title">Manage {agentName}</h2>
-        <button data-dialog-initial-focus className="icon-button" type="button" aria-label="Close Agent Settings" disabled={saving} onClick={() => setOpen(false)}><X aria-hidden="true" /></button></div>
+      <div className="section-heading"><h2 id="manage-agent-title">{t("Manage {0}", agentName)}</h2>
+        <button data-dialog-initial-focus className="icon-button" type="button" aria-label={t("Close Agent Settings")} disabled={saving} onClick={() => setOpen(false)}><X aria-hidden="true" /></button></div>
       {loading ? <PageSkeleton rows={3} /> : settings ? <AgentForm key={settings.id} initialValues={settings}
         checks={{ initial: settings.checks ?? { ...DEFAULT_AGENT_CHECKS }, middlewareUrlSaved: settings.health_api_url !== null }}
-        submitting={saving} submitLabel="Save Changes" submittingLabel="Saving Changes" error={error} onSubmit={(values) => void save(values)} />
-        : error ? <ErrorState title="Couldn't Load Agent Settings" message={error} onRetry={() => setVersion((value) => value + 1)} /> : null}
+        submitting={saving} submitLabel={t("Save Changes")} submittingLabel={t("Saving Changes")} error={error} onSubmit={(values) => void save(values)} />
+        : error ? <ErrorState title={t("Couldn't Load Agent Settings")} message={error} onRetry={() => setVersion((value) => value + 1)} /> : null}
     </ModalDialog>
   </>;
 }

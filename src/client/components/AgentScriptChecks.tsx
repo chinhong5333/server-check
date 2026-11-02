@@ -1,4 +1,5 @@
 import type { AgentChecks } from "../../shared/contracts";
+import { t } from "../i18n";
 
 export function AgentScriptChecks({ value, onChange, disabled = false, help, cannotEnable = [] }: {
   value: AgentChecks; onChange: (value: AgentChecks) => void; disabled?: boolean;
@@ -9,12 +10,12 @@ export function AgentScriptChecks({ value, onChange, disabled = false, help, can
 }) {
   return (
     <fieldset className="form-section field--wide" disabled={disabled}>
-      <legend>Health Checks</legend>
+      <legend>{t("Health Checks")}</legend>
       <div className="script-check-options">
         {([
-          ["apache", "Apache", "XAMPP/LAMPP or systemd service."],
-          ["nginx", "Nginx", "Systemd service or local process."],
-          ["middleware_api", "Middleware API", "HTTP 200 from your health endpoint."]
+          ["apache", t("Apache"), t("XAMPP/LAMPP or systemd service.")],
+          ["nginx", t("Nginx"), t("Systemd service or local process.")],
+          ["middleware_api", t("Middleware API"), t("HTTP 200 from your health endpoint.")]
         ] as const).map(([key, label, description]) => (
           <label className="script-check-option" key={key}>
             <input type="checkbox" checked={value[key]} disabled={!value[key] && cannotEnable.includes(key)}
@@ -23,7 +24,7 @@ export function AgentScriptChecks({ value, onChange, disabled = false, help, can
           </label>
         ))}
       </div>
-      <p className="field__help">{help ?? "Unchecked services are not monitored. You can change this later in Manage without a new script."}</p>
+      <p className="field__help">{help ?? t("Unchecked services are not monitored. You can change this later in Manage without a new script.")}</p>
     </fieldset>
   );
 }

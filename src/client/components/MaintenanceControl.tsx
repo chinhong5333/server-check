@@ -7,6 +7,7 @@ import { useApiResource, FAST_REFRESH_INTERVAL_MS } from "../hooks/useApiResourc
 import { formatDateTime } from "../lib/format";
 import { InlineLoader } from "./Feedback";
 import { ModalDialog } from "./ModalDialog";
+import { t } from "../i18n";
 
 function localDateTime(at: number): string {
   const date = new Date(at);
@@ -41,9 +42,9 @@ export function MaintenanceControl({ endpoint, scope, canManage, onChanged, onAc
   function validateFields() {
     const startsAt = mode === "now" ? null : new Date(start).getTime(), endsAt = new Date(end).getTime();
     const errors: Record<string, string> = {};
-    if (mode !== "now" && (!Number.isFinite(startsAt) || startsAt! < Date.now() - 5000 || startsAt! > Date.now() + 90 * 86400000)) errors.start = "Choose a future start within 90 days.";
-    if (!Number.isFinite(endsAt) || endsAt <= Math.max(Date.now(), startsAt ?? Date.now())) errors.end = "Choose an end after the start.";
-    if (reason.trim().length < 3 || reason.trim().length > 500) errors.reason = "Use a reason with 3–500 characters.";
+    if (mode !== "now" && (!Number.isFinite(startsAt) || startsAt! < Date.now() - 5000 || startsAt! > Date.now() + 90 * 86400000)) errors.start = t("Choose a future start within 90 days.");
+    if (!Number.isFinite(endsAt) || endsAt <= Math.max(Date.now(), startsAt ?? Date.now())) errors.end = t("Choose an end after the start.");
+    if (reason.trim().length < 3 || reason.trim().length > 500) errors.reason = t("Use a reason with 3–500 characters.");
     return errors;
   }
   function validateField(field: string) { setFieldErrors(previous => ({ ...previous, [field]: validateFields()[field] ?? "" })); }
@@ -62,7 +63,7 @@ export function MaintenanceControl({ endpoint, scope, canManage, onChanged, onAc
     try {
       await apiFetch(endpoint, { method: "POST", body: JSON.stringify(body) });
       setOpen(false); resource.reload(); onChanged?.();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save maintenance. Try again."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : t("Could not save maintenance. Try again.")); }
     finally { setBusy(false); }
   }
   async function endWindow() {
@@ -71,58 +72,58 @@ export function MaintenanceControl({ endpoint, scope, canManage, onChanged, onAc
     try {
       await apiFetch(`${endpoint}/${encodeURIComponent(state.own.id)}`, { method: "DELETE" });
       resource.reload(); onChanged?.();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not end maintenance. Try again."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : t("Could not end maintenance. Try again.")); }
     finally { setBusy(false); }
   }
   if (!canManage && !windows.length && resource.status !== "error") return null;
   const scheduleAction = canManage && !state?.own ? <button ref={trigger} type="button" className={`button button--secondary${scope === "All Projects" ? " maintenance-mode-button" : ""}`} disabled={!state || busy}
-    aria-haspopup="dialog" aria-controls={`${id}-dialog`} aria-label={scope === "All Projects" ? undefined : "Schedule Maintenance"} onClick={showSchedule}><CalendarClock aria-hidden="true" />{scope === "All Projects" ? "Maintenance Mode" : "Maintenance"}</button> : null;
+    aria-haspopup="dialog" aria-controls={`${id}-dialog`} aria-label={scope === "All Projects" ? undefined : t("Schedule Maintenance")} onClick={showSchedule}><CalendarClock aria-hidden="true" />{scope === "All Projects" ? t("Maintenance Mode") : t("Maintenance")}</button> : null;
   const tone = active ? "warning" : windows.length ? "accent" : "new";
   const endAction = canManage && state?.own ? <button type="button" className="button button--secondary" disabled={busy} onClick={() => void endWindow()}>
-    {busy ? <InlineLoader label="Saving Maintenance" /> : state.own.status === "active" ? "End Maintenance Now" : "Cancel Maintenance"}</button> : null;
+    {busy ? <InlineLoader label={t("Saving Maintenance")} /> : state.own.status === "active" ? t("End Maintenance Now") : t("Cancel Maintenance")}</button> : null;
   const panelActions = !detailsTargetId ? scheduleAction : null;
-  const panel = !detailsTargetId || windows.length > 0 ? <section className={`maintenance-control${active ? " maintenance-control--active" : windows.length ? " maintenance-control--scheduled" : ""}`} aria-label={`${scope} Maintenance`}>
+  const panel = !detailsTargetId || windows.length > 0 ? <section className={`maintenance-control${active ? " maintenance-control--active" : windows.length ? " maintenance-control--scheduled" : ""}`} aria-label={t("{0} Maintenance", t(scope))}>
     <span className={`status-tile status-tile--${tone}`} aria-hidden="true"><Wrench /></span>
     <div className="maintenance-control__body">
       <div className="maintenance-control__heading">
-        <strong>{scope} Maintenance</strong>
-        {resource.status === "loading" ? <span role="status"><InlineLoader label="Loading Maintenance" /></span> : null}
+        <strong>{t("{0} Maintenance", t(scope))}</strong>
+        {resource.status === "loading" ? <span role="status"><InlineLoader label={t("Loading Maintenance")} /></span> : null}
       </div>
       {windows.map(window => <div className="maintenance-window" key={window.id}>
         <strong className="maintenance-window__reason">{window.reason}</strong>
         <p className="maintenance-window__meta">
-          <span className={`maintenance-window__state maintenance-window__state--${window.status}`}>{window.status === "active" ? "Active" : "Scheduled"}</span>
-          {window.scope === "project" && scope === "Agent" ? <span>Project-Wide</span> : null}
-          <span><Clock3 aria-hidden="true" />{window.status === "scheduled" ? `Starts ${formatDateTime(window.starts_at)}, until ` : "Until "}{formatDateTime(window.ends_at)}</span>
-          {window.status === "active" ? <span><BellOff aria-hidden="true" />Telegram Muted</span> : null}
+          <span className={`maintenance-window__state maintenance-window__state--${window.status}`}>{window.status === "active" ? t("Active") : t("Scheduled")}</span>
+          {window.scope === "project" && scope === "Agent" ? <span>{t("Project-Wide")}</span> : null}
+          <span><Clock3 aria-hidden="true" />{window.status === "scheduled" ? t("Starts {0}, until", formatDateTime(window.starts_at)) : t("Until")}{" "}{formatDateTime(window.ends_at)}</span>
+          {window.status === "active" ? <span><BellOff aria-hidden="true" />{t("Telegram Muted")}</span> : null}
         </p>
       </div>)}
-      {state && !windows.length ? <p className="field__help maintenance-control__note"><Info aria-hidden="true" />Monitoring continues. Telegram is muted only during an active window.</p> : null}
-      {active ? <p className="maintenance-control__aside">Incidents and metrics keep recording. Alerts muted now are not sent later.</p> : null}
-      {resource.status === "error" ? <div className="maintenance-control__error" role="alert"><p>Could not load maintenance. Try again.</p><button className="button button--secondary" type="button" onClick={resource.reload}>Retry</button></div> : null}
+      {state && !windows.length ? <p className="field__help maintenance-control__note"><Info aria-hidden="true" />{t("Monitoring continues. Telegram is muted only during an active window.")}</p> : null}
+      {active ? <p className="maintenance-control__aside">{t("Incidents and metrics keep recording. Alerts muted now are not sent later.")}</p> : null}
+      {resource.status === "error" ? <div className="maintenance-control__error" role="alert"><p>{t("Could not load maintenance. Try again.")}</p><button className="button button--secondary" type="button" onClick={resource.reload}>{t("Retry")}</button></div> : null}
       {!open && error ? <p className="field__help field__help--error" role="alert">{error}</p> : null}
     </div>
     {panelActions || endAction ? <div className="maintenance-control__actions">{panelActions}{endAction}</div> : null}
   </section> : null;
   return <>
-    {detailsTargetId ? <>{scheduleAction}{resource.status === "error" && !windows.length && canManage ? <button type="button" className="button button--secondary" onClick={resource.reload}>Retry Maintenance</button> : null}</> : null}
+    {detailsTargetId ? <>{scheduleAction}{resource.status === "error" && !windows.length && canManage ? <button type="button" className="button button--secondary" onClick={resource.reload}>{t("Retry Maintenance")}</button> : null}</> : null}
     {detailsTargetId ? detailsTarget && panel ? createPortal(panel, detailsTarget) : null : panel}
     <ModalDialog id={`${id}-dialog`} open={open} labelledBy={`${id}-title`} restoreFocusTo={trigger.current}
       onDismiss={close} dialogClassName="agent-dialog--maintenance" surfaceClassName="agent-dialog__surface form-surface">
-      <div className="section-heading"><div><h2 id={`${id}-title`}>Schedule {scope} Maintenance</h2><p>Mute Telegram without stopping monitoring.</p></div>
-        <button className="icon-button" type="button" aria-label="Close Maintenance" disabled={busy} onClick={close}><X aria-hidden="true" /></button></div>
+      <div className="section-heading"><div><h2 id={`${id}-title`}>{t("Schedule {0} Maintenance", t(scope))}</h2><p>{t("Mute Telegram without stopping monitoring.")}</p></div>
+        <button className="icon-button" type="button" aria-label={t("Close Maintenance")} disabled={busy} onClick={close}><X aria-hidden="true" /></button></div>
       <form className="form-grid maintenance-form" onSubmit={event => void submit(event)} noValidate aria-busy={busy}>
-        <label className="field">Start<select data-dialog-initial-focus value={mode} disabled={busy} onChange={event => setMode(event.target.value)}><option value="now">Start Now</option><option value="scheduled">Scheduled Start</option></select></label>
+        <label className="field">{t("Start")}<select data-dialog-initial-focus value={mode} disabled={busy} onChange={event => setMode(event.target.value)}><option value="now">{t("Start Now")}</option><option value="scheduled">{t("Scheduled Start")}</option></select></label>
         <div className="maintenance-time-fields">
-          {mode === "scheduled" ? <div className="field"><label htmlFor={`${id}-start`}>Start Time</label><input id={`${id}-start`} type="datetime-local" required value={start} disabled={busy} onChange={event => setStart(event.target.value)} onBlur={() => validateField("start")} aria-invalid={fieldErrors.start ? "true" : undefined} aria-describedby={`${id}-start-help`} />
-            <span id={`${id}-start-help`} className={`field__help${fieldErrors.start ? " field__help--error" : ""}`}>{fieldErrors.start ?? "Scheduled within the next 90 days."}</span></div> : null}
-          <div className="field"><label htmlFor={`${id}-end`}>End Time</label><input id={`${id}-end`} type="datetime-local" required value={end} disabled={busy} onChange={event => setEnd(event.target.value)} onBlur={() => validateField("end")} aria-invalid={fieldErrors.end ? "true" : undefined} aria-describedby={`${id}-end-help`} />
-            <span id={`${id}-end-help`} className={`field__help${fieldErrors.end ? " field__help--error" : ""}`}>{fieldErrors.end ?? `Times use ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`}</span></div>
+          {mode === "scheduled" ? <div className="field"><label htmlFor={`${id}-start`}>{t("Start Time")}</label><input id={`${id}-start`} type="datetime-local" required value={start} disabled={busy} onChange={event => setStart(event.target.value)} onBlur={() => validateField("start")} aria-invalid={fieldErrors.start ? "true" : undefined} aria-describedby={`${id}-start-help`} />
+            <span id={`${id}-start-help`} className={`field__help${fieldErrors.start ? " field__help--error" : ""}`}>{fieldErrors.start ?? t("Scheduled within the next 90 days.")}</span></div> : null}
+          <div className="field"><label htmlFor={`${id}-end`}>{t("End Time")}</label><input id={`${id}-end`} type="datetime-local" required value={end} disabled={busy} onChange={event => setEnd(event.target.value)} onBlur={() => validateField("end")} aria-invalid={fieldErrors.end ? "true" : undefined} aria-describedby={`${id}-end-help`} />
+            <span id={`${id}-end-help`} className={`field__help${fieldErrors.end ? " field__help--error" : ""}`}>{fieldErrors.end ?? t("Times use {0}.", Intl.DateTimeFormat().resolvedOptions().timeZone)}</span></div>
         </div>
-        <div className="field"><label htmlFor={`${id}-reason`}>Reason</label><input id={`${id}-reason`} value={reason} disabled={busy} required maxLength={500} autoComplete="off" onChange={event => setReason(event.target.value)} onBlur={() => validateField("reason")} aria-invalid={fieldErrors.reason ? "true" : undefined} aria-describedby={`${id}-reason-help`} placeholder="Scheduled server update" />
-          <span id={`${id}-reason-help`} className={`field__help${fieldErrors.reason ? " field__help--error" : ""}`}>{fieldErrors.reason ?? "Visible to team members and recorded in the audit log."}</span></div>
+        <div className="field"><label htmlFor={`${id}-reason`}>{t("Reason")}</label><input id={`${id}-reason`} value={reason} disabled={busy} required maxLength={500} autoComplete="off" onChange={event => setReason(event.target.value)} onBlur={() => validateField("reason")} aria-invalid={fieldErrors.reason ? "true" : undefined} aria-describedby={`${id}-reason-help`} placeholder={t("Scheduled server update")} />
+          <span id={`${id}-reason-help`} className={`field__help${fieldErrors.reason ? " field__help--error" : ""}`}>{fieldErrors.reason ?? t("Visible to team members and recorded in the audit log.")}</span></div>
         {error ? <p className="field__help field__help--error" role="alert">{error}</p> : null}
-        <div className="action-row"><button className="button button--secondary" type="button" disabled={busy} onClick={close}>Cancel</button><button className="button button--primary" type="submit" disabled={busy}>{busy ? <InlineLoader label="Saving Maintenance" /> : "Save Maintenance"}</button></div>
+        <div className="action-row"><button className="button button--secondary" type="button" disabled={busy} onClick={close}>{t("Cancel")}</button><button className="button button--primary" type="submit" disabled={busy}>{busy ? <InlineLoader label={t("Saving Maintenance")} /> : t("Save Maintenance")}</button></div>
       </form>
     </ModalDialog>
   </>;

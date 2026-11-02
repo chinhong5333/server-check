@@ -1,5 +1,6 @@
 import type { AgentSummary } from "../../shared/contracts";
 import { StatusBadge } from "./StatusBadge";
+import { t } from "../i18n";
 
 const statusFallback: Record<AgentSummary["status"], string | null> = {
   healthy: null,
@@ -21,6 +22,12 @@ export function agentStateCause(
   return statusFallback[status];
 }
 
+/** The cause in the page language. agentStateCause stays in English because status logic compares it. */
+export function agentStateCauseText(status: AgentSummary["status"], probableCause: string | null): string | null {
+  const cause = agentStateCause(status, probableCause);
+  return cause === null ? null : t(cause);
+}
+
 export function AgentStateDisplay({
   status,
   probableCause
@@ -32,7 +39,7 @@ export function AgentStateDisplay({
   return (
     <div className="agent-state-stack">
       <StatusBadge status={status} />
-      {cause ? <small>{cause}</small> : null}
+      {cause ? <small>{t(cause)}</small> : null}
     </div>
   );
 }

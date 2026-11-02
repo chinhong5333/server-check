@@ -3,18 +3,19 @@ import type { AgentChecks, AgentHealthSnapshot, DatabaseHealthSnapshot } from ".
 import { formatDateTime, formatLatency } from "../lib/format";
 import { statusClock } from "../lib/status-clock";
 import { AgentDatabaseHealth } from "./AgentDatabaseHealth";
+import { t } from "../i18n";
 
 export function checkPresentation(enabled: boolean, status: string | undefined, stale: boolean) {
-  if (!enabled) return { label: "Not Monitored", tone: "new", Icon: CircleDashed };
-  if (!status) return { label: "Awaiting Data", tone: "new", Icon: CircleDashed };
+  if (!enabled) return { label: t("Not Monitored"), tone: "new", Icon: CircleDashed };
+  if (!status) return { label: t("Awaiting Data"), tone: "new", Icon: CircleDashed };
   // Turned on after the script was generated: the installed script reports it as not run.
-  if (status === "disabled") return { label: "Needs New Script", tone: "warning", Icon: CircleAlert };
+  if (status === "disabled") return { label: t("Needs New Script"), tone: "warning", Icon: CircleAlert };
   // Agent 1.5.0+ found no unit, process, or binary for this service on the server.
-  if (status === "not_installed") return { label: "Not Installed", tone: "warning", Icon: CircleSlash };
-  if (stale) return { label: "Stale", tone: "stale", Icon: Clock3 };
-  if (status === "active" || status === "healthy") return { label: "Healthy", tone: "healthy", Icon: CircleCheck };
-  if (status === "inactive" || status === "unhealthy") return { label: "Error", tone: "critical", Icon: CircleX };
-  return { label: "Unknown", tone: "warning", Icon: CircleHelp };
+  if (status === "not_installed") return { label: t("Not Installed"), tone: "warning", Icon: CircleSlash };
+  if (stale) return { label: t("Stale"), tone: "stale", Icon: Clock3 };
+  if (status === "active" || status === "healthy") return { label: t("Healthy"), tone: "healthy", Icon: CircleCheck };
+  if (status === "inactive" || status === "unhealthy") return { label: t("Error"), tone: "critical", Icon: CircleX };
+  return { label: t("Unknown"), tone: "warning", Icon: CircleHelp };
 }
 
 export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale, fetchedAt }: {
@@ -28,14 +29,14 @@ export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, las
     || asOf >= lastHeartbeatAt + intervalSeconds * 1000;
   return (
     <section className="agent-health-checks" aria-labelledby="agent-health-checks-title">
-      <div className="section-heading"><div><h2 id="agent-health-checks-title">Health Checks</h2>
-        <p>Web servers report local service status. Middleware reports HTTP responsiveness.</p></div></div>
+      <div className="section-heading"><div><h2 id="agent-health-checks-title">{t("Health Checks")}</h2>
+        <p>{t("Web servers report local service status. Middleware reports HTTP responsiveness.")}</p></div></div>
       <div className="agent-health-checks__grid">
         {(["apache", "nginx", "middleware_api"] as const).map((key) => {
           const result = snapshot?.[key];
           const status = result && ("status" in result ? result.status : result.outcome);
           const view = checkPresentation(checks[key], status, expired);
-          const title = key === "apache" ? "Apache Web Server" : key === "nginx" ? "Nginx Web Server" : "Middleware API";
+          const title = key === "apache" ? t("Apache Web Server") : key === "nginx" ? t("Nginx Web Server") : t("Middleware API");
           const CheckIcon = key === "middleware_api" ? Link2 : Server;
           const api = key === "middleware_api" ? snapshot?.middleware_api : null;
           return <div className="agent-health-check" key={key} aria-label={title}>
@@ -45,17 +46,17 @@ export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, las
             </div>
             <span className={`status status--${view.tone}`}><view.Icon aria-hidden="true" />{view.label}</span>
             {checks[key] && result && status !== "disabled" ? <>
-              {api ? <p className="field__help">{expired ? "Last Report: " : ""}
-                {`${api.http_status_code === null ? "No HTTP Response" : `HTTP ${api.http_status_code}`} · ${formatLatency(api.latency_ms)}`}
+              {api ? <p className="field__help">{expired ? `${t("Last Report:")} ` : ""}
+                {`${api.http_status_code === null ? t("No HTTP Response") : `HTTP ${api.http_status_code}`} · ${formatLatency(api.latency_ms)}`}
               </p> : null}
               {api?.error_message || api?.error_code ? <p className="field__help">{api.error_message || api.error_code}</p> : null}
               {lastMetricsAt ? <div className="agent-health-check__updated">
-                <span className="field__help">Last Updated</span>
+                <span className="field__help">{t("Last Updated")}</span>
                 <time className="field__help" dateTime={new Date(lastMetricsAt).toISOString()}>{formatDateTime(lastMetricsAt)}</time>
               </div> : null}
-            </> : <p className="field__help">{!checks[key] ? "Turned off for this agent."
-              : status === "disabled" ? "The installed script does not run this check. Rotate the secret to install one that does."
-              : "Waiting for a report from the installed script."}</p>}
+            </> : <p className="field__help">{!checks[key] ? t("Turned off for this agent.")
+              : status === "disabled" ? t("The installed script does not run this check. Rotate the secret to install one that does.")
+              : t("Waiting for a report from the installed script.")}</p>}
           </div>;
         })}
       </div>

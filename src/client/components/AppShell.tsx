@@ -16,10 +16,12 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useProjects } from "../projects/ProjectProvider";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { LanguageToggle } from "./LanguageToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { SidebarClock } from "./SidebarClock";
 import { formatCount } from "../lib/format";
 import { NotificationGroupBar } from "./NotificationGroup";
+import { t } from "../i18n";
 
 function initials(value: string): string {
   const words = value.split(/[^A-Za-z0-9]+/).filter(Boolean);
@@ -68,7 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
-        Skip To Content
+        {t("Skip To Content")}
       </a>
       <header className="mobile-header">
         <NavLink className="wordmark" to={hasPermission(user, "view_projects") ? "/projects" : "/settings/password"}>
@@ -79,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ref={menuButtonRef}
           className="icon-button"
           type="button"
-          aria-label={menuOpen ? "Close Navigation" : "Open Navigation"}
+          aria-label={menuOpen ? t("Close Navigation") : t("Open Navigation")}
           aria-expanded={menuOpen}
           aria-controls="primary-navigation"
           onClick={() => setMenuOpen((value) => !value)}
@@ -92,7 +94,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ref={sidebarRef}
         id="primary-navigation"
         className={`sidebar${menuOpen ? " sidebar--open" : ""}`}
-        aria-label="Primary"
+        aria-label={t("Primary")}
         aria-hidden={!navigationVisible}
         inert={!navigationVisible}
       >
@@ -100,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="brand-mark" aria-hidden="true"><Activity /></span>
           <span>
             Server Monitor
-            <small>Internal Operations</small>
+            <small>{t("Internal Operations")}</small>
           </span>
         </NavLink>
 
@@ -108,16 +110,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link
             className="project-context-card"
             to="/projects"
-            aria-label={`Switch Project: ${selectedProject.name}`}
-            title="Switch Project"
+            aria-label={t("Switch Project: {0}", selectedProject.name)}
+            title={t("Switch Project")}
             onClick={() => setMenuOpen(false)}
           >
-            <span className="project-context-card__label">Current Project</span>
+            <span className="project-context-card__label">{t("Current Project")}</span>
             <span className="project-context-card__selection">
               <span className="project-context-card__icon" aria-hidden="true">{initials(selectedProject.name)}</span>
               <span className="project-context-card__name">
                 <strong>{selectedProject.name}</strong>
-                <small>{formatCount(projectAgentTotal)} {projectAgentTotal === 1 ? "Agent" : "Agents"}</small>
+                <small>{formatCount(projectAgentTotal)} {projectAgentTotal === 1 ? t("Agent") : t("Agents")}</small>
               </span>
               <ArrowLeftRight aria-hidden="true" />
             </span>
@@ -125,21 +127,21 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
 
         {inSettings ? (
-          <nav className="sidebar__nav" aria-label="Settings Navigation">
-            <span className="sidebar__section-label">Settings</span>
+          <nav className="sidebar__nav" aria-label={t("Settings Navigation")}>
+            <span className="sidebar__section-label">{t("Settings")}</span>
             {[
-              ...(hasPermission(user, "edit_global_settings") ? [{ to: "/settings/telegram", label: "Telegram", icon: BellRing }] : []),
-              ...(user?.role === "admin" ? [{ to: "/settings/admins", label: "Teams", icon: Users }] : []),
-              { to: "/settings/password", label: "Change Password", icon: KeyRound }
+              ...(hasPermission(user, "edit_global_settings") ? [{ to: "/settings/telegram", label: t("Telegram"), icon: BellRing }] : []),
+              ...(user?.role === "admin" ? [{ to: "/settings/admins", label: t("Teams"), icon: Users }] : []),
+              { to: "/settings/password", label: t("Change Password"), icon: KeyRound }
             ].map(({ to, label, icon: Icon }) => <NavLink key={to} to={to}
               className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
               onClick={() => setMenuOpen(false)}><Icon aria-hidden="true" /><span>{label}</span></NavLink>)}
           </nav>
         ) : projectBase && selectedProject ? (
-          <nav className="sidebar__nav sidebar__nav--project" aria-label={`Project workspace for ${selectedProject.name}`}>
-          {projectBase ? <span className="sidebar__section-label">Project Workspace</span> : null}
+          <nav className="sidebar__nav sidebar__nav--project" aria-label={t("Project workspace for {0}", selectedProject.name)}>
+          {projectBase ? <span className="sidebar__section-label">{t("Project Workspace")}</span> : null}
           {projectBase ? [
-            { to: projectBase, label: "Overview", icon: Activity, end: true }
+            { to: projectBase, label: t("Overview"), icon: Activity, end: true }
           ].map(({ to, label, icon: Icon, end }) => (
             <NavLink
               to={to}
@@ -158,36 +160,37 @@ export function AppShell({ children }: { children: ReactNode }) {
         <NotificationGroupBar placement="sidebar" />
 
         <div className="sidebar__bottom">
+          <SidebarClock />
           <div className="sidebar__utilities">
             <ThemeToggle />
+            <LanguageToggle />
             {hasPermission(user, "edit_global_settings") || user?.role === "admin" ? (
               <NavLink
                 to="/settings"
                 className={({ isActive }) => `icon-button sidebar__settings${isActive ? " sidebar__settings--active" : ""}`}
-                title="Settings"
-                aria-label="Settings"
+                title={t("Settings")}
+                aria-label={t("Settings")}
                 onClick={() => setMenuOpen(false)}
               >
                 <Settings aria-hidden="true" />
               </NavLink>
             ) : null}
-            <SidebarClock />
           </div>
           <div className="sidebar__footer">
             <NavLink
               className={({ isActive }) => `sidebar__account${isActive ? " sidebar__account--active" : ""}`}
               to="/settings/password"
-              title="Account Settings"
-              aria-label={`Account Settings: ${user?.email ?? "Account"}`}
+              title={t("Account Settings")}
+              aria-label={t("Account Settings: {0}", user?.email ?? t("Account"))}
               onClick={() => setMenuOpen(false)}
             >
               <span className="sidebar__avatar" aria-hidden="true">{initials(user?.email?.split("@")[0] ?? "")}</span>
               <span className="sidebar__account-details">
                 <strong>{user?.email}</strong>
-                <span>{user?.role === "sub_admin" ? "Sub-Admin" : user?.role}</span>
+                <span>{user?.role === "sub_admin" ? t("Sub-Admin") : t(user?.role ?? "")}</span>
               </span>
             </NavLink>
-            <button className="icon-button" type="button" aria-label="Sign Out" onClick={() => void logout()}>
+            <button className="icon-button" type="button" aria-label={t("Sign Out")} onClick={() => void logout()}>
               <LogOut aria-hidden="true" />
             </button>
           </div>
@@ -198,7 +201,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button
           className="sidebar-backdrop"
           type="button"
-          aria-label="Close Navigation"
+          aria-label={t("Close Navigation")}
           onClick={() => setMenuOpen(false)}
         />
       ) : null}
@@ -214,7 +217,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {refreshFailures >= 2 ? (
           <div className="form-banner form-banner--warning connection-notice" role="status">
             <WifiOff aria-hidden="true" />
-            <p>Can't reach the server. Showing the last received data until the connection returns.</p>
+            <p>{t("Can't reach the server. Showing the last received data until the connection returns.")}</p>
           </div>
         ) : null}
         {children}

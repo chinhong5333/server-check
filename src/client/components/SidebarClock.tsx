@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Clock3 } from "lucide-react";
+import { t } from "../i18n";
 
 const clockFormat = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
 
@@ -17,6 +18,6 @@ export function SidebarClock() {
     };
   }, []);
   const time = clockFormat.format(now);
-  return <time className="sidebar-clock numeric" dateTime={now.toISOString()} title="Local Time"
-    aria-label={`Local Time: ${time}`} aria-live="off"><Clock3 aria-hidden="true" />{time}</time>;
+  return <time className="sidebar-clock numeric" dateTime={now.toISOString()} title={t("Local Time")}
+    aria-label={t("Local Time: {0}", time)} aria-live="off"><Clock3 aria-hidden="true" />{time}</time>;
 }

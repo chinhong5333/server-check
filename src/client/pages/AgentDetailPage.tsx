@@ -30,6 +30,7 @@ import {
   formatLoadAverage,
   utilizationFromAvailable
 } from "../lib/format";
+import { t } from "../i18n";
 
 interface HistoryPoint {
   at: number;
@@ -77,23 +78,23 @@ type HistoryTabId = typeof historyTabIds[number];
 const serverStateDefinitions = [
   {
     status: "new",
-    description: "The agent is registered, but no heartbeat or metric report has been processed yet."
+    get description() { return t("The agent is registered, but no heartbeat or metric report has been processed yet."); }
   },
   {
     status: "healthy",
-    description: "The latest valid report passed all configured checks and the missing-heartbeat timeout has not elapsed. This reflects the last report, not continuous polling."
+    get description() { return t("The latest valid report passed all configured checks and the missing-heartbeat timeout has not elapsed. This reflects the last report, not continuous polling."); }
   },
   {
     status: "warning",
-    description: "A resource threshold was reached, a web server's status is unknown, or a middleware failure is awaiting the configured consecutive-failure count."
+    get description() { return t("A resource threshold was reached, a web server's status is unknown, or a middleware failure is awaiting the configured consecutive-failure count."); }
   },
   {
     status: "critical",
-    description: "A heartbeat is overdue, the middleware API has a confirmed unhealthy incident, a reported database status is not alive, or a monitored Apache/Nginx service is inactive."
+    get description() { return t("A heartbeat is overdue, the middleware API has a confirmed unhealthy incident, a reported database status is not alive, or a monitored Apache/Nginx service is inactive."); }
   },
   {
     status: "stale",
-    description: "The agent is online, but telemetry was missing or invalid in its latest report."
+    get description() { return t("The agent is online, but telemetry was missing or invalid in its latest report."); }
   }
 ] as const;
 
@@ -136,7 +137,7 @@ function MetricChart({
       <div className="section-heading">
         <div className="chart-heading-copy">
           <div className="chart-heading-title"><h2>{title}</h2>
-        <div className="chart-interval-control" role="group" aria-label={`${title} Interval`}>
+        <div className="chart-interval-control" role="group" aria-label={t("{0} Interval", title)}>
           {CHART_INTERVALS.map(option => <button key={option.seconds} type="button"
             aria-label={option.label} aria-pressed={chart.interval === option.seconds}
             onClick={() => chart.setInterval(option.seconds)}>
@@ -146,19 +147,19 @@ function MetricChart({
         </div>
         </div>
         <div className="chart-readings">
-          <div className="chart-latest" aria-label={`Latest Value for ${title}`}>
-            <span>Latest Value</span>
+          <div className="chart-latest" aria-label={t("Latest Value for {0}", title)}>
+            <span>{t("Latest Value")}</span>
             <MetricValue value={latestValue} format={formatter} className="chart-latest__value" />
           </div>
-          {capacity && <div className="chart-capacity"><span>Used / Total</span><span className="numeric">{formatCapacityPair(capacity.used_bytes, capacity.total_bytes)}</span></div>}
+          {capacity && <div className="chart-capacity"><span>{t("Used / Total")}</span><span className="numeric">{formatCapacityPair(capacity.used_bytes, capacity.total_bytes)}</span></div>}
         </div>
       </div>
       <div className="chart-body">
-      {chart.error ? <div className="chart-feedback" role="status"><p>{chart.error}</p><button className="button button--secondary" type="button" onClick={chart.retry}>Retry Chart</button></div> : null}
-      {chart.points === null ? <div className="chart chart-feedback" role="status">{chart.error ? "Chart Unavailable" : "Loading Chart…"}</div>
+      {chart.error ? <div className="chart-feedback" role="status"><p>{chart.error}</p><button className="button button--secondary" type="button" onClick={chart.retry}>{t("Retry Chart")}</button></div> : null}
+      {chart.points === null ? <div className="chart chart-feedback" role="status">{chart.error ? t("Chart Unavailable") : t("Loading Chart…")}</div>
         : !tradingPoints.some(point => point.value != null) ? <div className="chart-empty" role="status">
             <div className="chart-empty__plot" aria-hidden="true"><span /><span /><span /></div>
-            <p>No Data For This Interval</p>
+            <p>{t("No Data For This Interval")}</p>
           </div> :
           <TradingViewMetricChart key={chart.interval} title={title}
             points={tradingPoints} formatter={formatter} />}
@@ -224,13 +225,13 @@ export function AgentDetailPage() {
 
   if (resource.status === "loading") return <PageSkeleton rows={8} />;
   if (resource.status === "error") {
-    return <ErrorState title="Couldn't Load Server History" message={resource.error?.message ?? "Try again."} onRetry={resource.reload} />;
+    return <ErrorState title={t("Couldn't Load Server History")} message={resource.error?.message ?? t("Try again.")} onRetry={resource.reload} />;
   }
   if (!resource.data) {
     return (
       <ErrorState
-        title="Couldn't Load Server History"
-        message="The agent history response was empty."
+        title={t("Couldn't Load Server History")}
+        message={t("The agent history response was empty.")}
         onRetry={resource.reload}
       />
     );
@@ -267,13 +268,13 @@ export function AgentDetailPage() {
       <div className="agent-page-intro">
       <Link className="back-link" to={overviewHref}>
         <ArrowLeft aria-hidden="true" />
-        Overview
+        {t("Overview")}
       </Link>
       <header className="page-header">
         <div className="page-header__identity">
           <span className={`status-tile status-tile--lg status-tile--${agent.status}`} aria-hidden="true"><Server /></span>
           <div>
-            <p className="page-context">Agent Detail</p>
+            <p className="page-context">{t("Agent Detail")}</p>
             <h1>{agent.server_name}</h1>
           </div>
         </div>
@@ -294,8 +295,8 @@ export function AgentDetailPage() {
             ref={serverStateHelpTriggerRef}
             className="icon-button"
             type="button"
-            aria-label="View Server State Definitions"
-            title="View Server State Definitions"
+            aria-label={t("View Server State Definitions")}
+            title={t("View Server State Definitions")}
             aria-haspopup="dialog"
             aria-controls="server-state-definitions"
             onClick={() => setServerStateHelpOpen(true)}
@@ -314,14 +315,14 @@ export function AgentDetailPage() {
       >
         <div className="section-heading">
           <div>
-            <h2 id="server-state-definitions-title">Server State Definitions</h2>
-            <p id="server-state-definitions-description">How Server Monitor classifies the current condition of an agent.</p>
+            <h2 id="server-state-definitions-title">{t("Server State Definitions")}</h2>
+            <p id="server-state-definitions-description">{t("How Server Monitor classifies the current condition of an agent.")}</p>
           </div>
           <button
             className="icon-button"
             type="button"
             data-dialog-initial-focus
-            aria-label="Close Server State Definitions"
+            aria-label={t("Close Server State Definitions")}
             onClick={() => setServerStateHelpOpen(false)}
           >
             <X aria-hidden="true" />
@@ -344,45 +345,45 @@ export function AgentDetailPage() {
 
       <section className="agent-script-configuration" aria-labelledby="latest-script-configuration-title">
         <div>
-          <h2 id="latest-script-configuration-title">Latest Script Configuration</h2>
-          <p>Middleware endpoint used by the latest generated script.</p>
+          <h2 id="latest-script-configuration-title">{t("Latest Script Configuration")}</h2>
+          <p>{t("Middleware endpoint used by the latest generated script.")}</p>
         </div>
         <dl>
           <div>
-            <dt><Link2 aria-hidden="true" /> Middleware API URL</dt>
+            <dt><Link2 aria-hidden="true" />{" "}{t("Middleware API URL")}</dt>
             <dd className="script-url-row">{agent.health_api_url ? <>
               <code>{agent.health_api_url}</code>
               <span className="script-url-actions">
-                <CopyButton value={agent.health_api_url} label="Copy" />
+                <CopyButton value={agent.health_api_url} label={t("Copy")} />
                 <a className="button button--secondary" href={agent.health_api_url} target="_blank" rel="noopener noreferrer"
-                  aria-label="Test Middleware API URL In A New Tab" title="Open In A New Tab"><ExternalLink aria-hidden="true" />Test</a>
+                  aria-label={t("Test Middleware API URL In A New Tab")} title={t("Open In A New Tab")}><ExternalLink aria-hidden="true" />{t("Test")}</a>
               </span>
-            </> : "Not Monitored"}</dd>
+            </> : t("Not Monitored")}</dd>
           </div>
         </dl>
       </section>
 
       {resource.data.points.length === 0 ? (
         <EmptyState
-          title="No Metric History Yet"
-          message="The agent has not delivered a valid telemetry sample in this range."
+          title={t("No Metric History Yet")}
+          message={t("The agent has not delivered a valid telemetry sample in this range.")}
         />
       ) : (
         <div className="chart-grid" ref={alignChartHeaders}>
-          <MetricChart agentId={agent.id} key={`${agent.id}:ram_utilization_percent`} title="RAM Utilization" data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
+          <MetricChart agentId={agent.id} key={`${agent.id}:ram_utilization_percent`} title={t("RAM Utilization")} data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
             latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} capacity={resource.data.latest_resources?.ram} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title="Storage Utilization" data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
+          <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title={t("Storage Utilization")} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
             latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} capacity={resource.data.latest_resources?.storage} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title="Load Average (5 Min)" data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title="Health Latency" data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
+          <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title={t("Load Average (5 Min)")} data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
+          <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title={t("Health Latency")} data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
         </div>
       )}
 
       <section className="history-tabs" aria-labelledby="agent-history-records-title">
         <div className="history-tabs__heading">
-          <h2 id="agent-history-records-title">History Records</h2>
+          <h2 id="agent-history-records-title">{t("History Records")}</h2>
         </div>
-        <div className="history-tabs__list" role="tablist" aria-label="Agent History Records">
+        <div className="history-tabs__list" role="tablist" aria-label={t("Agent History Records")}>
           <button
             id="agent-history-tab-incidents"
             className="history-tabs__tab"
@@ -394,7 +395,7 @@ export function AgentDetailPage() {
             onClick={() => selectHistoryTab("incidents")}
             onKeyDown={(event) => handleTabKeyDown(event, "incidents")}
           >
-            Incident History
+            {t("Incident History")}
             {incidents.status === "success" ? <span className="numeric">{incidents.data?.length ?? 0}</span> : null}
           </button>
           <button
@@ -408,7 +409,7 @@ export function AgentDetailPage() {
             onClick={() => selectHistoryTab("telegram")}
             onKeyDown={(event) => handleTabKeyDown(event, "telegram")}
           >
-            Telegram Delivery Log
+            {t("Telegram Delivery Log")}
             {telegramDeliveries.status === "success" ? <span className="numeric">{telegramDeliveries.data?.length ?? 0}</span> : null}
           </button>
         </div>
@@ -417,7 +418,7 @@ export function AgentDetailPage() {
           <div id="agent-history-panel-incidents" role="tabpanel" aria-labelledby="agent-history-tab-incidents" tabIndex={0}>
             {incidents.status === "loading" ? <PageSkeleton rows={4} /> : null}
             {incidents.status === "error" ? (
-              <ErrorState title="Couldn't Load Agent Incidents" message={incidents.error?.message ?? "Try again."} onRetry={incidents.reload} />
+              <ErrorState title={t("Couldn't Load Agent Incidents")} message={incidents.error?.message ?? t("Try again.")} onRetry={incidents.reload} />
             ) : null}
             {incidents.status === "success" ? <AgentIncidentHistory incidents={incidents.data ?? []} /> : null}
           </div>
@@ -425,7 +426,7 @@ export function AgentDetailPage() {
           <div id="agent-history-panel-telegram" role="tabpanel" aria-labelledby="agent-history-tab-telegram" tabIndex={0}>
             {telegramDeliveries.status === "loading" ? <PageSkeleton rows={4} /> : null}
             {telegramDeliveries.status === "error" ? (
-              <ErrorState title="Couldn't Load Telegram Delivery Log" message={telegramDeliveries.error?.message ?? "Try again."} onRetry={telegramDeliveries.reload} />
+              <ErrorState title={t("Couldn't Load Telegram Delivery Log")} message={telegramDeliveries.error?.message ?? t("Try again.")} onRetry={telegramDeliveries.reload} />
             ) : null}
             {telegramDeliveries.status === "success" ? <AgentTelegramDeliveryLog deliveries={telegramDeliveries.data ?? []}
               cancellation={hasPermission(user, "edit_agent_settings") ? { agentId: resource.data.agent.id, agentName: resource.data.agent.server_name, onCancelled: telegramDeliveries.reload } : undefined} /> : null}

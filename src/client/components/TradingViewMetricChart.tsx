@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { AreaSeries, ColorType, LastPriceAnimationMode, TickMarkType, createChart, type IChartApi, type ISeriesApi, type Time } from "lightweight-charts";
 import { tradingViewData } from "../lib/tradingview-data";
 import { formatDateTime } from "../lib/format";
-const shortTime = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
-const shortDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+import { intlLocale, perLocale, t, useLocale } from "../i18n";
+const shortTime = perLocale(() => new Intl.DateTimeFormat(intlLocale, { hour: "numeric", minute: "2-digit" }));
+const shortDate = perLocale(() => new Intl.DateTimeFormat(intlLocale, { month: "short", day: "numeric" }));
 
 /** Convert existing OKLCH theme tokens to sRGB accepted by the Canvas chart library. */
 function themeColor(element: HTMLElement, token: string, fallback: string): string {
@@ -20,6 +21,7 @@ export function TradingViewMetricChart({ title, points, formatter }: {
   title: string; points: { at: number; value: number | null | undefined }[];
   formatter: (value: number | null | undefined) => string;
 }) {
+  const language = useLocale();
   const container = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -42,7 +44,7 @@ export function TradingViewMetricChart({ title, points, formatter }: {
         lockVisibleTimeRangeOnResize: true, borderVisible: false, shiftVisibleRangeOnNewBar: false,
         tickMarkMaxCharacterLength: 9,
         tickMarkFormatter: (time: Time, kind: TickMarkType) => typeof time === "number"
-          ? (kind <= TickMarkType.DayOfMonth ? shortDate : shortTime).format(time * 1000) : "" },
+          ? (kind <= TickMarkType.DayOfMonth ? shortDate : shortTime)().format(time * 1000) : "" },
       localization: { timeFormatter: (time: Time) => typeof time === "number" ? formatDateTime(time * 1000) : "", priceFormatter: (value: number) => formatter(value) },
       grid: { vertLines: { visible: false } }
     });
@@ -91,7 +93,7 @@ export function TradingViewMetricChart({ title, points, formatter }: {
       window.removeEventListener("pointerup", end); window.removeEventListener("pointercancel", end);
       pending.current = null; chart.remove(); chartRef.current = null; seriesRef.current = null; priorLast.current = null;
     };
-  }, [formatter, title]);
+  }, [formatter, title, language]);
   useEffect(() => {
     const apply = () => {
       const chart = chartRef.current, series = seriesRef.current;
@@ -109,10 +111,10 @@ export function TradingViewMetricChart({ title, points, formatter }: {
       priorLast.current = data.at(-1)?.time ?? null;
     };
     if (dragging.current) pending.current = apply; else apply();
-  }, [data]);
-  return <div className="tradingview-metric" role="group" aria-label={`${title} Draggable History`}>
-    <div ref={container} className="tradingview-canvas" tabIndex={0} aria-label={`${title} Chart`}
-      aria-description="Drag horizontally to browse history. Arrow keys pan; End returns to latest. Zoom is disabled."
+  }, [data, language]);
+  return <div className="tradingview-metric" role="group" aria-label={t("{0} Draggable History", title)}>
+    <div ref={container} className="tradingview-canvas" tabIndex={0} aria-label={t("{0} Chart", title)}
+      aria-description={t("Drag horizontally to browse history. Arrow keys pan; End returns to latest. Zoom is disabled.")}
       onKeyDown={event => {
         const scale = chartRef.current?.timeScale(); const range = scale?.getVisibleLogicalRange();
         if (!scale || !range) return;

@@ -1,11 +1,12 @@
 import { PERMISSIONS, type Permission } from "../../shared/permissions";
+import { t } from "../i18n";
 
 export function PermissionChecklist({ value, onChange, disabled = false }: {
   value: Permission[]; onChange: (permissions: Permission[]) => void; disabled?: boolean;
 }) {
   const needsView = value.some(key => key !== "view_projects" && key !== "edit_global_settings");
   return <fieldset className="form-section field--wide permission-list" disabled={disabled}>
-    <legend>Permissions</legend>
+    <legend>{t("Permissions")}</legend>
     {PERMISSIONS.map(permission => <label key={permission.key}>
       <input type="checkbox" checked={value.includes(permission.key)}
         disabled={disabled || permission.key === "view_projects" && needsView}
@@ -14,8 +15,8 @@ export function PermissionChecklist({ value, onChange, disabled = false }: {
           if (event.target.checked && permission.key !== "view_projects" && permission.key !== "edit_global_settings" && !next.includes("view_projects")) next.push("view_projects");
           onChange(next);
         }} />
-      <span>{permission.label}</span>
+      <span>{t(permission.label)}</span>
     </label>)}
-    <p className="field__help">Project and agent actions require view access. Delete and secret rotation are granted separately. Teams management is reserved for admins.</p>
+    <p className="field__help">{t("Project and agent actions require view access. Delete and secret rotation are granted separately. Teams management is reserved for admins.")}</p>
   </fieldset>;
 }

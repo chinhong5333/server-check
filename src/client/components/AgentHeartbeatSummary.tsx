@@ -1,11 +1,11 @@
 import { AlertTriangle, BellRing, CircleX, Clock3, RadioTower, Timer } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import type { AgentHealthSnapshot, AgentSummary } from "../../shared/contracts";
-import { formatDateTime, formatLatency } from "../lib/format";
+import { durationLabel, formatDateTime, formatLatency, serverUptimeText } from "../lib/format";
 import { agentStateCause } from "./AgentStateDisplay";
 import { StatusBadge } from "./StatusBadge";
-import { formatServerUptime } from "../../shared/uptime";
 import { statusClock } from "../lib/status-clock";
+import { t } from "../i18n";
 
 type SummaryAgent = Pick<AgentSummary, "status" | "probable_cause" | "last_heartbeat_at" | "heartbeat_interval_seconds" | "agent_version"> & {
   service_health?: AgentHealthSnapshot | null;
@@ -20,12 +20,12 @@ interface StatusNotice {
   title: string;
   message: string;
   diagnostic: string | null;
-  delivery: "No Alert Queued" | "Alert Queued";
+  delivery: string;
 }
 
 export function heartbeatDuration(milliseconds: number, roundUp = false): string {
   const seconds = Math.max(0, Math[roundUp ? "ceil" : "floor"](milliseconds / 1000));
-  if (seconds < 60) return `${seconds} ${seconds === 1 ? "Second" : "Seconds"}`;
+  if (seconds < 60) return durationLabel(seconds, "Second");
   const minutes = Math[roundUp ? "ceil" : "floor"](milliseconds / 60000);
   const units = [
     [Math.floor(minutes / 1440), "Day"],
@@ -33,7 +33,7 @@ export function heartbeatDuration(milliseconds: number, roundUp = false): string
     [minutes % 60, "Minute"]
   ] as const;
   return units.filter(([value]) => value > 0).slice(0, 2)
-    .map(([value, label]) => `${value} ${label}${value === 1 ? "" : "s"}`).join(" ");
+    .map(([value, unit]) => durationLabel(value, unit)).join(" ");
 }
 
 export function heartbeatSummary(agent: SummaryAgent, now: number) {
@@ -41,13 +41,13 @@ export function heartbeatSummary(agent: SummaryAgent, now: number) {
   const deadline = received === null ? null : received + agent.heartbeat_interval_seconds * 1000;
   const overdue = deadline !== null && now >= deadline;
   const status = overdue ? "critical" : received === null && agent.status === "healthy" ? "new" : agent.status;
-  const qualifier = overdue ? "Heartbeat Overdue" : received === null
-    ? "No Heartbeat Received" : status === "healthy" ? "Receiving Heartbeats"
-    : status === "stale" ? "Telemetry Is Stale" : "Requires Attention";
+  const qualifier = overdue ? t("Heartbeat Overdue") : received === null
+    ? t("No Heartbeat Received") : status === "healthy" ? t("Receiving Heartbeats")
+    : status === "stale" ? t("Telemetry Is Stale") : t("Requires Attention");
   const cause = status === "new" ? null : agentStateCause(overdue ? agent.status : status, agent.probable_cause);
   return { received, deadline, overdue, status, qualifier,
     cause: overdue && cause?.toLowerCase() === "heartbeat overdue" ? null : cause,
-    elapsed: received === null ? "Never" : `${heartbeatDuration(Math.max(0, now - received))} Ago`,
+    elapsed: received === null ? t("Never") : t("{0} Ago", heartbeatDuration(Math.max(0, now - received))),
     timing: deadline === null ? null : heartbeatCountdown(Math.abs(deadline - now), !overdue) };
 }
 
@@ -55,9 +55,8 @@ function heartbeatCountdown(milliseconds: number, roundUp: boolean): string {
   const seconds = Math.max(0, Math[roundUp ? "ceil" : "floor"](milliseconds / 1000));
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor(seconds / 60) % 60;
-  const unit = (value: number, label: string) => `${value} ${label}${value === 1 ? "" : "s"}`;
   // Same Hour / Minute / Second wording as the other status values; leading zero units are omitted.
-  return [hours > 0 ? unit(hours, "Hour") : null, hours > 0 || minutes > 0 ? unit(minutes, "Minute") : null, unit(seconds % 60, "Second")]
+  return [hours > 0 ? durationLabel(hours, "Hour") : null, hours > 0 || minutes > 0 ? durationLabel(minutes, "Minute") : null, durationLabel(seconds % 60, "Second")]
     .filter(Boolean).join(" ");
 }
 
@@ -65,8 +64,8 @@ function middlewareDiagnostic(agent: SummaryAgent): string | null {
   const probe = agent.service_health?.middleware_api;
   if (!probe || probe.outcome !== "unhealthy") return null;
   const errorCode = probe.error_code?.split("_").map(word => `${word[0]?.toUpperCase() ?? ""}${word.slice(1)}`).join(" ");
-  const error = probe.error_message?.trim() || errorCode || "Request Failed";
-  const response = probe.http_status_code === null ? "No HTTP Response" : `HTTP ${probe.http_status_code}`;
+  const error = probe.error_message?.trim() || errorCode || t("Request Failed");
+  const response = probe.http_status_code === null ? t("No HTTP Response") : `HTTP ${probe.http_status_code}`;
   const latency = probe.latency_ms === null ? null : formatLatency(probe.latency_ms);
   return [error, response, latency].filter(Boolean).join(" · ");
 }
@@ -75,10 +74,10 @@ function statusNotice(agent: SummaryAgent, summary: ReturnType<typeof heartbeatS
   if (summary.overdue) {
     return {
       tone: "critical",
-      title: "No Heartbeat Received",
-      message: `No heartbeat was received within the configured ${heartbeatDuration(agent.heartbeat_interval_seconds * 1000).toLowerCase()} limit.`,
-      diagnostic: summary.received === null ? null : `Last Heartbeat · ${summary.elapsed}`,
-      delivery: "Alert Queued"
+      title: t("No Heartbeat Received"),
+      message: t("No heartbeat was received within the configured {0} limit.", heartbeatDuration(agent.heartbeat_interval_seconds * 1000).toLowerCase()),
+      diagnostic: summary.received === null ? null : t("Last Heartbeat · {0}", summary.elapsed),
+      delivery: t("Alert Queued")
     };
   }
 
@@ -91,22 +90,22 @@ function statusNotice(agent: SummaryAgent, summary: ReturnType<typeof heartbeatS
     const progress = Math.min(count!, threshold!);
     return {
       tone: reached ? "critical" : "warning",
-      title: reached ? "Middleware API Unhealthy" : "Middleware API Check Failed",
+      title: reached ? t("Middleware API Unhealthy") : t("Middleware API Check Failed"),
       message: reached
-        ? `${progress} of ${threshold} consecutive failures reached the alert threshold.`
-        : `${progress} of ${threshold} consecutive failures recorded. The next successful check will reset this count.`,
+        ? t("{0} of {1} consecutive failures reached the alert threshold.", progress, threshold!)
+        : t("{0} of {1} consecutive failures recorded. The next successful check will reset this count.", progress, threshold!),
       diagnostic: middlewareDiagnostic(agent),
-      delivery: reached ? "Alert Queued" : "No Alert Queued"
+      delivery: reached ? t("Alert Queued") : t("No Alert Queued")
     };
   }
 
   if (!summary.cause || summary.status === "healthy" || summary.status === "new") return null;
   return {
     tone: summary.status === "warning" || summary.status === "stale" ? "warning" : "critical",
-    title: summary.status === "stale" ? "Telemetry Is Stale" : "Agent Requires Attention",
-    message: summary.cause,
+    title: summary.status === "stale" ? t("Telemetry Is Stale") : t("Agent Requires Attention"),
+    message: t(summary.cause),
     diagnostic: null,
-    delivery: "Alert Queued"
+    delivery: t("Alert Queued")
   };
 }
 
@@ -125,22 +124,22 @@ export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false,
   // Share of the heartbeat window left before the agent is marked overdue, for the countdown bar.
   const remaining = summary.deadline === null || summary.overdue ? 0
     : Math.min(1, (summary.deadline - asOf) / (agent.heartbeat_interval_seconds * 1000));
-  const delivery = notificationsMuted ? "TG Muted During Maintenance" : notice?.delivery;
+  const delivery = notificationsMuted ? t("TG Muted During Maintenance") : notice?.delivery;
   const statusAnnouncement = [summary.status, summary.qualifier, notice?.title, notice?.message, delivery]
     .filter(Boolean).join(". ");
   return (
-    <section className="agent-heartbeat-summary agent-heartbeat-summary--uptime" aria-label="Agent Status Summary">
+    <section className="agent-heartbeat-summary agent-heartbeat-summary--uptime" aria-label={t("Agent Status Summary")}>
       <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{statusAnnouncement}</span>
       <header className="agent-heartbeat-summary__header">
         <div className="agent-heartbeat-summary__identity">
-          <h2>Agent Status</h2>
+          <h2>{t("Agent Status")}</h2>
           <div className="agent-heartbeat-summary__state">
             <StatusBadge status={summary.status} />
             <span className={summary.overdue ? "agent-heartbeat-summary__overdue" : ""}>{summary.qualifier}</span>
           </div>
         </div>
         <div className="agent-heartbeat-summary__tools">
-          <span className="agent-heartbeat-summary__version">Agent Version <strong>{agent.agent_version ?? "Pending"}</strong></span>
+          <span className="agent-heartbeat-summary__version">{t("Agent Version")}{" "}<strong>{agent.agent_version ?? t("Not Reported")}</strong></span>
           {help}
         </div>
       </header>
@@ -159,9 +158,9 @@ export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false,
         <article className="agent-heartbeat-summary__metric">
           <span className="agent-heartbeat-summary__metric-icon" aria-hidden="true"><RadioTower /></span>
           <div>
-            <span className="agent-heartbeat-summary__metric-label">Last Heartbeat Received</span>
+            <span className="agent-heartbeat-summary__metric-label">{t("Last Heartbeat Received")}</span>
             <strong className="agent-heartbeat-summary__metric-value">{summary.elapsed}</strong>
-            <p>Last Received: {summary.received === null ? "Never" : (
+            <p>{t("Last Received:")}{" "}{summary.received === null ? t("Never") : (
               <time dateTime={new Date(summary.received).toISOString()}>{formatDateTime(summary.received)}</time>
             )}</p>
           </div>
@@ -169,32 +168,32 @@ export function AgentHeartbeatSummary({ agent, help, notificationsMuted = false,
         <article className="agent-heartbeat-summary__metric">
           <span className="agent-heartbeat-summary__metric-icon" aria-hidden="true"><BellRing /></span>
           <div>
-            <span className="agent-heartbeat-summary__metric-label">Alert If No Heartbeat For</span>
+            <span className="agent-heartbeat-summary__metric-label">{t("Alert If No Heartbeat For")}</span>
             <strong className="agent-heartbeat-summary__metric-value">{heartbeatDuration(agent.heartbeat_interval_seconds * 1000)}</strong>
-            <p>The agent is marked overdue after this period.</p>
+            <p>{t("The agent is marked overdue after this period.")}</p>
           </div>
         </article>
         <article className={`agent-heartbeat-summary__metric agent-heartbeat-summary__metric--deadline${summary.overdue ? " agent-heartbeat-summary__metric--overdue" : ""}`}
-          title={summary.deadline === null ? undefined : `Marked Overdue At: ${formatDateTime(summary.deadline)}`}>
+          title={summary.deadline === null ? undefined : t("Marked Overdue At: {0}", formatDateTime(summary.deadline))}>
           <span className="agent-heartbeat-summary__metric-icon" aria-hidden="true"><Clock3 /></span>
           <div>
-            <span className="agent-heartbeat-summary__metric-label">{summary.deadline === null ? "Waiting For First Heartbeat" : summary.overdue ? "Overdued" : "Time Until Marked Overdue"}</span>
+            <span className="agent-heartbeat-summary__metric-label">{summary.deadline === null ? t("Waiting For First Heartbeat") : summary.overdue ? t("Overdued") : t("Time Until Marked Overdue")}</span>
             {summary.timing !== null ? <strong className="agent-heartbeat-summary__metric-value agent-heartbeat-summary__metric-value--timer" role="timer" aria-live="off">{summary.timing}</strong> : (
-              <strong className="agent-heartbeat-summary__metric-value">Awaiting Data</strong>
+              <strong className="agent-heartbeat-summary__metric-value">{t("Awaiting Data")}</strong>
             )}
             {/* Decorative: the timer text above is the accessible value. */}
             {summary.deadline !== null ? <span className={`agent-heartbeat-summary__countdown${summary.overdue ? " agent-heartbeat-summary__countdown--overdue" : remaining <= 0.25 ? " agent-heartbeat-summary__countdown--low" : ""}`} aria-hidden="true">
               <span style={{ transform: `scaleX(${remaining})` }} />
             </span> : null}
-            <p>{summary.deadline === null ? "A deadline starts after the first heartbeat." : <>Deadline: <time dateTime={new Date(summary.deadline).toISOString()}>{formatDateTime(summary.deadline)}</time></>}</p>
+            <p>{summary.deadline === null ? t("A deadline starts after the first heartbeat.") : <>{t("Deadline:")}{" "}<time dateTime={new Date(summary.deadline).toISOString()}>{formatDateTime(summary.deadline)}</time></>}</p>
           </div>
         </article>
-        <article className="agent-heartbeat-summary__metric agent-heartbeat-summary__uptime" aria-label="Server Uptime">
+        <article className="agent-heartbeat-summary__metric agent-heartbeat-summary__uptime" aria-label={t("Server Uptime")}>
           <span className="agent-heartbeat-summary__metric-icon" aria-hidden="true"><Timer /></span>
           <div>
-            <span className="agent-heartbeat-summary__metric-label">Server Uptime{uptimeStale ? <span className="agent-heartbeat-summary__uptime-stale">Stale</span> : null}</span>
-            <strong className="agent-heartbeat-summary__metric-value numeric">{formatServerUptime(agent.uptime_seconds)}</strong>
-            <p>{uptimeReceived === null ? "Awaiting a valid uptime report." : <>Last Reported: <time dateTime={new Date(uptimeReceived).toISOString()}>{formatDateTime(uptimeReceived)}</time></>}</p>
+            <span className="agent-heartbeat-summary__metric-label">{t("Server Uptime")}{uptimeStale ? <span className="agent-heartbeat-summary__uptime-stale">{t("Stale")}</span> : null}</span>
+            <strong className="agent-heartbeat-summary__metric-value numeric">{serverUptimeText(agent.uptime_seconds)}</strong>
+            <p>{uptimeReceived === null ? t("Awaiting a valid uptime report.") : <>{t("Last Reported:")}{" "}<time dateTime={new Date(uptimeReceived).toISOString()}>{formatDateTime(uptimeReceived)}</time></>}</p>
           </div>
         </article>
       </div>

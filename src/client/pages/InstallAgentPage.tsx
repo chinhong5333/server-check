@@ -14,11 +14,10 @@ import {
 import { ApiError, apiFetch } from "../api";
 import { AgentScriptChecks } from "../components/AgentScriptChecks";
 import { AgentForm } from "../components/AgentForm";
-import { agentStateCause } from "../components/AgentStateDisplay";
+import { agentStateCauseText } from "../components/AgentStateDisplay";
 import { StatusBadge } from "../components/StatusBadge";
 import { AgentRosterChecks } from "../components/AgentRosterChecks";
 import { AgentActionsMenu } from "../components/AgentActionsMenu";
-import { formatServerUptime } from "../../shared/uptime";
 import { AgentScriptSetup } from "../components/AgentScriptSetup";
 import { EmptyState, ErrorState, InlineLoader, PageSkeleton } from "../components/Feedback";
 import { HoldConfirmButton } from "../components/HoldConfirmButton";
@@ -36,10 +35,12 @@ import {
   formatPercent,
   formatLoadAverage,
   formatRelativeTime,
-  utilizationFromAvailable
+  utilizationFromAvailable,
+  serverUptimeText
 } from "../lib/format";
 import { statusClock } from "../lib/status-clock";
 import { useProjects } from "../projects/ProjectProvider";
+import { t } from "../i18n";
 
 function AgentHeartbeatStatus({ agent, fetchedAt }: { agent: AgentSummary; fetchedAt: number | null }) {
   const asOf = statusClock(fetchedAt);
@@ -52,13 +53,13 @@ function AgentHeartbeatStatus({ agent, fetchedAt }: { agent: AgentSummary; fetch
 
   return (
     <div className="agent-report-stack">
-      <div className="agent-heartbeat"><small>Last Heartbeat</small>
+      <div className="agent-heartbeat"><small>{t("Last Heartbeat")}</small>
         <span className="roster-heartbeat-value"><span className={`live-dot live-dot--${live ? "live" : "idle"}`} aria-hidden="true" /><span className="numeric">{formatRelativeTime(agent.last_heartbeat_at, asOf)}</span>
-          {heartbeatOverdue ? <span className="roster-overdue"><TriangleAlert aria-hidden="true" />Overdue</span> : null}
+          {heartbeatOverdue ? <span className="roster-overdue"><TriangleAlert aria-hidden="true" />{t("Overdue")}</span> : null}
         </span>
       </div>
-      <div><small>{uptimeStale ? "Last Reported Uptime" : "Server Uptime"}</small>
-        <span className="numeric">{formatServerUptime(agent.uptime_seconds ?? null)}</span></div>
+      <div><small>{uptimeStale ? t("Last Reported Uptime") : t("Server Uptime")}</small>
+        <span className="numeric">{serverUptimeText(agent.uptime_seconds ?? null)}</span></div>
     </div>
   );
 }
@@ -67,27 +68,27 @@ function AgentRosterResources({ agent, fetchedAt }: { agent: AgentSummary; fetch
   const stale = agent.last_metrics_at !== null && (agent.status === "stale"
     || statusClock(fetchedAt) >= agent.last_metrics_at + agent.heartbeat_interval_seconds * 1000);
   const metrics = [
-    { label: "RAM", value: utilizationFromAvailable(agent.ram_available_percent), capacity: true },
-    { label: "Root Disk", value: utilizationFromAvailable(agent.disk_available_percent), capacity: true },
-    { label: "Load/Core", value: agent.load_5_per_core, capacity: false }
+    { label: t("RAM"), value: utilizationFromAvailable(agent.ram_available_percent), capacity: true },
+    { label: t("Root Disk"), value: utilizationFromAvailable(agent.disk_available_percent), capacity: true },
+    { label: t("Load/Core"), value: agent.load_5_per_core, capacity: false }
   ];
   return <div className={`roster-resources${stale ? " roster-resources--stale" : ""}`}>
     {metrics.map(metric => <div className="roster-resource" key={metric.label}>
       <div><span>{metric.label}</span><MetricValue value={metric.value} format={metric.capacity ? formatPercent : formatLoadAverage} /></div>
       {metric.capacity ? metric.value === null ? <span className="roster-resource__empty" aria-hidden="true" />
-        : <progress max={100} value={Math.min(100, Math.max(0, metric.value))} aria-label={`${metric.label} Usage For ${agent.server_name}`}
+        : <progress max={100} value={Math.min(100, Math.max(0, metric.value))} aria-label={t("{0} Usage For {1}", metric.label, agent.server_name)}
           data-level={metric.value >= 90 ? "critical" : metric.value >= 70 ? "warning" : "normal"} /> : null}
     </div>)}
-    {stale ? <span className="roster-resource-freshness">Last Reported · Stale</span> : null}
+    {stale ? <span className="roster-resource-freshness">{t("Last Reported · Stale")}</span> : null}
   </div>;
 }
 
 /** Register Agent guided flow; the agent form owns steps 1–3, this page owns step 4 (checks + script). */
 const REGISTRATION_STEPS = [
-  { title: "Server", hint: "Name the agent" },
-  { title: "Thresholds", hint: "Usage that alerts" },
-  { title: "Alert Timing", hint: "When to alert" },
-  { title: "Health Checks", hint: "Pick checks, get script" }
+  { get title() { return t("Server"); }, get hint() { return t("Name the agent"); } },
+  { get title() { return t("Thresholds"); }, get hint() { return t("Usage that alerts"); } },
+  { get title() { return t("Alert Timing"); }, get hint() { return t("When to alert"); } },
+  { get title() { return t("Health Checks"); }, get hint() { return t("Pick checks, get script"); } }
 ] as const;
 
 export function InstallAgentPage() {
@@ -183,7 +184,7 @@ export function InstallAgentPage() {
       .then((rows) => {
         if (controller.signal.aborted) return;
         const target = rows.find((agent) => agent.id === rotationTarget);
-        if (!target) throw new Error("The selected agent is no longer available in this project.");
+        if (!target) throw new Error(t("The selected agent is no longer available in this project."));
         setRegistrationOpen(false); setEditingAgent(null); setAgentPendingDelete(null); setError(null);
         setAgentPendingRotation(target);
         setRotationHealthUrl(target.health_api_url ?? "");
@@ -191,7 +192,7 @@ export function InstallAgentPage() {
         consumeRequest();
       }).catch((cause) => {
         if (!controller.signal.aborted) {
-          showToast({ tone: "error", message: cause instanceof Error ? cause.message : "Could not open access secret rotation." });
+          showToast({ tone: "error", message: cause instanceof Error ? cause.message : t("Could not open access secret rotation.") });
           consumeRequest();
         }
       });
@@ -202,8 +203,8 @@ export function InstallAgentPage() {
   if (projectStatus === "error") {
     return (
       <ErrorState
-        title="Couldn't Load Projects"
-        message={projectError?.message ?? "Check the central API and try again."}
+        title={t("Couldn't Load Projects")}
+        message={projectError?.message ?? t("Check the central API and try again.")}
         onRetry={reloadProjects}
       />
     );
@@ -211,9 +212,9 @@ export function InstallAgentPage() {
   if (!selectedProject) {
     return (
       <EmptyState
-        title="Project Not Found"
-        message="Open a project before viewing or registering its agents."
-        action={<Link className="button button--primary" to="/projects">View Projects</Link>}
+        title={t("Project Not Found")}
+        message={t("Open a project before viewing or registering its agents.")}
+        action={<Link className="button button--primary" to="/projects">{t("View Projects")}</Link>}
       />
     );
   }
@@ -235,8 +236,8 @@ export function InstallAgentPage() {
     showToast({
       tone: "success",
       message: operation === "rotated"
-        ? "Access secret rotated. Install the replacement script."
-        : "Agent registered. Save the generated script."
+        ? t("Access secret rotated. Install the replacement script.")
+        : t("Agent registered. Save the generated script.")
     });
     agents.reload();
     reloadProjects();
@@ -257,7 +258,7 @@ export function InstallAgentPage() {
     const url = registrationChecks.middleware_api && registrationHealthUrl.trim() ? registrationHealthUrl : null;
     const validation = generateAgentScriptBodySchema.safeParse({ health_api_url: url, checks: registrationChecks });
     if (!validation.success) {
-      const message = "Enter a valid Middleware API URL before generating the script.";
+      const message = t("Enter a valid Middleware API URL before generating the script.");
       setError(message);
       showToast({ tone: "error", message });
       return;
@@ -285,7 +286,7 @@ export function InstallAgentPage() {
       );
       showInstallation(result, pendingRegistration.server_name, "created");
     } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : "The agent installation could not be generated.";
+      const message = cause instanceof ApiError ? cause.message : t("The agent installation could not be generated.");
       setError(message);
       showToast({ tone: "error", message });
     } finally {
@@ -299,7 +300,7 @@ export function InstallAgentPage() {
     const url = rotationChecks.middleware_api ? (rotationHealthUrl.trim() ? rotationHealthUrl : null) : agentPendingRotation.health_api_url ?? null;
     const validation = generateAgentScriptBodySchema.safeParse({ health_api_url: url, checks: rotationChecks });
     if (!validation.success) {
-      const message = "Enter a valid Middleware API URL before generating the replacement script.";
+      const message = t("Enter a valid Middleware API URL before generating the replacement script.");
       setError(message);
       showToast({ tone: "error", message });
       return;
@@ -316,7 +317,7 @@ export function InstallAgentPage() {
       setRotationHealthUrl("");
       showInstallation(result, agentPendingRotation.server_name, "rotated");
     } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : "The access secret could not be rotated.";
+      const message = cause instanceof ApiError ? cause.message : t("The access secret could not be rotated.");
       setError(message);
       showToast({ tone: "error", message });
     } finally {
@@ -336,9 +337,9 @@ export function InstallAgentPage() {
       setEditingAgent(null);
       agents.reload();
       reloadProjects();
-      showToast({ tone: "success", message: "Agent settings saved. Access secret unchanged." });
+      showToast({ tone: "success", message: t("Agent settings saved. Access secret unchanged.") });
     } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : "The agent could not be updated.";
+      const message = cause instanceof ApiError ? cause.message : t("The agent could not be updated.");
       setError(message);
       showToast({ tone: "error", message });
     } finally {
@@ -359,9 +360,9 @@ export function InstallAgentPage() {
       setAgentPendingDelete(null);
       agents.reload();
       reloadProjects();
-      showToast({ tone: "success", message: "Agent deleted. Access revoked." });
+      showToast({ tone: "success", message: t("Agent deleted. Access revoked.") });
     } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : "The agent could not be deleted.";
+      const message = cause instanceof ApiError ? cause.message : t("The agent could not be deleted.");
       setDeleteError(message);
       showToast({ tone: "error", message });
     } finally {
@@ -387,10 +388,10 @@ export function InstallAgentPage() {
           dialogClassName="agent-dialog--script-setup" surfaceClassName="agent-dialog__surface agent-setup-surface"
           restoreFocusTo={registrationButtonRef.current} onDismiss={() => setInstallationExitStep(1)}>
           <div className="agent-setup-dialog-heading">
-            <div><h2 id="agent-script-setup-title">{rotated ? "Access Secret Rotated" : "Agent Registered"}</h2>
-              <p className="agent-setup-context">{installationAgentName ?? "This Agent"} · {installationProjectName ?? selectedProject.name}</p>
-              <p id="agent-script-setup-description">{rotated ? "Old secret revoked. Save this replacement now; it is shown only once." : "Save this one-time script before closing; it cannot be retrieved again."}</p></div>
-            <button ref={installationBackButtonRef} data-dialog-initial-focus className="icon-button" type="button" aria-label="Close Agent Setup" onClick={() => setInstallationExitStep(1)}><X aria-hidden="true" /></button>
+            <div><h2 id="agent-script-setup-title">{rotated ? t("Access Secret Rotated") : t("Agent Registered")}</h2>
+              <p className="agent-setup-context">{installationAgentName ?? t("This Agent")} · {installationProjectName ?? selectedProject.name}</p>
+              <p id="agent-script-setup-description">{rotated ? t("Old secret revoked. Save this replacement now; it is shown only once.") : t("Save this one-time script before closing; it cannot be retrieved again.")}</p></div>
+            <button ref={installationBackButtonRef} data-dialog-initial-focus className="icon-button" type="button" aria-label={t("Close Agent Setup")} onClick={() => setInstallationExitStep(1)}><X aria-hidden="true" /></button>
           </div>
           <AgentScriptSetup key={installation.agent_id} installation={installation} compact={rotated} onDone={returnToOverview} />
         </ModalDialog>
@@ -407,16 +408,16 @@ export function InstallAgentPage() {
               <div>
                 <h2 id="leave-access-secret-title">
                   {installationExitStep === 1
-                    ? "Leave the Access Secret Page?"
-                    : "Confirm Leaving the Access Secret Page"}
+                    ? t("Leave the Access Secret Page?")
+                    : t("Confirm Leaving the Access Secret Page")}
                 </h2>
-                <p>{installationAgentName ?? "This Agent"} · {installationProjectName ?? selectedProject.name}</p>
+                <p>{installationAgentName ?? t("This Agent")} · {installationProjectName ?? selectedProject.name}</p>
               </div>
               <button
                 data-dialog-initial-focus={installationExitStep === 1 ? true : undefined}
                 className="icon-button"
                 type="button"
-                aria-label="Close Leave Confirmation"
+                aria-label={t("Close Leave Confirmation")}
                 onClick={() => setInstallationExitStep(0)}
               >
                 <X aria-hidden="true" />
@@ -426,22 +427,22 @@ export function InstallAgentPage() {
               <ShieldAlert aria-hidden="true" />
               <p id="leave-access-secret-description">
                 {installationExitStep === 1
-                  ? "Once you close this page, you cannot open this access secret or generated script again. Save both before continuing."
-                  : "Final confirmation: this one-time access secret and generated script cannot be reopened. You must rotate the agent access secret to generate a replacement."}
+                  ? t("Once you close this page, you cannot open this access secret or generated script again. Save both before continuing.")
+                  : t("Final confirmation: this one-time access secret and generated script cannot be reopened. You must rotate the agent access secret to generate a replacement.")}
               </p>
             </div>
             <div className="action-row">
               <button className="button button--secondary" type="button" onClick={() => setInstallationExitStep(0)}>
-                Back To Script
+                {t("Back To Script")}
               </button>
               {installationExitStep === 1 ? (
                 <button className="button button--danger" type="button" onClick={() => setInstallationExitStep(2)}>
-                  I Saved The Script — Continue
+                  {t("I Saved The Script — Continue")}
                 </button>
               ) : (
                 <HoldConfirmButton
                   ref={installationExitActionRef}
-                  label="Close Page And Return To Overview"
+                  label={t("Close Page And Return To Overview")}
                   onConfirm={returnToOverview}
                 />
               )}
@@ -469,14 +470,14 @@ export function InstallAgentPage() {
     <div className="page-stack">
       <header className="page-header">
         <div>
-          <nav className="page-breadcrumb" aria-label="Breadcrumb">
+          <nav className="page-breadcrumb" aria-label={t("Breadcrumb")}>
             <ol>
-              <li>{hasPermission(user, "view_projects") ? <Link to="/projects">Projects</Link> : "Projects"}</li>
+              <li>{hasPermission(user, "view_projects") ? <Link to="/projects">{t("Projects")}</Link> : t("Projects")}</li>
               <li aria-current="page">{selectedProject.name}</li>
             </ol>
           </nav>
-          <h1>Operations Overview</h1>
-          <p>Monitor server health and manage every agent registered to this project.</p>
+          <h1>{t("Operations Overview")}</h1>
+          <p>{t("Monitor server health and manage every agent registered to this project.")}</p>
         </div>
         <button
           hidden={!hasPermission(user, "edit_agent_settings")}
@@ -498,7 +499,7 @@ export function InstallAgentPage() {
           }}
         >
           <Plus aria-hidden="true" />
-          Register Agent
+          {t("Register Agent")}
         </button>
       </header>
 
@@ -520,13 +521,13 @@ export function InstallAgentPage() {
       >
         <div className="section-heading">
           <div>
-            <h2 id="register-agent-title">Register Agent</h2>
-            <p>The new agent will belong to {selectedProject.name}.</p>
+            <h2 id="register-agent-title">{t("Register Agent")}</h2>
+            <p>{t("The new agent will belong to {0}.", selectedProject.name)}</p>
           </div>
           <button
             className="icon-button"
             type="button"
-            aria-label="Close Registration"
+            aria-label={t("Close Registration")}
             disabled={submitting}
             onClick={() => {
               setRegistrationOpen(false);
@@ -545,8 +546,8 @@ export function InstallAgentPage() {
             initialValues={pendingRegistration ?? undefined}
             wizard={{ steps: REGISTRATION_STEPS, initialStep: pendingRegistration ? 2 : 0 }}
             submitting={false}
-            submitLabel="Next: Health Checks"
-            submittingLabel="Continuing"
+            submitLabel={t("Next: Health Checks")}
+            submittingLabel={t("Continuing")}
             error={error}
             onSubmit={prepareAgentScript}
           />
@@ -554,10 +555,10 @@ export function InstallAgentPage() {
           <>
             {error ? <div className="form-banner form-banner--error" role="alert">{error}</div> : null}
             <form className="form-grid agent-settings-form agent-settings-form--wizard" onSubmit={(event) => void createAgent(event)} noValidate aria-busy={submitting}>
-              <WizardSteps steps={REGISTRATION_STEPS} current={3} label="Agent Registration Progress" />
+              <WizardSteps steps={REGISTRATION_STEPS} current={3} label={t("Agent Registration Progress")} />
               <AgentScriptChecks value={registrationChecks} onChange={setRegistrationChecks} disabled={submitting} />
               {registrationChecks.middleware_api ? <div className="field field--wide">
-                <label htmlFor="registration-health-api-url">Middleware API URL</label>
+                <label htmlFor="registration-health-api-url">{t("Middleware API URL")}</label>
                 <input
                   ref={registrationHealthUrlRef}
                   id="registration-health-api-url"
@@ -572,13 +573,13 @@ export function InstallAgentPage() {
                   placeholder="http://127.0.0.1:3000/health"
                   required
                 />
-                <span className="field__help">The agent calls this endpoint every minute.</span>
+                <span className="field__help">{t("The agent calls this endpoint every minute.")}</span>
               </div> : null}
               <div className="agent-settings-actions agent-wizard-actions field--wide">
                 <button className="button button--secondary" type="button" disabled={submitting}
-                  onClick={() => { setError(null); setRegistrationStep("settings"); }}><ArrowLeft aria-hidden="true" />Back</button>
+                  onClick={() => { setError(null); setRegistrationStep("settings"); }}><ArrowLeft aria-hidden="true" />{t("Back")}</button>
                 <button className="button button--primary" type="submit" disabled={submitting}>
-                  {submitting ? <InlineLoader label="Generating Script" /> : "Generate Script"}
+                  {submitting ? <InlineLoader label={t("Generating Script")} /> : t("Generate Script")}
                 </button>
               </div>
             </form>
@@ -598,12 +599,12 @@ export function InstallAgentPage() {
           <>
             <div className="section-heading">
               <div>
-                <h2 id="edit-agent-title">Edit {editingAgent.server_name}</h2>
+                <h2 id="edit-agent-title">{t("Edit {0}", editingAgent.server_name)}</h2>
               </div>
               <button
                 className="icon-button"
                 type="button"
-                aria-label="Close Edit Form"
+                aria-label={t("Close Edit Form")}
                 disabled={submitting}
                 onClick={() => {
                   setEditingAgent(null);
@@ -627,8 +628,8 @@ export function InstallAgentPage() {
               }}
               checks={{ initial: editingAgent.checks ?? { ...DEFAULT_AGENT_CHECKS }, middlewareUrlSaved: editingAgent.health_api_url !== null }}
               submitting={submitting}
-              submitLabel="Save Changes"
-              submittingLabel="Saving Changes"
+              submitLabel={t("Save Changes")}
+              submittingLabel={t("Saving Changes")}
               error={error}
               onSubmit={(values) => void updateAgent(values)}
             />
@@ -649,13 +650,13 @@ export function InstallAgentPage() {
             <div>
               <KeyRound aria-hidden="true" />
               <div>
-                <h2 id="rotate-agent-credential-title">Rotate Access Secret For {agentPendingRotation.server_name}?</h2>
-                <p id="rotate-agent-credential-description">Choose checks for this agent. The current script will stop authenticating immediately.</p>
+                <h2 id="rotate-agent-credential-title">{t("Rotate Access Secret For {0}?", agentPendingRotation.server_name)}</h2>
+                <p id="rotate-agent-credential-description">{t("Choose checks for this agent. The current script will stop authenticating immediately.")}</p>
               </div>
               <button
                 className="icon-button"
                 type="button"
-                aria-label="Close Access Secret Rotation"
+                aria-label={t("Close Access Secret Rotation")}
                 disabled={rotating}
                 onClick={() => {
                   setAgentPendingRotation(null);
@@ -668,7 +669,7 @@ export function InstallAgentPage() {
             </div>
             <AgentScriptChecks value={rotationChecks} onChange={setRotationChecks} disabled={rotating} />
             {rotationChecks.middleware_api ? <div className="field">
-              <label htmlFor="rotation-health-api-url">Middleware API URL</label>
+              <label htmlFor="rotation-health-api-url">{t("Middleware API URL")}</label>
               <input
                 id="rotation-health-api-url"
                 data-dialog-initial-focus
@@ -682,11 +683,11 @@ export function InstallAgentPage() {
                 }}
                 required
               />
-              <span className="field__help">Prefilled from the latest generated script. Change it only when the replacement script should use another endpoint.</span>
+              <span className="field__help">{t("Prefilled from the latest generated script. Change it only when the replacement script should use another endpoint.")}</span>
             </div> : null}
             {error ? <p className="field__help field__help--error" role="alert">{error}</p> : null}
             <div className="action-row">
-              <HoldConfirmButton label="Rotate And Generate Script" busy={rotating} busyLabel="Rotating Access Secret"
+              <HoldConfirmButton label={t("Rotate And Generate Script")} busy={rotating} busyLabel={t("Rotating Access Secret")}
                 onConfirm={() => void rotateAgentCredential()} />
             </div>
           </>
@@ -705,14 +706,14 @@ export function InstallAgentPage() {
           <>
             <div className="section-heading">
               <div>
-                <h2 id="delete-agent-title">Delete {agentPendingDelete.server_name}?</h2>
-                <p>Registered in {selectedProject.name}.</p>
+                <h2 id="delete-agent-title">{t("Delete {0}?", agentPendingDelete.server_name)}</h2>
+                <p>{t("Registered in {0}.", selectedProject.name)}</p>
               </div>
               <button
                 data-dialog-initial-focus
                 className="icon-button"
                 type="button"
-                aria-label="Close Deletion Confirmation"
+                aria-label={t("Close Deletion Confirmation")}
                 disabled={deleting}
                 onClick={() => {
                   setAgentPendingDelete(null);
@@ -724,11 +725,11 @@ export function InstallAgentPage() {
             </div>
             <div className="form-banner form-banner--error agent-delete-dialog__notice">
               <ShieldAlert aria-hidden="true" />
-              <p id="delete-agent-description">Its access secret will stop working immediately. Historical records remain retained.</p>
+              <p id="delete-agent-description">{t("Its access secret will stop working immediately. Historical records remain retained.")}</p>
             </div>
             {deleteError ? <p className="field__help field__help--error" role="alert">{deleteError}</p> : null}
             <div className="action-row">
-              <HoldConfirmButton label="Delete Agent" busy={deleting} busyLabel="Deleting Agent" onConfirm={() => void deleteAgent()} />
+              <HoldConfirmButton label={t("Delete Agent")} busy={deleting} busyLabel={t("Deleting Agent")} onConfirm={() => void deleteAgent()} />
             </div>
           </>
         ) : null}
@@ -737,15 +738,15 @@ export function InstallAgentPage() {
       {agents.status === "loading" ? <PageSkeleton rows={4} /> : null}
       {agents.status === "error" ? (
         <ErrorState
-          title="Couldn't Load Registered Agents"
-          message={agents.error?.message ?? "Check the central API and try again."}
+          title={t("Couldn't Load Registered Agents")}
+          message={agents.error?.message ?? t("Check the central API and try again.")}
           onRetry={agents.reload}
         />
       ) : null}
       {agents.status === "success" && registeredAgents.length === 0 ? (
         <EmptyState
-          title="No Registered Agents"
-          message="Register the first server to begin monitoring this project."
+          title={t("No Registered Agents")}
+          message={t("Register the first server to begin monitoring this project.")}
           action={
             <button
               className="button button--primary"
@@ -760,20 +761,20 @@ export function InstallAgentPage() {
               }}
             >
               <Plus aria-hidden="true" />
-              Register First Agent
+              {t("Register First Agent")}
             </button>
           }
         />
       ) : null}
       {agents.status === "success" && registeredAgents.length > 0 ? (
         <section className="data-surface agent-roster-surface agent-roster-surface--inventory" aria-labelledby="registered-agents-title">
-          <h2 id="registered-agents-title" className="visually-hidden">Registered Agents</h2>
+          <h2 id="registered-agents-title" className="visually-hidden">{t("Registered Agents")}</h2>
           <div className="roster-toolbar">
-            <div className="roster-filters" role="group" aria-label="Filter Agents By Health">
+            <div className="roster-filters" role="group" aria-label={t("Filter Agents By Health")}>
               {[
-                { key: "all", label: "All", accessible: "All Agents", count: registeredAgents.length },
-                { key: "attention", label: "Attention", accessible: "Agents Needing Attention", count: registeredAgents.filter(agent => agent.status !== "healthy").length },
-                { key: "healthy", label: "Healthy", accessible: "Healthy Agents", count: registeredAgents.filter(agent => agent.status === "healthy").length }
+                { key: "all", label: t("All"), accessible: t("All Agents"), count: registeredAgents.length },
+                { key: "attention", label: t("Attention"), accessible: t("Agents Needing Attention"), count: registeredAgents.filter(agent => agent.status !== "healthy").length },
+                { key: "healthy", label: t("Healthy"), accessible: t("Healthy Agents"), count: registeredAgents.filter(agent => agent.status === "healthy").length }
               ].map(filter => <button key={filter.key} type="button"
                 aria-label={`${filter.accessible} (${filter.count})`}
                 aria-pressed={filter.key === (rosterFilter === "attention" || rosterFilter === "healthy" ? rosterFilter : "all")}
@@ -781,23 +782,23 @@ export function InstallAgentPage() {
                 {filter.label}<span className="numeric">{formatCount(filter.count)}</span>
               </button>)}
             </div>
-            <label className="roster-search"><Search aria-hidden="true" /><span className="visually-hidden">Search Agents</span>
-              <input type="search" placeholder="Search Agents" value={rosterSearch} maxLength={120}
+            <label className="roster-search"><Search aria-hidden="true" /><span className="visually-hidden">{t("Search Agents")}</span>
+              <input type="search" placeholder={t("Search Agents")} value={rosterSearch} maxLength={120}
                 onChange={event => setRosterQuery("agent_search", event.target.value)} />
             </label>
           </div>
           <div className="table-wrap">
             <table className="data-table agent-roster-table">
               <caption className="visually-hidden">
-                Current status, resource usage, health checks, reported server uptime, heartbeat freshness, and management actions for registered agents.
+                {t("Current status, resource usage, health checks, reported server uptime, heartbeat freshness, and management actions for registered agents.")}
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">Agent Name</th>
-                  <th scope="col">Resource Use</th>
-                  <th scope="col">Health Checks</th>
-                  <th scope="col">Activity</th>
-                  <th scope="col"><span className="visually-hidden">Actions</span></th>
+                  <th scope="col">{t("Agent Name")}</th>
+                  <th scope="col">{t("Resource Use")}</th>
+                  <th scope="col">{t("Health Checks")}</th>
+                  <th scope="col">{t("Activity")}</th>
+                  <th scope="col"><span className="visually-hidden">{t("Actions")}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -808,27 +809,27 @@ export function InstallAgentPage() {
                       || window.getSelection()?.toString()) return;
                     navigate(`${projectBase}/agents/${encodeURIComponent(agent.id)}`);
                   }}>
-                    <th scope="row" data-label="Agent Name" className="server-cell">
+                    <th scope="row" data-label={t("Agent Name")} className="server-cell">
                       <div className="roster-identity-row">
                       <span className={`status-tile status-tile--${agent.status}`} aria-hidden="true"><Server /></span>
                       <div className="roster-identity">
-                        <span className="entity-name"><Link className="roster-agent-link" title="View Agent Detail"
-                          aria-label={`View Agent Detail For ${agent.server_name}`} to={`${projectBase}/agents/${encodeURIComponent(agent.id)}`}>
+                        <span className="entity-name"><Link className="roster-agent-link" title={t("View Agent Detail")}
+                          aria-label={t("View Agent Detail For {0}", agent.server_name)} to={`${projectBase}/agents/${encodeURIComponent(agent.id)}`}>
                           <strong title={agent.server_name}>{agent.server_name}</strong></Link><MaintenanceIcon maintenance={agent.maintenance} /></span>
                         <div className="roster-identity__meta"><StatusBadge status={agent.status} />
-                          <span>{agent.agent_version ? `v${agent.agent_version}` : "Version Pending"}</span></div>
-                        {agentStateCause(agent.status, agent.probable_cause) ? <p className="roster-identity__cause" title={agentStateCause(agent.status, agent.probable_cause) ?? undefined}>{agentStateCause(agent.status, agent.probable_cause)}</p> : null}
+                          <span>{agent.agent_version ? `v${agent.agent_version}` : t("Version Pending")}</span></div>
+                        {agentStateCauseText(agent.status, agent.probable_cause) ? <p className="roster-identity__cause" title={agentStateCauseText(agent.status, agent.probable_cause) ?? undefined}>{agentStateCauseText(agent.status, agent.probable_cause)}</p> : null}
                       </div>
                       </div>
                     </th>
-                    <td data-label="Resource Use">
+                    <td className="roster-resources-cell" data-label={t("Resource Use")}>
                       <AgentRosterResources agent={agent} fetchedAt={agents.fetchedAt} />
                     </td>
-                    <td data-label="Health Checks">
+                    <td className="roster-checks-cell" data-label={t("Health Checks")}>
                       <AgentRosterChecks agent={agent} fetchedAt={agents.fetchedAt} />
                     </td>
                     <td
-                      data-label="Activity"
+                      data-label={t("Activity")}
                       className="agent-heartbeat-cell"
                       title={agent.last_heartbeat_at ? new Date(agent.last_heartbeat_at).toISOString() : undefined}
                     >
@@ -837,16 +838,16 @@ export function InstallAgentPage() {
                     <td className="row-action">
                       <div className="agent-row-actions">
                         <AgentActionsMenu name={agent.server_name}>
-                        <Link className="button button--secondary" aria-label={`View ${agent.server_name}`}
+                        <Link className="button button--secondary" aria-label={t("View {0}", agent.server_name)}
                           to={`${projectBase}/agents/${encodeURIComponent(agent.id)}`}>
-                          <Eye aria-hidden="true" /> View
+                          <Eye aria-hidden="true" />{" "}{t("View")}
                         </Link>
                         <button
                           className="button button--secondary"
                           type="button"
                           hidden={!hasPermission(user, "edit_agent_settings")}
-                          aria-label={`Edit ${agent.server_name}`}
-                          title="Edit Agent"
+                          aria-label={t("Edit {0}", agent.server_name)}
+                          title={t("Edit Agent")}
                           aria-haspopup="dialog"
                           aria-controls="edit-agent"
                           onClick={(event) => {
@@ -858,14 +859,14 @@ export function InstallAgentPage() {
                             setError(null);
                           }}
                         >
-                          <Pencil aria-hidden="true" /> Edit
+                          <Pencil aria-hidden="true" />{" "}{t("Edit")}
                         </button>
                         <button
                           className="button button--secondary"
                           type="button"
                           hidden={!hasPermission(user, "rotate_agent_secrets")}
-                          aria-label={`Rotate ${agent.server_name} Access Secret`}
-                          title="Rotate Access Secret"
+                          aria-label={t("Rotate {0} Access Secret", agent.server_name)}
+                          title={t("Rotate Access Secret")}
                           aria-haspopup="dialog"
                           aria-controls="rotate-agent-credential"
                           onClick={(event) => {
@@ -879,14 +880,14 @@ export function InstallAgentPage() {
                             setError(null);
                           }}
                         >
-                          <KeyRound aria-hidden="true" /> Rotate Secret
+                          <KeyRound aria-hidden="true" />{" "}{t("Rotate Secret")}
                         </button>
                         <button
                           className="button button--secondary icon-button--danger"
                           type="button"
                           hidden={!hasPermission(user, "delete_agents")}
-                          aria-label={`Delete ${agent.server_name}`}
-                          title="Delete Agent"
+                          aria-label={t("Delete {0}", agent.server_name)}
+                          title={t("Delete Agent")}
                           aria-haspopup="dialog"
                           aria-controls="delete-agent"
                           onClick={(event) => {
@@ -898,7 +899,7 @@ export function InstallAgentPage() {
                             setDeleteError(null);
                           }}
                         >
-                          <Trash2 aria-hidden="true" /> Delete
+                          <Trash2 aria-hidden="true" />{" "}{t("Delete")}
                         </button>
                         </AgentActionsMenu>
                       </div>
@@ -906,16 +907,16 @@ export function InstallAgentPage() {
                   </tr>
                 ))}
                 {visibleAgents.length === 0 ? <tr className="roster-no-results"><td colSpan={5}>
-                  <Search aria-hidden="true" /><strong>No Matching Agents</strong>
-                  <p>Try another name or clear the health filter.</p>
-                  <button className="button button--secondary" type="button" onClick={clearRosterFilters}>Clear Filters</button>
+                  <Search aria-hidden="true" /><strong>{t("No Matching Agents")}</strong>
+                  <p>{t("Try another name or clear the health filter.")}</p>
+                  <button className="button button--secondary" type="button" onClick={clearRosterFilters}>{t("Clear Filters")}</button>
                 </td></tr> : null}
               </tbody>
             </table>
           </div>
           <div className="roster-footer" role="status">
-            <span>{formatCount(visibleAgents.length)} Of {formatCount(registeredAgents.length)} Agents</span>
-            <span>Attention First</span>
+            <span>{t("{0} Of {1} Agents", formatCount(visibleAgents.length), formatCount(registeredAgents.length))}</span>
+            <span>{t("Attention First")}</span>
           </div>
         </section>
       ) : null}

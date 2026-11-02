@@ -1,5 +1,6 @@
 import { MoreHorizontal } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
+import { t } from "../i18n";
 
 /** Native light-dismiss action disclosure; no write is performed by opening this control. */
 export function AgentActionsMenu({ name, children }: { name: string; children: ReactNode }) {
@@ -9,7 +10,7 @@ export function AgentActionsMenu({ name, children }: { name: string; children: R
   const [open, setOpen] = useState(false);
   return <>
     <button ref={trigger} className="icon-button" type="button" data-agent-actions
-      aria-label={`More Actions For ${name}`} aria-expanded={open} aria-controls={id}
+      aria-label={t("More Actions For {0}", name)} aria-expanded={open} aria-controls={id}
       onClick={() => {
         if (!panel.current || !trigger.current) return;
         if (panel.current.matches(":popover-open")) { panel.current.hidePopover(); return; }
@@ -21,7 +22,7 @@ export function AgentActionsMenu({ name, children }: { name: string; children: R
         panel.current.querySelector<HTMLElement>("a[href], button:not([hidden])")?.focus();
       }}><MoreHorizontal aria-hidden="true" /></button>
     <div ref={panel} id={id} popover="auto" className="agent-actions-popover" role="group"
-      aria-label={`Actions For ${name}`}
+      aria-label={t("Actions For {0}", name)}
       onToggle={() => setOpen(panel.current?.matches(":popover-open") ?? false)}
       onKeyDown={(event) => {
         if (event.key === "Escape") { panel.current?.hidePopover(); trigger.current?.focus(); }

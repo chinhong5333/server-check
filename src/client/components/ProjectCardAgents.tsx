@@ -5,6 +5,7 @@ import { apiFetch } from "../api";
 import { ModalDialog } from "./ModalDialog";
 import { StatusBadge, statusConfig } from "./StatusBadge";
 import { MaintenanceIcon } from "./MaintenanceIcon";
+import { t } from "../i18n";
 
 type DirectoryAgent = Pick<AgentSummary, "id" | "server_name" | "status" | "maintenance">;
 
@@ -38,7 +39,7 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
       });
       if (!controller.signal.aborted) setAgents(result.map(({ id, server_name, status, maintenance }) => ({ id, server_name, status, maintenance })));
     } catch (cause) {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load agents.");
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : t("Could not load agents."));
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
@@ -53,7 +54,7 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
 
   return <>
     <section className="project-card__roster" aria-labelledby={`${dialogId}-preview-title`}>
-      <div className="project-card__roster-heading"><h4 id={`${dialogId}-preview-title`}>Agents</h4></div>
+      <div className="project-card__roster-heading"><h4 id={`${dialogId}-preview-title`}>{t("Agents")}</h4></div>
       <ul className="project-card__agent-grid">
         {visible.map((agent) => {
           const config = statusConfig[agent.status];
@@ -66,9 +67,9 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
         })}
         {showAll && <li className="project-card__view-all-item">
           <button ref={trigger} className="project-card__view-all" type="button"
-            aria-label={`View All ${total} Agents`} aria-haspopup="dialog" aria-controls={dialogId}
+            aria-label={t("View All {0} Agents", total)} aria-haspopup="dialog" aria-controls={dialogId}
             onClick={() => { setOpen(true); void loadAgents(); }}>
-            View All<ArrowRight aria-hidden="true" />
+            {t("View All")}<ArrowRight aria-hidden="true" />
           </button>
         </li>}
         {Array.from({ length: emptySlots }, (_, index) => <li key={`empty-${index}`} className="project-card__agent-slot" aria-hidden="true" />)}
@@ -79,21 +80,21 @@ export function ProjectCardAgents({ project, total }: { project: ProjectSummary;
       surfaceClassName="agent-dialog__surface form-surface project-agent-dialog__surface">
       <div className="section-heading">
         <div>
-          <h2 id={titleId}>All Agents</h2>
+          <h2 id={titleId}>{t("All Agents")}</h2>
           <p className="project-agent-dialog__project"><FolderKanban aria-hidden="true" /><span>{project.name}</span></p>
-          <p id={descriptionId}>{agents ? agents.length : total} registered agents.</p>
+          <p id={descriptionId}>{t("{0} registered agents.", agents ? agents.length : total)}</p>
         </div>
         <button className="icon-button" type="button" data-dialog-initial-focus
-          aria-label="Close All Agents" onClick={close}><X aria-hidden="true" /></button>
+          aria-label={t("Close All Agents")} onClick={close}><X aria-hidden="true" /></button>
       </div>
-      {loading ? <p className="project-agent-dialog__message" role="status">Loading Agents…</p>
+      {loading ? <p className="project-agent-dialog__message" role="status">{t("Loading Agents…")}</p>
         : error ? <div className="project-agent-dialog__message" role="alert">
-          <p>{error}</p><button className="button button--secondary" type="button" onClick={() => void loadAgents()}>Retry Loading Agents</button>
+          <p>{error}</p><button className="button button--secondary" type="button" onClick={() => void loadAgents()}>{t("Retry Loading Agents")}</button>
         </div>
         : agents?.length ? <ul className="project-agent-dialog__list">
           {agents.map((agent) => <li key={agent.id}><span className="entity-name"><strong>{agent.server_name}</strong><MaintenanceIcon maintenance={agent.maintenance} /></span><StatusBadge status={agent.status} /></li>)}
         </ul>
-        : <p className="project-agent-dialog__message" role="status">No Agents Registered</p>}
+        : <p className="project-agent-dialog__message" role="status">{t("No Agents Registered")}</p>}
     </ModalDialog>}
   </>;
 }

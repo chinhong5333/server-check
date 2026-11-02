@@ -3615,12 +3615,12 @@ button.back-link {
   .agent-roster-surface--inventory .agent-roster-table > tbody > tr > th,
   .agent-roster-surface--inventory .agent-roster-table > tbody > tr > td { padding: 0; border: 0; }
   .agent-roster-surface--inventory .server-cell { grid-area: identity; }
-  .agent-roster-surface--inventory td[data-label="Resource Use"] { grid-area: resources; }
-  .agent-roster-surface--inventory td[data-label="Health Checks"] { grid-area: checks; }
+  .agent-roster-surface--inventory td.roster-resources-cell { grid-area: resources; }
+  .agent-roster-surface--inventory td.roster-checks-cell { grid-area: checks; }
   .agent-roster-surface--inventory .agent-heartbeat-cell { grid-area: activity; border-block-start: var(--rule-thin) solid var(--color-rule) !important; padding-block-start: var(--space-md) !important; }
   .agent-roster-surface--inventory .agent-roster-table > tbody > tr > .row-action { grid-area: actions; padding: 0; align-self: start; }
-  .agent-roster-surface--inventory td[data-label="Resource Use"]::before, .agent-roster-surface--inventory .row-action::before { display: none; }
-  .agent-roster-surface--inventory td[data-label="Health Checks"]::before { font-size: var(--text-sm); color: var(--color-muted); font-weight: 500; margin-block-end: var(--space-xs); }
+  .agent-roster-surface--inventory td.roster-resources-cell::before, .agent-roster-surface--inventory .row-action::before { display: none; }
+  .agent-roster-surface--inventory td.roster-checks-cell::before { font-size: var(--text-sm); color: var(--color-muted); font-weight: 500; margin-block-end: var(--space-xs); }
   .agent-roster-surface--inventory .roster-resources { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); }
   .agent-roster-surface--inventory .roster-resource > div { display: grid; gap: var(--space-xs); justify-content: start; }
   .agent-roster-surface--inventory .roster-resource .numeric { font-size: var(--text-base); }
@@ -4516,3 +4516,23 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
 /* Shown only after repeated refresh failures, so a blip as a tab returns stays silent. */
 .connection-notice { display: flex; align-items: center; gap: var(--space-xs); margin-block-end: var(--space-md); }
 .connection-notice svg { width: 1rem; height: 1rem; flex: none; }
+
+/* Sidebar controls share one height: the theme group, language switch, settings and sign-out all match --control-height. */
+.theme-toggle__option { height: calc(var(--control-height) - 6px); }
+.sidebar__utilities > .theme-toggle { flex: 1 1 auto; }
+.sidebar .theme-toggle__option { flex: 1 1 0; width: auto; }
+.language-toggle {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2xs); width: auto; padding-inline: var(--space-xs);
+  font-family: var(--font-body); font-size: var(--text-xs); font-weight: 600; line-height: 1; white-space: nowrap;
+}
+.language-toggle svg { width: 1rem; height: 1rem; }
+.login-theme-toggle { align-items: center; gap: var(--space-xs); }
+/* The clock takes its own full-width row above the controls. */
+.sidebar__bottom > .sidebar-clock {
+  display: flex; justify-content: center; width: 100%; margin-inline-start: 0; min-height: 2.5rem; box-sizing: border-box;
+  border: var(--rule-thin) solid var(--color-sidebar-rule); border-radius: var(--radius-md); background: var(--color-sidebar-raised);
+}
+/* Negative tracking tuned for Latin headings crowds Chinese characters. */
+:lang(zh-CN) * { letter-spacing: 0 !important; }
+/* Chinese wraps at any character, so balance display headings to avoid one left alone on a line. */
+:lang(zh-CN) :is(h1, h2, .login-context__title) { text-wrap: balance; }

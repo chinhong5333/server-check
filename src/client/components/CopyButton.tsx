@@ -1,5 +1,6 @@
 import { Check, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
+import { t } from "../i18n";
 
 export function CopyButton({ value, label }: { value: string; label: string }) {
   const [state, setState] = useState<"idle" | "copied" | "error">("idle");
@@ -22,7 +23,7 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
   return (
     <button className="button button--secondary copy-button" type="button" onClick={copy} aria-label={state === "idle" ? label : undefined}>
       {state === "copied" ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-      {state === "copied" ? "Copied" : state === "error" ? "Copy Failed" : "Copy"}
+      {state === "copied" ? t("Copied") : state === "error" ? t("Copy Failed") : t("Copy")}
     </button>
   );
 }

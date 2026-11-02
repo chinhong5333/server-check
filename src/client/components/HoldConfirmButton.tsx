@@ -1,6 +1,7 @@
 import { Lock } from "lucide-react";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { InlineLoader } from "./Feedback";
+import { t } from "../i18n";
 
 export const HOLD_CONFIRM_SECONDS = 2;
 export const HOLD_CONFIRM_LOCK_SECONDS = 3;
@@ -11,7 +12,7 @@ export const HOLD_CONFIRM_LOCK_SECONDS = 3;
  * The visible label never changes, so the accessible name stays stable; the lock stays focusable via aria-disabled.
  */
 export function HoldConfirmButton({ label, onConfirm, tone = "danger", lockSeconds = HOLD_CONFIRM_LOCK_SECONDS, busy = false, busyLabel,
-  disabled = false, icon, description = `Press and hold for ${HOLD_CONFIRM_SECONDS} seconds to confirm.`, ref }: {
+  disabled = false, icon, description = t("Press and hold for {0} seconds to confirm.", HOLD_CONFIRM_SECONDS), ref }: {
   label: string; onConfirm: () => void; tone?: "danger" | "primary"; lockSeconds?: number;
   busy?: boolean; busyLabel?: string; disabled?: boolean; icon?: ReactNode; description?: string;
   ref?: Ref<HTMLButtonElement>;
@@ -44,10 +45,10 @@ export function HoldConfirmButton({ label, onConfirm, tone = "danger", lockSecon
       onKeyUp={(event) => { if (isActivationKey(event.key)) cancel(); }} onBlur={cancel} onContextMenu={(event) => event.preventDefault()}>
       <span className="hold-button__fill" aria-hidden="true" />
       {busy && busyLabel ? <InlineLoader label={busyLabel} /> : <>
-        {icon}{holding ? "Keep Holding…" : label}
-        {holding ? null : <span className="hold-button__hint" aria-hidden="true">{locked > 0 ? <><Lock />{locked}s</> : "Hold"}</span>}
+        {icon}{holding ? t("Keep Holding…") : label}
+        {holding ? null : <span className="hold-button__hint" aria-hidden="true">{locked > 0 ? <><Lock />{t("{0}s", locked)}</> : t("Hold")}</span>}
       </>}
     </button>
-    <span id={hintId} className="visually-hidden">{locked > 0 ? `Available in ${locked} ${locked === 1 ? "second" : "seconds"}. ` : ""}{description}</span>
+    <span id={hintId} className="visually-hidden">{locked > 0 ? t(locked === 1 ? "Available in {0} second. " : "Available in {0} seconds. ", locked) : ""}{description}</span>
   </>;
 }

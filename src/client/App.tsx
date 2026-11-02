@@ -13,6 +13,7 @@ import { ProjectProvider } from "./projects/ProjectProvider";
 import { AccountPage } from "./pages/AccountPage";
 import { AdminManagementPage } from "./pages/AdminManagementPage";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { t, useLocale } from "./i18n";
 
 const AgentDetailPage = lazy(async () => {
   const module = await import("./pages/AgentDetailPage");
@@ -45,8 +46,8 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { failed: bool
       return (
         <main className="standalone-feedback">
           <ErrorState
-            title="The Backoffice Could Not Render"
-            message="Reload the page. If the problem continues, inspect the central service logs."
+            title={t("The Backoffice Could Not Render")}
+            message={t("Reload the page. If the problem continues, inspect the central service logs.")}
             onRetry={() => window.location.reload()}
           />
         </main>
@@ -106,6 +107,7 @@ function ProtectedApplication() {
 }
 
 export function App() {
+  useLocale();
   return (
     <AppErrorBoundary>
       <ScrollToTop />

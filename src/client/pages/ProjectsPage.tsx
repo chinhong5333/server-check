@@ -13,6 +13,7 @@ import { ProjectCard } from "../components/ProjectCard";
 import { useAuth } from "../auth/AuthProvider";
 import { NotificationGroupBar } from "../components/NotificationGroup";
 import { MaintenanceControl } from "../components/MaintenanceControl";
+import { t } from "../i18n";
 
 
 export function ProjectsPage() {
@@ -47,8 +48,8 @@ export function ProjectsPage() {
   if (status === "error") {
     return (
       <ErrorState
-        title="Couldn't Load Projects"
-        message={error?.message ?? "Check the central API and try again."}
+        title={t("Couldn't Load Projects")}
+        message={error?.message ?? t("Check the central API and try again.")}
         onRetry={reloadProjects}
       />
     );
@@ -59,28 +60,28 @@ export function ProjectsPage() {
       <NotificationGroupBar />
       <header className="page-header">
         <div>
-          <nav className="page-breadcrumb" aria-label="Breadcrumb">
+          <nav className="page-breadcrumb" aria-label={t("Breadcrumb")}>
             <ol>
               <li>Server Monitor</li>
-              <li aria-current="page">Projects</li>
+              <li aria-current="page">{t("Projects")}</li>
             </ol>
           </nav>
           <div className="projects-page__title">
-            <h1>Projects</h1>
+            <h1>{t("Projects")}</h1>
             {projects.length > 0 ? <span className="numeric section-count">
-              Total {formatCount(projects.length)} {projects.length === 1 ? "Project" : "Projects"}
+              {t(projects.length === 1 ? "Total {0} Project" : "Total {0} Projects", formatCount(projects.length))}
             </span> : null}
           </div>
         </div>
         <div className="projects-page__actions">
           <div className="projects-page__collection-actions">
           {projects.length > 0 && !sortSnapshot ? <label className="roster-search"><Search aria-hidden="true" />
-            <span className="visually-hidden">Search Projects Or Agents</span>
-            <input type="search" placeholder="Search Projects Or Agents" value={projectSearch} maxLength={120}
+            <span className="visually-hidden">{t("Search Projects Or Agents")}</span>
+            <input type="search" placeholder={t("Search Projects Or Agents")} value={projectSearch} maxLength={120}
               onChange={event => setProjectSearch(event.target.value)} />
           </label> : null}
           {hasPermission(user, "edit_project_settings") && !sortSnapshot && projects.length > 1 && <button type="button" className="button button--secondary"
-            onClick={() => setSortSnapshot([...projects])}><ListFilter aria-hidden="true" />Sort</button>}
+            onClick={() => setSortSnapshot([...projects])}><ListFilter aria-hidden="true" />{t("Sort")}</button>}
           </div>
           <div className="projects-page__primary-actions">
           {projects.length > 0 ? <MaintenanceControl endpoint="/api/v1/maintenance/all-projects" scope="All Projects" canManage={user?.role === "admin"}
@@ -95,7 +96,7 @@ export function ProjectsPage() {
             disabled={sortSnapshot !== null}
           >
             <FolderPlus aria-hidden="true" />
-            Create Project
+            {t("Create Project")}
           </button>
           </div>
         </div>
@@ -112,15 +113,15 @@ export function ProjectsPage() {
       >
         <div className="section-heading">
           <div>
-            <h2 id="create-project-title">Create Project</h2>
+            <h2 id="create-project-title">{t("Create Project")}</h2>
             <p id="create-project-description">
-              Create one monitoring boundary. Agents can be registered after the project is saved.
+              {t("Create one monitoring boundary. Agents can be registered after the project is saved.")}
             </p>
           </div>
           <button
             className="icon-button"
             type="button"
-            aria-label="Close Project Creation"
+            aria-label={t("Close Project Creation")}
             disabled={creating}
             onClick={closeCreateDialog}
           >
@@ -138,8 +139,8 @@ export function ProjectsPage() {
 
       {projects.length === 0 ? (
         <EmptyState
-          title="No Projects Yet"
-          message="Create a project to define its settings and register agents."
+          title={t("No Projects Yet")}
+          message={t("Create a project to define its settings and register agents.")}
           action={
             <button
               className="button button--primary"
@@ -149,18 +150,18 @@ export function ProjectsPage() {
               hidden={!hasPermission(user, "edit_project_settings")}
           onClick={openCreateDialog}
             >
-              Create First Project
+              {t("Create First Project")}
             </button>
           }
         />
       ) : (
-        <section className="project-collection" aria-label="All Projects">
+        <section className="project-collection" aria-label={t("All Projects")}>
           {sortSnapshot && hasPermission(user, "edit_project_settings") ? <ProjectSortMode projects={sortSnapshot} onClose={() => setSortSnapshot(null)}
             onSaved={() => { reloadProjects(); setSortSnapshot(null); }} /> :
           visibleProjects.length === 0 ? <EmptyState
-            title="No Matching Projects"
-            message="No project or agent name matches this search."
-            action={<button className="button button--secondary" type="button" onClick={() => setProjectSearch("")}>Clear Search</button>}
+            title={t("No Matching Projects")}
+            message={t("No project or agent name matches this search.")}
+            action={<button className="button button--secondary" type="button" onClick={() => setProjectSearch("")}>{t("Clear Search")}</button>}
           /> :
           <ul className="project-card-grid">
             {visibleProjects.map((project) => <li key={project.id}><ProjectCard project={project} /></li>)}

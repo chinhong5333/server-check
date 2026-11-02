@@ -5,6 +5,7 @@ import { CopyButton } from "./CopyButton";
 import { DateTimeStamp } from "./DateTimeStamp";
 import { ModalDialog } from "./ModalDialog";
 import { formatIdentifierLabel } from "../lib/format";
+import { t } from "../i18n";
 
 /** Icon tile for an incident row, chosen from the incident type identifier. */
 function incidentTile(type: string) {
@@ -30,36 +31,36 @@ export function AgentIncidentHistory({
     <section className="data-surface" aria-labelledby="agent-incidents-title">
       <div className="section-heading">
         <div>
-          <h2 id="agent-incidents-title">Incident History</h2>
-          <p>Conditions recorded for this agent, with the newest occurrence first.</p>
+          <h2 id="agent-incidents-title">{t("Incident History")}</h2>
+          <p>{t("Conditions recorded for this agent, with the newest occurrence first.")}</p>
         </div>
-        <span className="numeric section-count">Total {incidents.length}</span>
+        <span className="numeric section-count">{t("Total {0}", incidents.length)}</span>
       </div>
 
       {incidents.length === 0 ? (
-        <p className="quiet-message">No incidents have been recorded for this agent.</p>
+        <p className="quiet-message">{t("No incidents have been recorded for this agent.")}</p>
       ) : (
         <div className="table-wrap">
           <table className="data-table incident-history-table">
             <thead>
               <tr>
-                <th scope="col">Incident</th>
-                <th scope="col">Details</th>
-                <th scope="col">Occurred At</th>
-                <th scope="col"><span className="visually-hidden">Raw Log</span></th>
+                <th scope="col">{t("Incident")}</th>
+                <th scope="col">{t("Details")}</th>
+                <th scope="col">{t("Occurred At")}</th>
+                <th scope="col"><span className="visually-hidden">{t("Raw Log")}</span></th>
               </tr>
             </thead>
             <tbody>
               {incidents.map((incident) => (
                 <tr key={incident.id}>
-                  <th scope="row" data-label="Incident" className="mono-label">
+                  <th scope="row" data-label={t("Incident")} className="mono-label">
                     <IncidentType type={incident.incident_type} />
                   </th>
-                  <td data-label="Details">{incident.probable_cause}</td>
-                  <td data-label="Occurred At" className="numeric">
+                  <td data-label={t("Details")}>{t(incident.probable_cause)}</td>
+                  <td data-label={t("Occurred At")} className="numeric">
                     <DateTimeStamp value={incident.opened_at} />
                   </td>
-                  <td data-label="Raw Log" className="row-action incident-log-action">
+                  <td data-label={t("Raw Log")} className="row-action incident-log-action">
                     <button
                       className="button button--secondary"
                       type="button"
@@ -71,7 +72,7 @@ export function AgentIncidentHistory({
                       }}
                     >
                       <FileJson aria-hidden="true" />
-                      View Raw Log
+                      {t("View Raw Log")}
                     </button>
                   </td>
                 </tr>
@@ -94,16 +95,16 @@ export function AgentIncidentHistory({
           <>
             <div className="section-heading">
               <div>
-                <h2 id="incident-raw-log-title">Incident Raw Log</h2>
+                <h2 id="incident-raw-log-title">{t("Incident Raw Log")}</h2>
                 <p id="incident-raw-log-description">
-                  Complete normalized record for {selectedIncident.incident_type.replaceAll("_", " ")}.
+                  {t("Complete normalized record for {0}.", selectedIncident.incident_type.replaceAll("_", " "))}
                 </p>
               </div>
               <button
                 data-dialog-initial-focus
                 className="icon-button"
                 type="button"
-                aria-label="Close Incident Raw Log"
+                aria-label={t("Close Incident Raw Log")}
                 onClick={() => setSelectedIncident(null)}
               >
                 <X aria-hidden="true" />
@@ -112,7 +113,7 @@ export function AgentIncidentHistory({
             <div className="code-surface raw-log-dialog__code">
               <div className="code-surface__header">
                 <strong>{selectedIncident.id}.json</strong>
-                <CopyButton value={rawLog} label="Copy Raw Log" />
+                <CopyButton value={rawLog} label={t("Copy Raw Log")} />
               </div>
               <pre tabIndex={0}><code>{rawLog}</code></pre>
             </div>

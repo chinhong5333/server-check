@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 export function MetricValue({
   value,
   format,
@@ -9,7 +10,7 @@ export function MetricValue({
 }) {
   const display = format(value);
   return (
-    <span className={`numeric${className ? ` ${className}` : ""}`} aria-label={display === "--" ? "No Data" : display}>
+    <span className={`numeric${className ? ` ${className}` : ""}`} aria-label={display === "--" ? t("No Data") : display}>
       {display}
     </span>
   );

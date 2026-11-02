@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { AuthenticatedUser, SessionResponse } from "../../shared/contracts";
 import { ApiError, apiFetch, setCsrfToken } from "../api";
+import { t } from "../i18n";
 
 interface AuthContextValue {
   user: AuthenticatedUser | null;

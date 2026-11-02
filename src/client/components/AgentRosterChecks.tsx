@@ -2,6 +2,7 @@ import type { AgentSummary } from "../../shared/contracts";
 import { DEFAULT_AGENT_CHECKS } from "../../shared/contracts";
 import { statusClock } from "../lib/status-clock";
 import { checkPresentation } from "./AgentHealthChecks";
+import { t } from "../i18n";
 
 /** Aligned check/status table; absence and stale reports never imply health. */
 export function AgentRosterChecks({ agent, fetchedAt }: { agent: AgentSummary; fetchedAt?: number | null }) {
@@ -17,13 +18,13 @@ export function AgentRosterChecks({ agent, fetchedAt }: { agent: AgentSummary; f
     { name: "Database", enabled: checks.middleware_api,
       status: agent.database_status == null ? undefined : agent.database_status.toLowerCase() === "alive" ? "healthy" : "unhealthy" }
   ];
-  return <table className="agent-roster-checks" aria-label={`Health Checks For ${agent.server_name}`}>
+  return <table className="agent-roster-checks" aria-label={t("Health Checks For {0}", agent.server_name)}>
     <tbody>
     {items.map((item) => {
       const view = checkPresentation(item.enabled, item.status, stale);
-      const label = item.name === "Database" && item.enabled && !item.status ? "Not Reported" : view.label;
+      const label = item.name === "Database" && item.enabled && !item.status ? t("Not Reported") : view.label;
       return <tr key={item.name} className={`agent-roster-check agent-roster-check--${view.tone}`}>
-        <th scope="row" aria-label={item.name} title={item.name}>{item.name === "Middleware API" ? "API" : item.name}</th><td><span><view.Icon aria-hidden="true" />{label}</span></td>
+        <th scope="row" aria-label={t(item.name)} title={t(item.name)}>{item.name === "Middleware API" ? "API" : t(item.name)}</th><td><span><view.Icon aria-hidden="true" />{label}</span></td>
       </tr>;
     })}
     </tbody>
