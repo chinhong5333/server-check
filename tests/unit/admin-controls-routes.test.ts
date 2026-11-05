@@ -40,6 +40,18 @@ beforeEach(() => {
   });
 });
 describe("admin controls", () => {
+  it("lists admins first, then most permissions, with email breaking ties", async () => {
+    const member = (email: string, role: string, permissions: string[]) => ({ public_id: email, email, role, permissions_json: JSON.stringify(permissions), is_disabled: 0, created_at: 1 });
+    state.execute.mockImplementation(async (sql: string) => sql.startsWith("SELECT public_id, email") ? [[
+      member("a-one@example.test", "sub_admin", ["view_projects"]),
+      member("b-one@example.test", "sub_admin", ["view_projects"]),
+      member("c-two@example.test", "sub_admin", ["view_projects", "edit_global_settings"]),
+      member("d-admin@example.test", "admin", [])
+    ]] : [{ affectedRows: 0 }]);
+    const result = await request(app()).get("/admins");
+    expect(result.status).toBe(200);
+    expect(result.body.map((row: { email: string }) => row.email)).toEqual(["d-admin@example.test", "c-two@example.test", "a-one@example.test", "b-one@example.test"]);
+  });
   it.each([true,false])("sets sub-admin enabled=%s and revokes sessions only on disable", async enabled => {
     state.execute.mockImplementation(async (sql:string) => {
       if(sql.startsWith("SELECT id FROM internal_users")) return [[{id:"1"}]];

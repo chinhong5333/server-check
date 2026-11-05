@@ -22,7 +22,7 @@ export function createAdminsRouter(config: AppConfig): Router {
   router.use(authenticate(config), requireRole("admin"));
   /**
    * GET /api/v1/admins
-   * Lists active admins and sub-admins, without password/session information.
+   * Lists active admins and sub-admins, without password/session information: admins first, then most permissions, then email.
    * @param {import("express").Request} request Body and query must be empty.
    * @param {import("express").Response} response Array of public id, email, role, permissions, enabled status, and created_at values.
    * @returns {Promise<void>} Resolves after the administrator list is returned.
@@ -34,7 +34,10 @@ export function createAdminsRouter(config: AppConfig): Router {
       "SELECT public_id, email, role, permissions_json, is_disabled, created_at FROM internal_users WHERE role IN ('admin', 'sub_admin') AND is_delete = 0 ORDER BY email, id"
     );
     response.setHeader("Cache-Control", "no-store");
-    response.json(rows.map((row) => ({ id: row.public_id, email: row.email, role: row.role, enabled: Number(row.is_disabled) !== 1, permissions: readPermissions(row.permissions_json), created_at: Number(row.created_at) })));
+    const members = rows.map((row) => ({ id: row.public_id, email: row.email, role: row.role, enabled: Number(row.is_disabled) !== 1, permissions: readPermissions(row.permissions_json), created_at: Number(row.created_at) }));
+    // The sort is stable, so members with the same role and permission count keep the query's email order.
+    members.sort((left, right) => Number(right.role === "admin") - Number(left.role === "admin") || right.permissions.length - left.permissions.length);
+    response.json(members);
   }));
   /**
    * POST /api/v1/admins
