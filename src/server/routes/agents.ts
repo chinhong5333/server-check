@@ -44,6 +44,7 @@ interface AgentRow extends RowDataPacket {
   middleware_failure_count: number;
   middleware_failure_threshold: number;
   latest_load_5: string | null;
+  latest_health_latency_ms: string | null;
   latest_ram_total_bytes: string | null;
   latest_ram_available_bytes: string | null;
   latest_storage_total_bytes: string | null;
@@ -136,6 +137,7 @@ export function createAgentsRouter(config: AppConfig): Router {
    * Returns current agent status and downsampled monitoring history over a maximum seven-day range.
    * History points include raw load_5 bucket averages; latest_load_5 is the raw five-minute
    * load from the current heartbeat, independent of the history range, or null when unavailable.
+   * latest_health_latency_ms is the middleware latency from that same heartbeat, or null when it reported none.
    * The existing load_5_per_core field retains its normalized meaning.
    * latest_resources contains nullable RAM/storage used_bytes, total_bytes, and utilization_percent
    * from the latest heartbeat, independent of the chart range. Storage is limited to the root
@@ -175,6 +177,7 @@ export function createAgentsRouter(config: AppConfig): Router {
                 a.heartbeat_interval_seconds, a.middleware_failure_count,
                 a.middleware_failure_threshold, p.public_id AS project_public_id,
                 latest.load_5 AS latest_load_5,
+                latest.health_latency_ms AS latest_health_latency_ms,
                 latest.memory_total_bytes AS latest_ram_total_bytes,
                 latest.memory_available_bytes AS latest_ram_available_bytes,
                 latest.database_health_json AS latest_database_health_json,
@@ -260,6 +263,7 @@ export function createAgentsRouter(config: AppConfig): Router {
         to: query.to,
         bucket_seconds: query.bucket_seconds,
         latest_load_5: agent.latest_load_5 == null ? null : Number(agent.latest_load_5),
+        latest_health_latency_ms: agent.latest_health_latency_ms == null ? null : Number(agent.latest_health_latency_ms),
         latest_resources: latestResources,
         latest_database_health: parseDatabaseHealth(agent.latest_database_health_json),
         points: metricRows.map((row) => ({

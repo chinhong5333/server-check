@@ -29,7 +29,7 @@ describe("raw load history", () => {
         server_name: "Synthetic", status: "healthy", probable_cause: null,
         health_api_url: null, last_heartbeat_at: "2000", last_metrics_at: "2000",
         agent_version: "1.3.0", heartbeat_interval_seconds: 60,
-        middleware_failure_count: 1, middleware_failure_threshold: 2, latest_load_5: latest,
+        middleware_failure_count: 1, middleware_failure_threshold: 2, latest_load_5: latest, latest_health_latency_ms: "157",
         latest_ram_total_bytes: "8000000000", latest_ram_available_bytes: "3860000000",
         latest_storage_total_bytes: "100000000000", latest_storage_available_bytes: "60000000000", latest_storage_mount_point: "/",
         latest_database_health_json: JSON.stringify({ status: "alive", message: "", connection_count: 58,
@@ -55,6 +55,7 @@ describe("raw load history", () => {
     const result = await request(app()).get("/agent-1/history?from=0&to=3000&bucket_seconds=1800");
     expect(result.status).toBe(200);
     expect(result.body.latest_load_5).toBe(0.43);
+    expect(result.body.latest_health_latency_ms).toBe(157);
     expect(result.body.agent).toMatchObject({ middleware_failure_count: 1, middleware_failure_threshold: 2 });
     expect(result.body.latest_resources).toEqual({
       ram: { used_bytes: 4140000000, total_bytes: 8000000000, utilization_percent: 51.75 },

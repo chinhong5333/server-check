@@ -68,6 +68,7 @@ interface HistoryResponse {
   bucket_seconds: number;
   points: HistoryPoint[];
   latest_load_5: number | null;
+  latest_health_latency_ms: number | null;
   latest_resources: AgentLatestResources;
   latest_database_health: DatabaseHealthSnapshot | null;
 }
@@ -379,7 +380,7 @@ export function AgentDetailPage() {
           <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title={t("Storage Utilization")} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
             latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} latestAt={agent.last_metrics_at} capacity={resource.data.latest_resources?.storage} />
           <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title={t("Load Average (5 Min)")} data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestAt={agent.last_metrics_at} latestReading={resource.data.latest_load_5 ?? null} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title={t("Health Latency")} data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
+          <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title={t("Health Latency")} data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} latestAt={agent.last_metrics_at} latestReading={resource.data.latest_health_latency_ms ?? null} />
         </div>
       )}
 
