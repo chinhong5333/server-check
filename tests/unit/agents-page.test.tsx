@@ -363,7 +363,7 @@ describe("project-scoped agents page", () => {
     expect(screen.getByLabelText("Alert If No Heartbeat For")).toHaveValue("120");
     expect(screen.getByLabelText("Issue Alert Interval")).toHaveValue("900");
     expect(screen.getByLabelText("Recovery Interval")).toHaveValue("30");
-    expect(screen.getByText("Minimum gap between successfully sent issue alerts.")).toBeInTheDocument();
+    expect(screen.getByText("Minimum gap between repeat alerts for the same issue.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this RAM usage.")).toBeInTheDocument();
     expect(screen.getByText("Alerts at or above this storage usage.")).toBeInTheDocument();
     expect(screen.getByText("Five-minute load divided by logical CPU count.")).toBeInTheDocument();

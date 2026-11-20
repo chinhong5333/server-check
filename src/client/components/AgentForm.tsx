@@ -250,7 +250,7 @@ export function AgentForm({
                       <option value={minutes * 60} key={minutes}>{minutes < 60 ? `${minutes} min` : `${minutes / 60} hr${minutes === 60 ? "" : "s"}`}</option>
                     ))}
                   </select>
-                  <span id="agent-telegram-cooldown-help" className="field__help">{t("Minimum gap between successfully sent issue alerts.")}</span>
+                  <span id="agent-telegram-cooldown-help" className="field__help">{t("Minimum gap between repeat alerts for the same issue.")}</span>
                 </div>
                 <div className="field">
                   <label htmlFor="agent-telegram-recovery">{t("Recovery Interval")}</label>

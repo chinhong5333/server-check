@@ -409,7 +409,7 @@ export const zhCN: Record<string, string> = {
   "Middleware API Unhealthy": "中间件 API 异常",
   "Middleware API URL": "中间件 API URL",
   "Middleware endpoint used by the latest generated script.": "最新生成的脚本所使用的中间件端点。",
-  "Minimum gap between successfully sent issue alerts.": "成功发送问题告警的最短间隔。",
+  "Minimum gap between repeat alerts for the same issue.": "同一问题重复告警的最短间隔。",
   "Minute": "分钟",
   "Monitor server health and manage every agent registered to this project.": "监控服务器健康状况，并管理注册到此项目的每个探针。",
   "Monitored Servers": "受监控的服务器",

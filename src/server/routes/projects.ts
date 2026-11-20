@@ -611,7 +611,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {string|null} response.body.database_status Latest heartbeat's validated database status; null when that report has no database snapshot. Raw responses are not included.
    * @param {number|null} response.body.uptime_seconds Last accepted OS uptime in seconds, independent of a later payloadless heartbeat.
    * @param {number|null} response.body.uptime_received_at Central receipt timestamp for the uptime reading, Unix milliseconds; clients must mark expired readings stale.
-   * @param {number} response.body.telegram_alert_cooldown_seconds Minimum per-agent gap between successfully delivered issue alerts.
+   * @param {number} response.body.telegram_alert_cooldown_seconds Minimum gap between successfully delivered issue alerts of the same issue type for this agent.
    * @param {number} response.body.telegram_recovery_cooldown_seconds Per-agent recovery delay and minimum recovery-delivery gap, in seconds.
    * @param {object|null} response.body.maintenance Effective {status, scope}, including inherited project maintenance; active wins over scheduled.
    * @returns {Promise<void>} Resolves after agent lookup.
@@ -689,7 +689,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {number} request.body.disk_available_threshold_percent Available-storage incident threshold.
    * @param {number} request.body.load_5_per_core_threshold Five-minute load-per-core threshold.
    * @param {number} request.body.heartbeat_interval_seconds Maximum heartbeat interval expected by the central monitor.
-   * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful issue-alert deliveries for this agent, 300-86400 seconds.
+   * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful issue-alert deliveries of the same issue type for this agent, 300-86400 seconds.
    * @param {number} [request.body.telegram_recovery_cooldown_seconds] Recovery delay and delivery gap, integer 10-300 seconds. Omission preserves the saved recovery interval during rolling upgrades.
    * @param {number} [request.body.middleware_failure_threshold=2] Consecutive unhealthy middleware checks required before opening an alert, integer 1–10. Changing this value resets a pending streak; existing incidents stay open until recovery.
    * @param {object} [request.body.checks] Apache, nginx, and middleware_api booleans; omission keeps the saved selection. Turning a check off takes effect on the next heartbeat without a new script; turning Middleware API on requires a saved health_api_url (422 otherwise).
@@ -935,7 +935,7 @@ export function createProjectsRouter(config: AppConfig): Router {
    * @param {number} request.body.disk_available_threshold_percent Available-storage incident threshold.
    * @param {number} request.body.load_5_per_core_threshold Five-minute load-per-core threshold.
    * @param {number} request.body.heartbeat_interval_seconds Maximum heartbeat interval and generated cron schedule.
-   * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful issue-alert deliveries for this agent, 300-86400 seconds.
+   * @param {number} request.body.telegram_alert_cooldown_seconds Minimum gap between successful issue-alert deliveries of the same issue type for this agent, 300-86400 seconds.
    * @param {number} [request.body.telegram_recovery_cooldown_seconds=30] Recovery delay and delivery gap, integer 10-300 seconds. Omitted by pre-recovery-interval clients, which receive the 30-second default.
    * @param {number} [request.body.middleware_failure_threshold=2] Consecutive unhealthy middleware checks required before opening an alert, integer 1–10. Changing this value resets a pending streak; existing incidents stay open until recovery.
    * @param {import("express").Response<AgentInstallationResponse>} response One-time script and crontab response.

@@ -202,9 +202,11 @@ export async function deliverTelegram(config: AppConfig): Promise<void> {
         }
         remainingOpen = Number(eligible.remaining_open);
       }
+      // The issue interval spaces repeats of one issue type; a different issue on the same agent is not held back.
       const [sentRows] = await connection.execute<RowDataPacket[]>(
         `SELECT MAX(o.sent_at) AS last_sent_at FROM notification_outbox o INNER JOIN incidents i ON i.id = o.incident_id
-         WHERE i.agent_id = ? AND o.channel = 'telegram' AND o.status = 'sent' AND o.event_type = ? AND o.is_delete = 0`, [row.agent_id, pending.event_type]);
+         WHERE i.agent_id = ? AND o.channel = 'telegram' AND o.status = 'sent' AND o.event_type = ? AND o.is_delete = 0${recovery ? "" : " AND i.incident_type = ?"}`,
+        recovery ? [row.agent_id, pending.event_type] : [row.agent_id, pending.event_type, pending.incident_type]);
       const cooldown = Number(recovery ? currentAgent.telegram_recovery_cooldown_seconds : currentAgent.telegram_alert_cooldown_seconds) * 1000;
       const sentAt = sentRows[0]?.last_sent_at;
       const earliest = Math.max(sentAt == null ? 0 : Number(sentAt) + cooldown, recovery ? Number(pending.resolved_at) + cooldown : 0);

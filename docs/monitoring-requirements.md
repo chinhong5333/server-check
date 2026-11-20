@@ -22,7 +22,7 @@ Each agent configures these canonical threshold values:
 - `disk_available_threshold_percent`: raise a storage incident when available capacity on a monitored filesystem falls below this percentage.
 - `load_5_per_core_threshold`: raise a high-load incident when the five-minute load average divided by logical CPU count reaches or exceeds this value.
 - `heartbeat_interval_seconds`: the maximum time permitted between accepted agent heartbeats.
-- `telegram_alert_cooldown_seconds`: the minimum time between successful Telegram deliveries for this agent. The accepted range is 300 to 86400 seconds and the default is 900 seconds.
+- `telegram_alert_cooldown_seconds`: the minimum time between successful Telegram issue alerts of the same issue type for this agent. The accepted range is 300 to 86400 seconds and the default is 900 seconds.
 
 Threshold and interval values remain configurable per agent. The implementation must validate values within explicitly documented ranges and must reject missing or invalid canonical field names rather than guessing aliases. There is no heartbeat grace-period field.
 
@@ -36,7 +36,7 @@ When both values are saved and the form has no unsaved changes, Settings exposes
 
 Telegram Alerts presents two independent, full-width form sections without separate Configured/Not Configured labels. At standard desktop widths, Platform Sender aligns its Bot Token textbox and Save Platform Sender action on one row; Alert Destination aligns its Chat ID textbox, Save Alert Destination, and Send Test Message on one row. Helper text stays beneath its owning textbox, while the disabled test reason stays beneath only Send Test Message. These controls stack below 80rem so inputs and action labels remain usable without overlap. Saving one form preserves the other form's stored value. Only disabled Send Test Message renders a specific visible reason connected through `aria-describedby`; Save buttons use their ordinary disabled state without reason text.
 
-Telegram rate limiting is agent-scoped even though the destination is platform-scoped. After a successful delivery, later queued messages for the same agent must wait until that agent's `telegram_alert_cooldown_seconds` interval expires. Delayed messages remain pending and are not discarded. Only a successful Telegram API response advances the cooldown; failed attempts retain the existing bounded retry and backoff behavior.
+Telegram issue-alert rate limiting is scoped to one agent and one issue type even though the destination is platform-scoped. After a successful issue alert, later queued alerts of the same issue type for the same agent must wait until that agent's `telegram_alert_cooldown_seconds` interval expires. An alert for a different issue type on the same agent is not held back by it. Delayed messages remain pending and are not discarded. Only a successful Telegram API response advances the cooldown; failed attempts retain the existing bounded retry and backoff behavior.
 
 Every queued issue alert is held for a fixed 90-second confirmation window before Telegram delivery. The incident still opens at once and is visible in the admin panel. If the condition clears inside the window, the pending alert is cancelled and neither the issue nor its recovery is sent. This hold is a delivery rule only; it does not change the heartbeat deadline or any threshold.
 
@@ -50,7 +50,7 @@ The internal backoffice must provide a project-scoped Overview that combines cur
 - `disk_available_threshold_percent`: the agent's available-storage incident boundary, displayed to operators as storage utilization above `100 - value`.
 - `load_5_per_core_threshold`: the agent's five-minute CPU-load-per-core boundary.
 - `heartbeat_interval_seconds`: the agent's heartbeat deadline and generated cron interval.
-- `telegram_alert_cooldown_seconds`: the minimum delay after one successful Telegram send before another message for this agent may be delivered.
+- `telegram_alert_cooldown_seconds`: the minimum delay after one successful issue alert before another alert of the same issue type for this agent may be delivered.
 
 The health-probe timeout is an internal fixed value of 30 seconds. It is not displayed as a form control and is not accepted from create or update API callers.
 

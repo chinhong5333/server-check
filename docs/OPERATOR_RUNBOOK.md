@@ -27,7 +27,7 @@ An incident appearing in history means Server Monitor detected the condition and
 
 Choosing **Edit** and saving agent settings does not rotate the access secret. If the Health API URL or heartbeat interval changes, apply the matching URL in the installed script and schedule in crontab.
 
-The agent's **Telegram send interval** is an anti-spam minimum gap between successful Telegram messages. Messages raised during that interval remain queued until delivery is allowed. A failed Telegram request does not start a new cooldown and continues through bounded retry/backoff.
+The agent's **Telegram send interval** is an anti-spam minimum gap between repeat alerts for the same issue; a different issue on the same agent is sent without waiting for it. Messages raised during that interval remain queued until delivery is allowed. A failed Telegram request does not start a new cooldown and continues through bounded retry/backoff.
 
 If the agent should no longer exist, choose **Delete** instead. Deletion revokes the credential immediately and soft-removes the agent while retaining its historical records.
 

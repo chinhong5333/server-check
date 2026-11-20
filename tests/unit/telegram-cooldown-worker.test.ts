@@ -184,6 +184,26 @@ describe("per-agent Telegram delivery cooldown", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(executeMock.mock.calls.some(([sql]) => String(sql).includes("SET status = 'cancelled'"))).toBe(true);
   });
+  it("sends a different issue for the same agent without waiting for the issue alert interval", async () => {
+    const original = executeMock.getMockImplementation()!;
+    const sentTypes = new Set<string>();
+    let current = "";
+    executeMock.mockImplementation(async (sql: string, values: unknown[] = []) => {
+      if (sql.includes("SELECT o.incident_id")) {
+        current = values[0] === "1" ? "disk_low" : "health_api_unhealthy";
+        return [[{ incident_id: `incident-${values[0]}`, attempt_count: 0, payload_json: { ...payload }, event_type: "opened",
+          incident_status: "open", incident_type: current, next_attempt_at: now }]];
+      }
+      // Without an issue-type filter the lookup is agent-wide, which is the behavior this case rejects.
+      if (sql.includes("MAX(o.sent_at)")) return [[{ last_sent_at: (values.length < 3 ? sentTypes.size > 0 : sentTypes.has(String(values[2]))) ? now : null }]];
+      if (sql.includes("SET status = 'sent'")) sentTypes.add(current);
+      return original(sql, values);
+    });
+    await deliverTelegram(config);
+    const postponed = executeMock.mock.calls.filter(([sql]) => String(sql).includes("SET next_attempt_at = ?"));
+    expect(postponed).toHaveLength(1);
+    expect(postponed[0][1]).toEqual([now + 3100, now, "2"]);
+  });
   it("uses one shared Telegram transport limiter across different agents", async () => {
     const original = executeMock.getMockImplementation()!;
     executeMock.mockImplementation(async (sql: string, values: unknown[] = []) => {
