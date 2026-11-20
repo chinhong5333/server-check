@@ -68,6 +68,7 @@ describe("t", () => {
     expect([locale, intlLocale]).toEqual(["zh-CN", "zh-CN"]);
     expect(t("Delete Agent")).toBe("删除探针");
     expect(t("{0} For {1}", "Nginx", "web-01")).toBe("web-01 的 Nginx");
+    expect(t("Root storage is low")).toBe("根目录存储空间不足");
     expect(t("Storage is low on /var")).toBe("/var 存储空间不足");
     expect(t("HTTP 503 from upstream")).toBe("HTTP 503 from upstream");
   });

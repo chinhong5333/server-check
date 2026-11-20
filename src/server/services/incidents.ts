@@ -89,7 +89,7 @@ function conditionsForPayload(
     conditions.push({
       type: "disk_low",
       severity: "warning",
-      probableCause: `Storage is low on ${filesystem?.mount_point ?? "a monitored filesystem"}`,
+      probableCause: "Root storage is low",
       details: {
         available_percent: snapshot.diskAvailablePercent,
         threshold_percent: policy.diskThreshold,

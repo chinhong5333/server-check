@@ -99,6 +99,7 @@ describe("recurring condition collection",()=>{
     ]};
     const warningRoot=await evaluateTelemetryIncidents(s.connection,policy,rootLow,2);
     expect(warningRoot.diskAvailablePercent).toBe(5);expect(warningRoot.status).toBe("warning");
+    expect(warningRoot.probableCause).toBe("Root storage is low");
     expect(s.messages[0].payload.details).toMatchObject({available_percent:5,mount_point:"/"});
   });
   it("cancels pending errors on recovery and queues one recovery only",async()=>{

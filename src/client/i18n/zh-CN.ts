@@ -888,6 +888,7 @@ export const zhCN: Record<string, string> = {
   "Heartbeat overdue": "心跳已超时",
   "No active condition": "当前无异常",
   "Possible server restart: reported uptime decreased": "服务器可能已重启：上报的运行时长减少",
+  "Root storage is low": "根目录存储空间不足",
   "The database did not report alive": "数据库未上报存活状态",
   "The middleware API did not return HTTP 200": "中间件 API 未返回 HTTP 200"
 };
