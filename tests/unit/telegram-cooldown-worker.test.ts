@@ -16,7 +16,7 @@ vi.mock("../../src/server/security/telegram-secrets.js", () => ({
 }));
 
 import { deliverTelegram } from "../../src/server/workers.js";
-import { queueTelegramNotification } from "../../src/server/services/alert-queue.js";
+import { ISSUE_ALERT_CONFIRMATION_MS, queueTelegramNotification } from "../../src/server/services/alert-queue.js";
 import type { PoolConnection } from "mysql2/promise";
 
 const config: AppConfig = {
@@ -226,6 +226,15 @@ describe("per-agent Telegram delivery cooldown", () => {
     expect(inserts).toHaveLength(1);
     expect((execute as ReturnType<typeof vi.fn>).mock.calls.find(([sql]) => String(sql).includes("INSERT INTO notification_outbox"))?.[1]?.[5]).toBe(now + 30_000);
     expect(execute.mock.calls.some(([sql]) => sql.includes("UPDATE notification_outbox SET payload_json"))).toBe(true);
+  });
+  it("holds a new issue alert for the confirmation window before it becomes deliverable", async () => {
+    const execute = vi.fn(async (sql: string) => {
+      if (sql.includes("FROM maintenance_windows") || sql.includes("SELECT id FROM notification_outbox")) return [[]];
+      return [{ affectedRows: 1 }];
+    });
+    await queueTelegramNotification({ execute } as unknown as PoolConnection, "project", "incident", "opened", { incident_type: "heartbeat_missed" }, now);
+    const insert = execute.mock.calls.find(([sql]) => sql.includes("INSERT INTO notification_outbox")) as unknown[] | undefined;
+    expect((insert?.[1] as unknown[])?.[5]).toBe(now + ISSUE_ALERT_CONFIRMATION_MS);
   });
   it("delivers a completed restart event once using the issue channel without a recovery message", async () => {
     const original = executeMock.getMockImplementation()!;

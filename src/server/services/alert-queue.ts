@@ -20,8 +20,11 @@ export function alertKey(eventType: "opened" | "resolved", payload: Record<strin
   ])).digest("hex");
 }
 
+/** Holds each queued issue alert so a condition that clears within one report cycle sends nothing. */
+export const ISSUE_ALERT_CONFIRMATION_MS = 90_000;
+
 /**
- * Collects issue notifications immediately, or a delayed recovery only after a delivered issue alert.
+ * Collects issue notifications after a confirmation hold, or a delayed recovery only after a delivered issue alert.
  * Active maintenance suppresses collection. Delivery also rechecks eligibility and independent cooldowns.
  * Caller must hold the agent row lock.
  * Existing identical pending messages are refreshed, never duplicated or rescheduled.
@@ -45,7 +48,7 @@ export async function queueTelegramNotification(connection: PoolConnection, proj
        WHERE incident_id = ? AND channel = 'telegram' AND status = 'pending' AND is_delete = 0`, [now, incidentId]);
     return;
   }
-  let nextAttemptAt = now;
+  let nextAttemptAt = now + ISSUE_ALERT_CONFIRMATION_MS;
   if (eventType === "resolved") {
     await cancelIncidentAlerts(connection, incidentId, now);
     const [eligibility] = await connection.execute<RowDataPacket[]>(
@@ -59,7 +62,7 @@ export async function queueTelegramNotification(connection: PoolConnection, proj
          WHERE incident_id = ? AND event_type = 'resolved' AND channel = 'telegram' AND status = 'pending' AND is_delete = 0`, [now, incidentId]);
       return;
     }
-    nextAttemptAt += Number(eligibility[0].telegram_recovery_cooldown_seconds) * 1000;
+    nextAttemptAt = now + Number(eligibility[0].telegram_recovery_cooldown_seconds) * 1000;
   }
   const key = alertKey(eventType, payload);
   const [pending] = await connection.execute<RowDataPacket[]>(

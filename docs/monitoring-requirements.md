@@ -38,6 +38,8 @@ Telegram Alerts presents two independent, full-width form sections without separ
 
 Telegram rate limiting is agent-scoped even though the destination is platform-scoped. After a successful delivery, later queued messages for the same agent must wait until that agent's `telegram_alert_cooldown_seconds` interval expires. Delayed messages remain pending and are not discarded. Only a successful Telegram API response advances the cooldown; failed attempts retain the existing bounded retry and backoff behavior.
 
+Every queued issue alert is held for a fixed 90-second confirmation window before Telegram delivery. The incident still opens at once and is visible in the admin panel. If the condition clears inside the window, the pending alert is cancelled and neither the issue nor its recovery is sent. This hold is a delivery rule only; it does not change the heartbeat deadline or any threshold.
+
 ## Backoffice agent script generator
 
 The internal backoffice must provide a project-scoped Overview that combines current monitoring status with the complete agent roster. One selected project owns zero or more registered agents, and an authorized operator can repeatedly register additional agents without replacing existing registrations. Each registration supplies these canonical values:
