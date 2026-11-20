@@ -16,6 +16,7 @@ import { AgentHeartbeatSummary } from "../components/AgentHeartbeatSummary";
 import { MaintenanceControl } from "../components/MaintenanceControl";
 import { CHART_INTERVALS, useChartInterval } from "../hooks/useChartInterval";
 import { TradingViewMetricChart } from "../components/TradingViewMetricChart";
+import { endOnLatestReading } from "../lib/tradingview-data";
 import { AgentTelegramDeliveryLog } from "../components/AgentTelegramDeliveryLog";
 import { EmptyState, ErrorState, PageSkeleton } from "../components/Feedback";
 import { ModalDialog } from "../components/ModalDialog";
@@ -114,6 +115,7 @@ function MetricChart({
   dataKey,
   formatter,
   latestReading,
+  latestAt,
   capacity,
   agentId
 }: {
@@ -122,6 +124,7 @@ function MetricChart({
   dataKey: keyof HistoryPoint;
   formatter: (value: number | null | undefined) => string;
   latestReading?: number | null;
+  latestAt?: number | null;
   capacity?: CapacitySnapshot | null;
   agentId: string;
 }) {
@@ -130,7 +133,8 @@ function MetricChart({
     ram_utilization_percent: utilizationFromAvailable(point.ram_available_percent),
     storage_utilization_percent: utilizationFromAvailable(point.disk_available_percent)
   })) ?? [], [chart.points]);
-  const tradingPoints = useMemo(() => chartData.map(point => ({ at: point.at, value: point[dataKey] })), [chartData, dataKey]);
+  const tradingPoints = useMemo(() => endOnLatestReading(chartData.map(point => ({ at: point.at, value: point[dataKey] })),
+    latestAt, latestReading, chart.interval), [chartData, dataKey, latestAt, latestReading, chart.interval]);
   const latestValue = latestReading === undefined ? latestMetricValue(data, dataKey) : latestReading;
   return (
     <section className={`chart-surface chart-surface--${String(dataKey).replace(/_/g, "-")}`}>
@@ -371,10 +375,10 @@ export function AgentDetailPage() {
       ) : (
         <div className="chart-grid" ref={alignChartHeaders}>
           <MetricChart agentId={agent.id} key={`${agent.id}:ram_utilization_percent`} title={t("RAM Utilization")} data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
-            latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} capacity={resource.data.latest_resources?.ram} />
+            latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} latestAt={agent.last_metrics_at} capacity={resource.data.latest_resources?.ram} />
           <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title={t("Storage Utilization")} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
-            latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} capacity={resource.data.latest_resources?.storage} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title={t("Load Average (5 Min)")} data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestReading={resource.data.latest_load_5 ?? null} />
+            latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} latestAt={agent.last_metrics_at} capacity={resource.data.latest_resources?.storage} />
+          <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title={t("Load Average (5 Min)")} data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestAt={agent.last_metrics_at} latestReading={resource.data.latest_load_5 ?? null} />
           <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title={t("Health Latency")} data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} />
         </div>
       )}
