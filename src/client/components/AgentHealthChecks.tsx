@@ -1,5 +1,5 @@
 import { CircleAlert, CircleCheck, CircleDashed, CircleHelp, CircleSlash, CircleX, Clock3, Link2, Server } from "lucide-react";
-import type { AgentChecks, AgentHealthSnapshot, DatabaseHealthSnapshot } from "../../shared/contracts";
+import type { AgentChecks, AgentHealthSnapshot, DatabaseHealthSnapshot, LastAliveDatabaseHealth } from "../../shared/contracts";
 import { formatDateTime, formatLatency } from "../lib/format";
 import { statusClock } from "../lib/status-clock";
 import { AgentDatabaseHealth } from "./AgentDatabaseHealth";
@@ -18,9 +18,9 @@ export function checkPresentation(enabled: boolean, status: string | undefined, 
   return { label: t("Unknown"), tone: "warning", Icon: CircleHelp };
 }
 
-export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale, fetchedAt }: {
+export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, lastAliveDatabaseHealth = null, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale, fetchedAt }: {
   checks: AgentChecks; snapshot: AgentHealthSnapshot | null; lastMetricsAt: number | null;
-  databaseHealth?: DatabaseHealthSnapshot | null; lastHeartbeatAt: number | null;
+  databaseHealth?: DatabaseHealthSnapshot | null; lastAliveDatabaseHealth?: LastAliveDatabaseHealth | null; lastHeartbeatAt: number | null;
   intervalSeconds: number; telemetryStale: boolean; fetchedAt?: number | null;
 }) {
   const asOf = statusClock(fetchedAt);
@@ -60,7 +60,7 @@ export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, las
           </div>;
         })}
       </div>
-      <AgentDatabaseHealth snapshot={databaseHealth} stale={expired} monitored={checks.middleware_api} />
+      <AgentDatabaseHealth snapshot={databaseHealth} lastAlive={lastAliveDatabaseHealth} stale={expired} monitored={checks.middleware_api} />
     </section>
   );
 }

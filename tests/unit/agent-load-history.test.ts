@@ -56,6 +56,7 @@ describe("raw load history", () => {
     expect(result.status).toBe(200);
     expect(result.body.latest_load_5).toBe(0.43);
     expect(result.body.latest_health_latency_ms).toBe(157);
+    expect(result.body.last_alive_database_health).toBeNull();
     expect(result.body.agent).toMatchObject({ middleware_failure_count: 1, middleware_failure_threshold: 2 });
     expect(result.body.latest_resources).toEqual({
       ram: { used_bytes: 4140000000, total_bytes: 8000000000, utilization_percent: 51.75 },
@@ -76,6 +77,19 @@ describe("raw load history", () => {
     const result = await request(app()).get("/agent-1/history?from=0&to=60000&bucket_seconds=60");
     expect(result.status).toBe(200);
     expect(result.body.agent).toMatchObject({ uptime_seconds: 90061, uptime_received_at: 1500, last_heartbeat_at: 2000 });
+  });
+  it("returns the newest alive database snapshot when the latest report is not alive", async () => {
+    resourceOverrides = { latest_database_health_json: JSON.stringify({ status: "fail", message: "db probe timeout after 2000ms",
+      connection_count: null, connection_max: null, threads_running: null, peak_connections: null, long_queries: null, db_size_mb: null }) };
+    const original = execute.getMockImplementation()!;
+    execute.mockImplementation(async (sql: string) => sql.includes("JSON_EXTRACT(database_health_json")
+      ? [[{ received_at: "1500", database_health_json: JSON.stringify({ status: "alive", message: "", connection_count: 58,
+        connection_max: 150, threads_running: 1, peak_connections: 67, long_queries: 0, db_size_mb: 8329.7 }) }], []]
+      : original(sql));
+    const result = await request(app()).get("/agent-1/history?from=0&to=3000&bucket_seconds=1800");
+    expect(result.status).toBe(200);
+    expect(result.body.latest_database_health).toMatchObject({ status: "fail" });
+    expect(result.body.last_alive_database_health).toMatchObject({ received_at: 1500, health: { status: "alive", connection_count: 58 } });
   });
   it.each([null, "0"])("preserves unavailable or zero latest readings (%s)", async (value) => {
     latest = value;

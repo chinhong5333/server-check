@@ -63,6 +63,20 @@ describe("Agent service health", () => {
     expect(screen.getByText("Connection timed out.")).toBeInTheDocument();
     expect(screen.queryByText("Current Connections")).not.toBeInTheDocument();
   });
+  it("keeps the database error and adds the last recorded values with their time", () => {
+    const recordedAt = Date.UTC(2026, 10, 24, 8, 47, 2);
+    render(<AgentHealthChecks checks={{ apache: true, nginx: true, middleware_api: true }} snapshot={snapshot}
+      databaseHealth={{ status: "fail", message: "db probe timeout after 2000ms", connection_count: null, connection_max: null,
+        threads_running: null, peak_connections: null, long_queries: null, db_size_mb: null }}
+      lastAliveDatabaseHealth={{ received_at: recordedAt, health: databaseHealth }}
+      lastMetricsAt={Date.now()} lastHeartbeatAt={Date.now()} intervalSeconds={120} telemetryStale={false} />);
+    expect(screen.getByText("Database Check Failed")).toBeInTheDocument();
+    expect(screen.getByText("Last Recorded Values").parentElement?.querySelector("time"))
+      .toHaveAttribute("datetime", new Date(recordedAt).toISOString());
+    expect(screen.getByText("Last Reported Connections")).toBeInTheDocument();
+    expect(screen.getByText("58")).toBeInTheDocument();
+    expect(screen.queryByText("Current Connections")).not.toBeInTheDocument();
+  });
   it("labels database values as last reported when telemetry is stale", () => {
     render(<AgentHealthChecks checks={{ apache: true, nginx: true, middleware_api: true }} snapshot={snapshot}
       databaseHealth={databaseHealth} lastMetricsAt={Date.now()} lastHeartbeatAt={Date.now()}

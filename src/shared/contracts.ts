@@ -222,6 +222,8 @@ export const databaseHealthSchema = z.object({
   raw: databaseRawSchema.optional()
 }).strict();
 export type DatabaseHealthSnapshot = z.infer<typeof databaseHealthSchema>;
+/** Newest alive database report, shown as history while the current report has no alive values. */
+export interface LastAliveDatabaseHealth { received_at: number; health: DatabaseHealthSnapshot; }
 
 const nullableMetric = z.number().nonnegative().finite().nullable();
 

@@ -4044,6 +4044,12 @@ h2, h3 { font-weight: 700; letter-spacing: -0.012em; }
 }
 .agent-database-health__metrics dd { font-family: var(--font-body); font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
 .agent-database-health__error, .agent-database-health__empty { margin: var(--space-sm); border-radius: 0.65rem; }
+.agent-database-health__last-recorded {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); margin: 0; padding: 0 var(--space-sm);
+  color: var(--color-muted); font-size: var(--text-xs);
+}
+.agent-database-health__last-recorded > svg { width: 0.875rem; height: 0.875rem; }
+.agent-database-health__last-recorded > span { color: var(--color-ink-2); font-weight: 600; }
 @media (max-width: 64rem) { .agent-database-health__body { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 40rem) { .agent-database-capacity { border: var(--rule-thin) solid var(--color-rule); } }
 

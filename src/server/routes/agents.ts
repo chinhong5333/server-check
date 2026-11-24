@@ -1,7 +1,7 @@
 import { Router, type Request } from "express";
 import type { RowDataPacket } from "mysql2/promise";
 import { z } from "zod";
-import { agentHealthSnapshotSchema, databaseHealthSchema } from "../../shared/contracts.js";
+import { agentHealthSnapshotSchema, databaseHealthSchema, type LastAliveDatabaseHealth } from "../../shared/contracts.js";
 import { readAgentChecks } from "../services/check-configuration.js";
 import type {
   AgentIncidentLog,
@@ -51,6 +51,11 @@ interface AgentRow extends RowDataPacket {
   latest_storage_available_bytes: string | null;
   latest_storage_mount_point: string | null;
   latest_database_health_json: unknown;
+}
+
+interface LastAliveDatabaseRow extends RowDataPacket {
+  received_at: string;
+  database_health_json: unknown;
 }
 
 interface MetricBucketRow extends RowDataPacket {
@@ -146,6 +151,8 @@ export function createAgentsRouter(config: AppConfig): Router {
    * persisted middleware streak so the UI can distinguish a suppressed warning from an alert.
    * latest_database_health contains the optional validated database snapshot and size-limited raw
    * `db` object from the latest metric sample, or null for older agents, missing responses, and corrupt stored values.
+   * last_alive_database_health is the newest retained alive snapshot with its received_at time. It is looked up only
+   * while Middleware API monitoring is on and the latest snapshot is missing or not alive; otherwise it is null.
    * Authorization: full admin or a sub-admin with view_projects.
    * @param {object} request.body No request body is accepted by this read-only endpoint.
    * @param {Request<{agent_id: string}, {}, {}, {from: string, to: string, bucket_seconds: string}>} request Authenticated history request.
@@ -205,6 +212,20 @@ export function createAgentsRouter(config: AppConfig): Router {
         ram: capacity(agent.latest_ram_total_bytes, agent.latest_ram_available_bytes),
         storage: storage && agent.latest_storage_mount_point != null ? { ...storage, mount_point: agent.latest_storage_mount_point } : null
       };
+      const checks = readAgentChecks(agent.check_configuration_json);
+      const latestDatabaseHealth = parseDatabaseHealth(agent.latest_database_health_json);
+      let lastAliveDatabaseHealth: LastAliveDatabaseHealth | null = null;
+      if (checks.middleware_api && latestDatabaseHealth?.status.trim().toLowerCase() !== "alive") {
+        const [aliveRows] = await getPool(config).execute<LastAliveDatabaseRow[]>(
+          `SELECT received_at, database_health_json FROM metric_samples
+           WHERE agent_id = ? AND is_delete = 0 AND database_health_json IS NOT NULL
+             AND LOWER(TRIM(JSON_UNQUOTE(JSON_EXTRACT(database_health_json, '$.status')))) = 'alive'
+           ORDER BY received_at DESC LIMIT 1`,
+          [agent.id]
+        );
+        const health = parseDatabaseHealth(aliveRows[0]?.database_health_json);
+        if (health) lastAliveDatabaseHealth = { received_at: Number(aliveRows[0].received_at), health };
+      }
 
       const bucketMilliseconds = query.bucket_seconds * 1000;
       const [metricRows] = await getPool(config).execute<MetricBucketRow[]>(
@@ -244,7 +265,7 @@ export function createAgentsRouter(config: AppConfig): Router {
           project_id: agent.project_public_id,
           server_name: agent.server_name,
           health_api_url: agent.health_api_url,
-          checks: readAgentChecks(agent.check_configuration_json),
+          checks,
           service_health: agent.last_service_checks_json == null ? null : agentHealthSnapshotSchema.parse(
             typeof agent.last_service_checks_json === "string" ? JSON.parse(agent.last_service_checks_json) : agent.last_service_checks_json
           ),
@@ -265,7 +286,8 @@ export function createAgentsRouter(config: AppConfig): Router {
         latest_load_5: agent.latest_load_5 == null ? null : Number(agent.latest_load_5),
         latest_health_latency_ms: agent.latest_health_latency_ms == null ? null : Number(agent.latest_health_latency_ms),
         latest_resources: latestResources,
-        latest_database_health: parseDatabaseHealth(agent.latest_database_health_json),
+        latest_database_health: latestDatabaseHealth,
+        last_alive_database_health: lastAliveDatabaseHealth,
         points: metricRows.map((row) => ({
           at: Number(row.bucket_at),
           ram_available_percent:

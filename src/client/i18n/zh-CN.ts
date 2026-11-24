@@ -367,6 +367,7 @@ export const zhCN: Record<string, string> = {
   "Last Reported": "上次上报",
   "Last Reported · Stale": "上次上报 · 数据过期",
   "Last Reported Capacity": "上次上报的容量",
+  "Last Recorded Values": "上次记录的数值",
   "Last Reported Connections": "上次上报的连接数",
   "Last Reported Uptime": "上次上报的运行时长",
   "Last Reported:": "上次上报：",

@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { CircleCheck, CircleDashed, CircleX, Clock3, Database, FileJson, X } from "lucide-react";
-import type { DatabaseHealthSnapshot } from "../../shared/contracts";
+import type { DatabaseHealthSnapshot, LastAliveDatabaseHealth } from "../../shared/contracts";
 import { CopyButton } from "./CopyButton";
 import { ModalDialog } from "./ModalDialog";
 import { intlLocale, perLocale, t } from "../i18n";
+import { formatDateTime } from "../lib/format";
 
 const integerFormat = perLocale(() => new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }));
 
@@ -17,8 +18,9 @@ function databaseSize(mebibytes: number | null): string {
   return `${mebibytes.toFixed(1)} MiB`;
 }
 
-export function AgentDatabaseHealth({ snapshot, stale, monitored }: {
+export function AgentDatabaseHealth({ snapshot, lastAlive, stale, monitored }: {
   snapshot: DatabaseHealthSnapshot | null;
+  lastAlive: LastAliveDatabaseHealth | null;
   stale: boolean;
   monitored: boolean;
 }) {
@@ -26,13 +28,16 @@ export function AgentDatabaseHealth({ snapshot, stale, monitored }: {
   const rawTriggerRef = useRef<HTMLButtonElement>(null);
   const rawResponse = monitored && snapshot?.raw ? JSON.stringify(snapshot.raw, null, 2) : null;
   const alive = snapshot?.status.toLowerCase() === "alive";
-  const connectionCapacity = snapshot !== null && snapshot.connection_count !== null && snapshot.connection_max !== null
-    && snapshot.connection_max > 0;
+  // Values on screen: the current alive report, otherwise the newest earlier alive report, labelled as history.
+  const shown = alive ? snapshot : monitored ? lastAlive?.health ?? null : null;
+  const historical = stale || !alive;
+  const connectionCapacity = shown !== null && shown.connection_count !== null && shown.connection_max !== null
+    && shown.connection_max > 0;
   const connectionPercent = connectionCapacity
-    ? snapshot.connection_count! * 100 / snapshot.connection_max!
+    ? shown.connection_count! * 100 / shown.connection_max!
     : null;
   const availableConnections = connectionCapacity
-    ? Math.max(0, snapshot.connection_max! - snapshot.connection_count!)
+    ? Math.max(0, shown.connection_max! - shown.connection_count!)
     : null;
   const status = !monitored
     ? { label: t("Not Monitored"), tone: "new", Icon: CircleDashed }
@@ -66,7 +71,8 @@ export function AgentDatabaseHealth({ snapshot, stale, monitored }: {
         <strong>{t("Database Not Monitored")}</strong>
         <p>{t("Enable Middleware API monitoring and install the latest generated agent script to collect database information.")}</p>
       </div>
-    </div> : snapshot === null ? <div className="agent-database-health__empty" role="status">
+    </div> : <>
+    {snapshot === null ? <div className="agent-database-health__empty" role="status">
       <CircleDashed aria-hidden="true" />
       <div>
         <strong>{t("No Database Data")}</strong>
@@ -78,14 +84,20 @@ export function AgentDatabaseHealth({ snapshot, stale, monitored }: {
         <strong>{t("Database Check Failed")}</strong>
         <p>{snapshot.message.trim() ? t(snapshot.message.trim()) : t("The Middleware API reported that the database is unavailable.")}</p>
       </div>
-    </div> : <div className="agent-database-health__body">
+    </div> : null}
+    {shown ? <>
+    {!alive && lastAlive ? <p className="agent-database-health__last-recorded">
+      <Clock3 aria-hidden="true" /><span>{t("Last Recorded Values")}</span>
+      <time dateTime={new Date(lastAlive.received_at).toISOString()}>{formatDateTime(lastAlive.received_at)}</time>
+    </p> : null}
+    <div className="agent-database-health__body">
       <div className="agent-database-capacity">
         <div className="agent-database-capacity__heading">
           <div>
-            <span className="agent-database-capacity__label">{stale ? t("Last Reported Connections") : t("Current Connections")}</span>
+            <span className="agent-database-capacity__label">{historical ? t("Last Reported Connections") : t("Current Connections")}</span>
             <div className="agent-database-capacity__value">
-              <strong>{count(snapshot.connection_count)}</strong>
-              <span>/ {count(snapshot.connection_max)}</span>
+              <strong>{count(shown.connection_count)}</strong>
+              <span>/ {count(shown.connection_max)}</span>
             </div>
           </div>
           <span className="agent-database-capacity__percent">
@@ -94,21 +106,23 @@ export function AgentDatabaseHealth({ snapshot, stale, monitored }: {
         </div>
         {connectionCapacity ? <progress className="agent-database-capacity__meter"
           aria-label={t("{0}% of database connection capacity in use", connectionPercent!.toFixed(1))}
-          max={snapshot.connection_max!} value={snapshot.connection_count!} /> : null}
+          max={shown.connection_max!} value={shown.connection_count!} /> : null}
         <div className="agent-database-capacity__footer">
-          <span>{stale ? t("Last Reported Capacity") : t("Connection Capacity")}</span>
-          <span>{availableConnections === null ? t("Not Reported") : stale
+          <span>{historical ? t("Last Reported Capacity") : t("Connection Capacity")}</span>
+          <span>{availableConnections === null ? t("Not Reported") : historical
             ? t("{0} Available at Last Report", count(availableConnections))
             : t("{0} Available", count(availableConnections))}</span>
         </div>
       </div>
       <dl className="agent-database-health__metrics">
-        <div><dt>{t("Threads Running")}</dt><dd>{count(snapshot.threads_running)}</dd><span>{stale ? t("Last Reported") : t("Active Now")}</span></div>
-        <div><dt>{t("Peak Connections")}</dt><dd>{count(snapshot.peak_connections)}</dd><span>{t("Recorded Peak")}</span></div>
-        <div><dt>{t("Long Queries")}</dt><dd>{count(snapshot.long_queries)}</dd><span>{stale ? t("Last Reported") : snapshot.long_queries === 0 ? t("None Detected") : t("Reported")}</span></div>
-        <div><dt>{t("Database Size")}</dt><dd>{databaseSize(snapshot.db_size_mb)}</dd><span>{stale ? t("Last Reported") : t("Current Size")}</span></div>
+        <div><dt>{t("Threads Running")}</dt><dd>{count(shown.threads_running)}</dd><span>{historical ? t("Last Reported") : t("Active Now")}</span></div>
+        <div><dt>{t("Peak Connections")}</dt><dd>{count(shown.peak_connections)}</dd><span>{t("Recorded Peak")}</span></div>
+        <div><dt>{t("Long Queries")}</dt><dd>{count(shown.long_queries)}</dd><span>{historical ? t("Last Reported") : shown.long_queries === 0 ? t("None Detected") : t("Reported")}</span></div>
+        <div><dt>{t("Database Size")}</dt><dd>{databaseSize(shown.db_size_mb)}</dd><span>{historical ? t("Last Reported") : t("Current Size")}</span></div>
       </dl>
-    </div>}
+    </div>
+    </> : null}
+    </>}
   </section>
   <ModalDialog id="database-raw-response" open={rawOpen} labelledBy="database-raw-response-title"
     describedBy="database-raw-response-description" dialogClassName="agent-dialog--raw-log"
