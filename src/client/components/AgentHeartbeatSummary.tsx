@@ -7,7 +7,7 @@ import { StatusBadge } from "./StatusBadge";
 import { statusClock } from "../lib/status-clock";
 import { t } from "../i18n";
 
-type SummaryAgent = Pick<AgentSummary, "status" | "probable_cause" | "last_heartbeat_at" | "heartbeat_interval_seconds" | "agent_version"> & {
+export type SummaryAgent = Pick<AgentSummary, "status" | "probable_cause" | "last_heartbeat_at" | "heartbeat_interval_seconds" | "agent_version"> & {
   service_health?: AgentHealthSnapshot | null;
   middleware_failure_count?: number;
   middleware_failure_threshold?: number;
@@ -70,7 +70,7 @@ function middlewareDiagnostic(agent: SummaryAgent): string | null {
   return [error, response, latency].filter(Boolean).join(" · ");
 }
 
-function statusNotice(agent: SummaryAgent, summary: ReturnType<typeof heartbeatSummary>): StatusNotice | null {
+export function statusNotice(agent: SummaryAgent, summary: ReturnType<typeof heartbeatSummary>): StatusNotice | null {
   if (summary.overdue) {
     return {
       tone: "critical",

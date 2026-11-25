@@ -21,6 +21,8 @@ import { formatDateTime } from "../../src/client/lib/format";
 
 describe("agent detail incident history", () => {
   beforeEach(() => {
+    // The older cases cover the Ver 1 layout; Ver 2 is the default without this cookie.
+    document.cookie = "agent_detail_layout=v1; path=/";
     apiFetchMock.mockReset();
     apiFetchMock.mockImplementation((path: string) => {
       if (path.endsWith("/telegram-deliveries")) {
@@ -104,6 +106,26 @@ describe("agent detail incident history", () => {
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalledWith(expect.stringContaining("bucket_seconds=60"), expect.objectContaining({ signal: expect.any(AbortSignal) })));
     expect(within(screen.getByRole("group", { name: "Storage Utilization Interval" })).getByRole("button", { name: "30 Min" })).toHaveAttribute("aria-pressed", "true");
     expect(within(screen.getByRole("group", { name: "Health Latency Interval" })).getByRole("button", { name: "30 Min" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("defaults to the Ver 2 layout with one shared chart interval and remembers a switch in a cookie", async () => {
+    document.cookie = "agent_detail_layout=; path=/; max-age=0";
+    const original = apiFetchMock.getMockImplementation()!;
+    apiFetchMock.mockImplementation(async (path: string) => {
+      const data = await original(path);
+      return path.includes("/history?") ? { ...data, points: [{ at: Date.now(), ram_available_percent: 50, disk_available_percent: 60, load_5: 0.7, health_latency_ms: 10 }] } : data;
+    });
+    render(<MemoryRouter initialEntries={["/projects/project-1/agents/agent-1"]}><Routes>
+      <Route path="/projects/:projectId/agents/:agentId" element={<AgentDetailPage />} />
+    </Routes></MemoryRouter>);
+    const layout = await screen.findByRole("group", { name: "Layout" });
+    expect(within(layout).getByRole("button", { name: "Ver 2" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("group", { name: "Latest Readings" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Resource Trends" })).toBeInTheDocument();
+    expect(screen.getAllByRole("group", { name: /Interval$/ })).toHaveLength(1);
+    fireEvent.click(within(layout).getByRole("button", { name: "Ver 1" }));
+    expect(within(layout).getByRole("button", { name: "Ver 1" })).toHaveAttribute("aria-pressed", "true");
+    expect(document.cookie).toContain("agent_detail_layout=v1");
   });
 
   it("hides URL actions when no middleware URL is configured", async () => {

@@ -13,6 +13,7 @@ import { apiFetch } from "../api";
 import { useAuth } from "../auth/AuthProvider";
 import { AgentIncidentHistory } from "../components/AgentIncidentHistory";
 import { AgentHeartbeatSummary } from "../components/AgentHeartbeatSummary";
+import { AgentStatusOverview, ReadingTile } from "../components/AgentStatusOverview";
 import { MaintenanceControl } from "../components/MaintenanceControl";
 import { CHART_INTERVALS, useChartInterval } from "../hooks/useChartInterval";
 import { TradingViewMetricChart } from "../components/TradingViewMetricChart";
@@ -75,6 +76,24 @@ interface HistoryResponse {
 }
 
 
+/** Browser cookie that remembers the chosen layout. Ver 2 is the default when it is absent. */
+const LAYOUT_COOKIE = "agent_detail_layout";
+type DetailLayout = "v1" | "v2";
+
+function storedLayout(): DetailLayout {
+  return document.cookie.split("; ").includes(`${LAYOUT_COOKIE}=v1`) ? "v1" : "v2";
+}
+
+function IntervalControl({ label, value, onChange }: { label: string; value: number; onChange: (seconds: number) => void }) {
+  return <div className="chart-interval-control" role="group" aria-label={label}>
+    {CHART_INTERVALS.map(option => <button key={option.seconds} type="button"
+      aria-label={option.label} aria-pressed={value === option.seconds}
+      onClick={() => onChange(option.seconds)}>
+      {option.seconds === 3600 ? "1h" : `${option.seconds / 60}m`}
+    </button>)}
+  </div>;
+}
+
 const historyTabIds = ["incidents", "telegram"] as const;
 type HistoryTabId = typeof historyTabIds[number];
 
@@ -119,7 +138,8 @@ function MetricChart({
   latestReading,
   latestAt,
   capacity,
-  agentId
+  agentId,
+  sharedInterval
 }: {
   title: string;
   data: HistoryPoint[];
@@ -129,8 +149,10 @@ function MetricChart({
   latestAt?: number | null;
   capacity?: CapacitySnapshot | null;
   agentId: string;
+  /** Ver 2 layout: one interval control drives every chart, so the chart shows none of its own. */
+  sharedInterval?: number;
 }) {
-  const chart = useChartInterval<HistoryPoint>(agentId, data);
+  const chart = useChartInterval<HistoryPoint>(agentId, data, sharedInterval);
   const chartData = useMemo(() => chart.points?.map(point => ({ ...point,
     ram_utilization_percent: utilizationFromAvailable(point.ram_available_percent),
     storage_utilization_percent: utilizationFromAvailable(point.disk_available_percent)
@@ -143,13 +165,7 @@ function MetricChart({
       <div className="section-heading">
         <div className="chart-heading-copy">
           <div className="chart-heading-title"><h2>{title}</h2>
-        <div className="chart-interval-control" role="group" aria-label={t("{0} Interval", title)}>
-          {CHART_INTERVALS.map(option => <button key={option.seconds} type="button"
-            aria-label={option.label} aria-pressed={chart.interval === option.seconds}
-            onClick={() => chart.setInterval(option.seconds)}>
-            {option.seconds === 3600 ? "1h" : `${option.seconds / 60}m`}
-          </button>)}
-        </div>
+        {sharedInterval === undefined ? <IntervalControl label={t("{0} Interval", title)} value={chart.interval} onChange={chart.setInterval} /> : null}
         </div>
         </div>
         <div className="chart-readings">
@@ -198,6 +214,12 @@ export function AgentDetailPage() {
   const [activeHistoryTab, setActiveHistoryTab] = useState<HistoryTabId>("incidents");
   const [serverStateHelpOpen, setServerStateHelpOpen] = useState(false);
   const [maintenanceActive, setMaintenanceActive] = useState(false);
+  const [layout, setLayout] = useState<DetailLayout>(storedLayout);
+  const [trendInterval, setTrendInterval] = useState(1800);
+  const chooseLayout = (next: DetailLayout) => {
+    setLayout(next);
+    document.cookie = `${LAYOUT_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+  };
   const serverStateHelpTriggerRef = useRef<HTMLButtonElement>(null);
   const load = useCallback(
     () => {
@@ -268,14 +290,76 @@ export function AgentDetailPage() {
     selectHistoryTab(historyTabIds[nextIndex]);
   };
 
+  const v2 = layout === "v2";
+  const sharedInterval = v2 ? trendInterval : undefined;
+  const serverStateHelp = (
+    <button
+      ref={serverStateHelpTriggerRef}
+      className="icon-button"
+      type="button"
+      aria-label={t("View Server State Definitions")}
+      title={t("View Server State Definitions")}
+      aria-haspopup="dialog"
+      aria-controls="server-state-definitions"
+      onClick={() => setServerStateHelpOpen(true)}
+    >
+      <CircleHelp aria-hidden="true" />
+    </button>
+  );
+  const latest = resource.data.latest_resources;
+  const recentPoints = resource.data.points.slice(-48);
+  const scriptConfiguration = (
+      <section className="agent-script-configuration" aria-labelledby="latest-script-configuration-title">
+        <div>
+          <h2 id="latest-script-configuration-title">{t("Latest Script Configuration")}</h2>
+          <p>{t("Middleware endpoint used by the latest generated script.")}</p>
+        </div>
+        <dl>
+          <div>
+            <dt><Link2 aria-hidden="true" />{" "}{t("Middleware API URL")}</dt>
+            <dd className="script-url-row">{agent.health_api_url ? <>
+              <code>{agent.health_api_url}</code>
+              <span className="script-url-actions">
+                <CopyButton value={agent.health_api_url} label={t("Copy")} />
+                <a className="button button--secondary" href={agent.health_api_url} target="_blank" rel="noopener noreferrer"
+                  aria-label={t("Test Middleware API URL In A New Tab")} title={t("Open In A New Tab")}><ExternalLink aria-hidden="true" />{t("Test")}</a>
+              </span>
+            </> : t("Not Monitored")}</dd>
+          </div>
+        </dl>
+      </section>
+  );
+  const noMetricHistory = resource.data.points.length === 0;
+  const metricEmptyState = <EmptyState title={t("No Metric History Yet")} message={t("The agent has not delivered a valid telemetry sample in this range.")} />;
+  const charts = (
+        <div className="chart-grid" ref={alignChartHeaders}>
+          <MetricChart agentId={agent.id} sharedInterval={sharedInterval} key={`${agent.id}:ram_utilization_percent`} title={t("RAM Utilization")} data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
+            latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} latestAt={agent.last_metrics_at} capacity={resource.data.latest_resources?.ram} />
+          <MetricChart agentId={agent.id} sharedInterval={sharedInterval} key={`${agent.id}:storage_utilization_percent`} title={t("Storage Utilization")} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
+            latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} latestAt={agent.last_metrics_at} capacity={resource.data.latest_resources?.storage} />
+          <MetricChart agentId={agent.id} sharedInterval={sharedInterval} key={`${agent.id}:load_5`} title={t("Load Average (5 Min)")} data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestAt={agent.last_metrics_at} latestReading={resource.data.latest_load_5 ?? null} />
+          <MetricChart agentId={agent.id} sharedInterval={sharedInterval} key={`${agent.id}:health_latency_ms`} title={t("Health Latency")} data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} latestAt={agent.last_metrics_at} latestReading={resource.data.latest_health_latency_ms ?? null} />
+        </div>
+  );
+
   return (
-    <div className="page-stack">
+    <div className={`page-stack${v2 ? " agent-detail--v2" : ""}`}>
       <NotificationGroupBar />
       <div className="agent-page-intro">
+      <div className="agent-page-intro__bar">
       <Link className="back-link" to={overviewHref}>
         <ArrowLeft aria-hidden="true" />
         {t("Overview")}
       </Link>
+      <div className="layout-toggle">
+        <span id="agent-layout-label">{t("Layout")}</span>
+        <div className="layout-toggle__track" role="group" aria-labelledby="agent-layout-label" data-layout={layout}>
+          <span className="layout-toggle__thumb" aria-hidden="true" />
+          <button type="button" aria-pressed={!v2} onClick={() => chooseLayout("v1")}>{t("Ver 1")}</button>
+          <button type="button" aria-pressed={v2} onClick={() => chooseLayout("v2")}>{t("Ver 2")}</button>
+        </div>
+      </div>
+      </div>
       <header className="page-header">
         <div className="page-header__identity">
           <span className={`status-tile status-tile--lg status-tile--${agent.status}`} aria-hidden="true"><Server /></span>
@@ -296,20 +380,17 @@ export function AgentDetailPage() {
 
       <div id="agent-maintenance-details" className="maintenance-details-slot" />
 
-      <AgentHeartbeatSummary agent={agent} fetchedAt={resource.fetchedAt} notificationsMuted={maintenanceActive} help={
-          <button
-            ref={serverStateHelpTriggerRef}
-            className="icon-button"
-            type="button"
-            aria-label={t("View Server State Definitions")}
-            title={t("View Server State Definitions")}
-            aria-haspopup="dialog"
-            aria-controls="server-state-definitions"
-            onClick={() => setServerStateHelpOpen(true)}
-          >
-            <CircleHelp aria-hidden="true" />
-          </button>
-      } />
+      {v2 ? <AgentStatusOverview agent={agent} fetchedAt={resource.fetchedAt} notificationsMuted={maintenanceActive} help={serverStateHelp} readings={<>
+          <ReadingTile series="ram" label={t("RAM Utilization")} value={formatPercent(latest?.ram?.utilization_percent ?? null)} percent={latest?.ram?.utilization_percent ?? null}
+            detail={latest?.ram ? formatCapacityPair(latest.ram.used_bytes, latest.ram.total_bytes) : null} />
+          <ReadingTile series="storage" label={t("Storage Utilization")} value={formatPercent(latest?.storage?.utilization_percent ?? null)} percent={latest?.storage?.utilization_percent ?? null}
+            detail={latest?.storage ? formatCapacityPair(latest.storage.used_bytes, latest.storage.total_bytes) : null} />
+          <ReadingTile series="load" label={t("Load Average (5 Min)")} value={formatLoadAverage(resource.data.latest_load_5 ?? null)} trend={recentPoints.map(point => point.load_5)} />
+          <ReadingTile series="latency" label={t("Health Latency")} value={formatLatency(resource.data.latest_health_latency_ms ?? null)} trend={recentPoints.map(point => point.health_latency_ms)} />
+        </>} />
+        : <AgentHeartbeatSummary agent={agent} fetchedAt={resource.fetchedAt} notificationsMuted={maintenanceActive} help={serverStateHelp} />}
+
+      {v2 ? scriptConfiguration : null}
 
       <ModalDialog
         id="server-state-definitions"
@@ -349,41 +430,20 @@ export function AgentDetailPage() {
         lastMetricsAt={agent.last_metrics_at} lastHeartbeatAt={agent.last_heartbeat_at}
         intervalSeconds={agent.heartbeat_interval_seconds} telemetryStale={agent.status === "stale"} fetchedAt={resource.fetchedAt} />
 
-      <section className="agent-script-configuration" aria-labelledby="latest-script-configuration-title">
-        <div>
-          <h2 id="latest-script-configuration-title">{t("Latest Script Configuration")}</h2>
-          <p>{t("Middleware endpoint used by the latest generated script.")}</p>
-        </div>
-        <dl>
-          <div>
-            <dt><Link2 aria-hidden="true" />{" "}{t("Middleware API URL")}</dt>
-            <dd className="script-url-row">{agent.health_api_url ? <>
-              <code>{agent.health_api_url}</code>
-              <span className="script-url-actions">
-                <CopyButton value={agent.health_api_url} label={t("Copy")} />
-                <a className="button button--secondary" href={agent.health_api_url} target="_blank" rel="noopener noreferrer"
-                  aria-label={t("Test Middleware API URL In A New Tab")} title={t("Open In A New Tab")}><ExternalLink aria-hidden="true" />{t("Test")}</a>
-              </span>
-            </> : t("Not Monitored")}</dd>
-          </div>
-        </dl>
-      </section>
+      {v2 ? null : scriptConfiguration}
 
-      {resource.data.points.length === 0 ? (
-        <EmptyState
-          title={t("No Metric History Yet")}
-          message={t("The agent has not delivered a valid telemetry sample in this range.")}
-        />
-      ) : (
-        <div className="chart-grid" ref={alignChartHeaders}>
-          <MetricChart agentId={agent.id} key={`${agent.id}:ram_utilization_percent`} title={t("RAM Utilization")} data={displayPoints} dataKey="ram_utilization_percent" formatter={formatPercent}
-            latestReading={resource.data.latest_resources?.ram?.utilization_percent ?? null} latestAt={agent.last_metrics_at} capacity={resource.data.latest_resources?.ram} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:storage_utilization_percent`} title={t("Storage Utilization")} data={displayPoints} dataKey="storage_utilization_percent" formatter={formatPercent}
-            latestReading={resource.data.latest_resources?.storage?.utilization_percent ?? null} latestAt={agent.last_metrics_at} capacity={resource.data.latest_resources?.storage} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:load_5`} title={t("Load Average (5 Min)")} data={displayPoints} dataKey="load_5" formatter={formatLoadAverage} latestAt={agent.last_metrics_at} latestReading={resource.data.latest_load_5 ?? null} />
-          <MetricChart agentId={agent.id} key={`${agent.id}:health_latency_ms`} title={t("Health Latency")} data={displayPoints} dataKey="health_latency_ms" formatter={formatLatency} latestAt={agent.last_metrics_at} latestReading={resource.data.latest_health_latency_ms ?? null} />
-        </div>
-      )}
+      {v2 ? (
+        <section className="agent-trends" aria-labelledby="agent-trends-title">
+          <div className="agent-trends__heading">
+            <h2 id="agent-trends-title">{t("Resource Trends")}</h2>
+            {noMetricHistory ? null : <div className="agent-trends__interval">
+              <span aria-hidden="true">{t("Interval")}</span>
+              <IntervalControl label={t("Chart Interval")} value={trendInterval} onChange={setTrendInterval} />
+            </div>}
+          </div>
+          {noMetricHistory ? metricEmptyState : charts}
+        </section>
+      ) : noMetricHistory ? metricEmptyState : charts}
 
       <section className="history-tabs" aria-labelledby="agent-history-records-title">
         <div className="history-tabs__heading">

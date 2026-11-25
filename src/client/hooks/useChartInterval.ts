@@ -6,9 +6,13 @@ export const CHART_INTERVALS = [
   { seconds: 1800, get label() { return t("30 Min"); } }, { seconds: 3600, get label() { return t("1 Hour"); } }
 ] as const;
 
-/** Native Canvas panning uses loaded history, never a fetch on pointer release. */
-export function useChartInterval<T extends { at: number }>(agentId: string, defaultPoints: T[]) {
-  const [interval, setInterval] = useState(1800);
+/**
+ * Native Canvas panning uses loaded history, never a fetch on pointer release.
+ * sharedInterval, when given, replaces the chart's own interval so several charts follow one control.
+ */
+export function useChartInterval<T extends { at: number }>(agentId: string, defaultPoints: T[], sharedInterval?: number) {
+  const [ownInterval, setInterval] = useState(1800);
+  const interval = sharedInterval ?? ownInterval;
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; points: T[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
