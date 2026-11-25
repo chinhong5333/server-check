@@ -4615,7 +4615,7 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
 .agent-reading[data-series="latency"] { --reading-series: var(--color-series-latency); }
 .agent-reading__label { display: flex; align-items: center; gap: var(--space-xs); color: var(--color-ink-2); font-size: var(--text-sm); font-weight: 600; line-height: 1.35; }
 .agent-reading[data-series] .agent-reading__label::before { content: ""; width: 0.7rem; height: 0.7rem; flex: none; align-self: flex-start; margin-block-start: 0.3em; border-radius: 0.2rem; background: var(--reading-series); }
-.agent-reading__value { color: var(--color-ink); font-size: var(--text-xl); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; }
+.agent-reading__value { color: var(--color-ink); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; overflow-wrap: anywhere; }
 .agent-reading__meter { display: block; height: 0.375rem; margin-block: var(--space-2xs); overflow: hidden; border-radius: var(--radius-pill); background: var(--color-track); }
 .agent-reading__meter > span { display: block; height: 100%; border-radius: inherit; background: var(--reading-series); transform-origin: left center; }
 .agent-reading__spark { display: block; width: 100%; height: 1.75rem; overflow: visible; }
