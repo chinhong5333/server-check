@@ -73,7 +73,7 @@ describe("Agent service health", () => {
     expect(screen.getByText("Database Check Failed")).toBeInTheDocument();
     expect(screen.getByText("Last Recorded Values").parentElement?.querySelector("time"))
       .toHaveAttribute("datetime", new Date(recordedAt).toISOString());
-    expect(screen.getByText("Last Reported Connections")).toBeInTheDocument();
+    expect(screen.getByText("Not Live")).toBeInTheDocument();
     expect(screen.getByText("58")).toBeInTheDocument();
     expect(screen.queryByText("Current Connections")).not.toBeInTheDocument();
   });

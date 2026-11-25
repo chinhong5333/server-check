@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
-import { CircleCheck, CircleDashed, CircleX, Clock3, Database, FileJson, X } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleDashed, CircleX, Clock3, Database, FileJson, X } from "lucide-react";
 import type { DatabaseHealthSnapshot, LastAliveDatabaseHealth } from "../../shared/contracts";
 import { CopyButton } from "./CopyButton";
 import { ModalDialog } from "./ModalDialog";
 import { intlLocale, perLocale, t } from "../i18n";
 import { formatDateTime } from "../lib/format";
+import { heartbeatDuration } from "./AgentHeartbeatSummary";
 
 const integerFormat = perLocale(() => new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }));
 
@@ -18,11 +19,28 @@ function databaseSize(mebibytes: number | null): string {
   return `${mebibytes.toFixed(1)} MiB`;
 }
 
-export function AgentDatabaseHealth({ snapshot, lastAlive, stale, monitored }: {
+/** Badge for the database panel. A known failure outranks "stale" and "no data", so it never reads as neutral. */
+export function databaseStatus({ snapshot, stale, monitored, sourceFailing }: {
+  snapshot: DatabaseHealthSnapshot | null; stale: boolean; monitored: boolean; sourceFailing: boolean;
+}) {
+  if (!monitored) return { label: t("Not Monitored"), tone: "new", Icon: CircleDashed };
+  if (snapshot === null) return sourceFailing
+    ? { label: t("Cannot Check"), tone: "critical", Icon: CircleX }
+    : { label: t("No Data"), tone: "new", Icon: CircleDashed };
+  const alive = snapshot.status.toLowerCase() === "alive";
+  if (!alive) return { label: stale ? t("Last Report Failed") : t("Unavailable"), tone: "critical", Icon: CircleX };
+  if (stale) return { label: t("Stale"), tone: "stale", Icon: Clock3 };
+  return { label: t("Alive"), tone: "healthy", Icon: CircleCheck };
+}
+
+export function AgentDatabaseHealth({ snapshot, lastAlive, stale, monitored, sourceFailing = false, asOf }: {
   snapshot: DatabaseHealthSnapshot | null;
   lastAlive: LastAliveDatabaseHealth | null;
   stale: boolean;
   monitored: boolean;
+  /** The Middleware API, which carries the database reading, failed in the latest report. */
+  sourceFailing?: boolean;
+  asOf: number;
 }) {
   const [rawOpen, setRawOpen] = useState(false);
   const rawTriggerRef = useRef<HTMLButtonElement>(null);
@@ -39,18 +57,10 @@ export function AgentDatabaseHealth({ snapshot, lastAlive, stale, monitored }: {
   const availableConnections = connectionCapacity
     ? Math.max(0, shown.connection_max! - shown.connection_count!)
     : null;
-  const status = !monitored
-    ? { label: t("Not Monitored"), tone: "new", Icon: CircleDashed }
-    : snapshot === null
-    ? { label: t("No Data"), tone: "new", Icon: CircleDashed }
-    : stale
-    ? { label: t("Stale"), tone: "stale", Icon: Clock3 }
-    : alive
-      ? { label: t("Alive"), tone: "healthy", Icon: CircleCheck }
-      : { label: t("Unavailable"), tone: "critical", Icon: CircleX };
+  const status = databaseStatus({ snapshot, stale, monitored, sourceFailing });
 
   return <>
-  <section className="agent-database-health" aria-labelledby="agent-database-health-title">
+  <section className={`agent-database-health${status.tone === "critical" ? " agent-database-health--failing" : ""}`} aria-labelledby="agent-database-health-title">
     <header className="agent-database-health__header">
       <div className="agent-database-health__identity">
         <Database aria-hidden="true" />
@@ -72,7 +82,13 @@ export function AgentDatabaseHealth({ snapshot, lastAlive, stale, monitored }: {
         <p>{t("Enable Middleware API monitoring and install the latest generated agent script to collect database information.")}</p>
       </div>
     </div> : <>
-    {snapshot === null ? <div className="agent-database-health__empty" role="status">
+    {snapshot === null && sourceFailing ? <div className="agent-database-health__error" role="status">
+      <CircleAlert aria-hidden="true" />
+      <div>
+        <strong>{t("No Current Database Reading")}</strong>
+        <p>{t("The Middleware API is failing, so the latest report carried no database information. The database itself may still be running.")}</p>
+      </div>
+    </div> : snapshot === null ? <div className="agent-database-health__empty" role="status">
       <CircleDashed aria-hidden="true" />
       <div>
         <strong>{t("No Database Data")}</strong>
@@ -85,11 +101,23 @@ export function AgentDatabaseHealth({ snapshot, lastAlive, stale, monitored }: {
         <p>{snapshot.message.trim() ? t(snapshot.message.trim()) : t("The Middleware API reported that the database is unavailable.")}</p>
       </div>
     </div> : null}
-    {shown ? <>
-    {!alive && lastAlive ? <p className="agent-database-health__last-recorded">
-      <Clock3 aria-hidden="true" /><span>{t("Last Recorded Values")}</span>
-      <time dateTime={new Date(lastAlive.received_at).toISOString()}>{formatDateTime(lastAlive.received_at)}</time>
-    </p> : null}
+    {shown && !alive && lastAlive ? <div className="agent-database-last">
+      {/* Old values stay small and grey so they cannot be read as a live reading. */}
+      <p className="agent-database-health__last-recorded">
+        <Clock3 aria-hidden="true" /><span>{t("Last Recorded Values")}</span>
+        <em className="agent-database-last__tag">{t("Not Live")}</em>
+        <time dateTime={new Date(lastAlive.received_at).toISOString()}>{formatDateTime(lastAlive.received_at)}</time>
+        <small>{t("{0} Ago", heartbeatDuration(Math.max(0, asOf - lastAlive.received_at)))}</small>
+      </p>
+      <dl className="agent-database-last__grid">
+        <div><dt>{t("Connections")}</dt><dd><strong>{count(shown.connection_count)}</strong>
+          <small>/ {count(shown.connection_max)}{connectionPercent === null ? "" : ` · ${connectionPercent.toFixed(1)}%`}</small></dd></div>
+        <div><dt>{t("Threads Running")}</dt><dd>{count(shown.threads_running)}</dd></div>
+        <div><dt>{t("Peak Connections")}</dt><dd>{count(shown.peak_connections)}</dd></div>
+        <div><dt>{t("Long Queries")}</dt><dd>{count(shown.long_queries)}</dd></div>
+        <div><dt>{t("Database Size")}</dt><dd>{databaseSize(shown.db_size_mb)}</dd></div>
+      </dl>
+    </div> : shown ? <>
     <div className="agent-database-health__body">
       <div className="agent-database-capacity">
         <div className="agent-database-capacity__heading">
