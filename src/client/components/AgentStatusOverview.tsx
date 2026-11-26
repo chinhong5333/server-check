@@ -16,16 +16,6 @@ function SegmentMeter({ fraction }: { fraction: number }) {
   </span>;
 }
 
-/** Countdown arc on a 48-unit box (radius 20), clockwise from 12 o'clock, plus the knob at its leading end. */
-function ringArc(fraction: number): { path: string; knobX: number; knobY: number } {
-  // A full circle cannot be one SVG arc, so a fresh heartbeat stops just short of 100%.
-  const clamped = Math.min(0.9999, Math.max(0, fraction));
-  const angle = (clamped * 360 - 90) * Math.PI / 180;
-  const knobX = 24 + 20 * Math.cos(angle);
-  const knobY = 24 + 20 * Math.sin(angle);
-  return { path: `M24 4A20 20 0 ${clamped > 0.5 ? 1 : 0} 1 ${knobX.toFixed(2)} ${knobY.toFixed(2)}`, knobX, knobY };
-}
-
 /** Compact clock text for the countdown ring: m:ss, or h:mm:ss from one hour. */
 function clockText(milliseconds: number): string {
   const total = Math.max(0, Math.floor(milliseconds / 1000));
@@ -73,8 +63,23 @@ export function AgentStatusOverview({ agent, help, readings, notificationsMuted 
   const notice = statusNotice(agent, summary);
   const remaining = summary.deadline === null || summary.overdue ? 0
     : Math.min(1, (summary.deadline - asOf) / (agent.heartbeat_interval_seconds * 1000));
-  const ring = ringArc(remaining);
   const ringGradientId = `heartbeat-ring-${useId().replace(/[^\w-]/g, "")}`;
+  // A later deadline means a new heartbeat arrived. Detected during render, so the refill easing and the
+  // "beat" (ripple, centre pop, glow) land in the same frame as the new, fuller arc instead of a jump.
+  const [previousDeadline, setPreviousDeadline] = useState(summary.deadline);
+  const [beat, setBeat] = useState(0);
+  if (summary.deadline !== previousDeadline) {
+    setPreviousDeadline(summary.deadline);
+    if (previousDeadline !== null && summary.deadline !== null && summary.deadline > previousDeadline) setBeat((count) => count + 1);
+  }
+  const [refilling, setRefilling] = useState(false);
+  useEffect(() => {
+    if (beat === 0) return;
+    setRefilling(true);
+    const timer = window.setTimeout(() => setRefilling(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [beat]);
+  const ringState = summary.overdue ? " agent-reading__ring--overdue" : remaining <= 0.25 ? " agent-reading__ring--low" : "";
   const delivery = notificationsMuted ? t("TG Muted During Maintenance") : notice?.delivery;
   return <section className="agent-overview" aria-label={t("Agent Status Summary")}>
     <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
@@ -109,8 +114,9 @@ export function AgentStatusOverview({ agent, help, readings, notificationsMuted 
               : <>{t("Marked Overdue At")}{" "}<strong>{formatTime(summary.deadline)}</strong></>}
         </p>
         {/* Countdown ring: drains toward the overdue point; once overdue it turns red and counts up. */}
+        {/* Each tick glides into the next second; a new heartbeat sweeps the arc back to full with a single beat. */}
         {summary.deadline !== null ? <span
-          className={`agent-reading__ring${summary.overdue ? " agent-reading__ring--overdue" : remaining <= 0.25 ? " agent-reading__ring--low" : ""}`}
+          className={`agent-reading__ring${ringState}${refilling ? " agent-reading__ring--refilling" : ""}`}
           role="timer" aria-live="off" aria-label={`${summary.overdue ? t("Overdued") : t("Time Until Marked Overdue")} ${summary.timing}`}>
           <svg viewBox="0 0 48 48" aria-hidden="true">
             <defs>
@@ -119,15 +125,17 @@ export function AgentStatusOverview({ agent, help, readings, notificationsMuted 
                 <stop className="agent-reading__ring-stop" offset="1" />
               </linearGradient>
             </defs>
-            <circle className="agent-reading__ring-disc" cx="24" cy="24" r="15" />
+            {beat > 0 ? <circle key={`ripple-${beat}`} className="agent-reading__ring-ripple" cx="24" cy="24" r="20" /> : null}
+            <circle key={`disc-${beat}`} className={`agent-reading__ring-disc${beat > 0 ? " is-beat" : ""}`} cx="24" cy="24" r="15" />
             <circle className="agent-reading__ring-track" cx="24" cy="24" r="20" />
-            {summary.overdue ? null : <>
-              <path className="agent-reading__ring-fill" d={ring.path} stroke={`url(#${ringGradientId})`} />
-              <circle className="agent-reading__ring-halo" cx={ring.knobX} cy={ring.knobY} r="6" />
-              <circle className="agent-reading__ring-knob" cx={ring.knobX} cy={ring.knobY} r="3.4" />
-            </>}
+            <circle className="agent-reading__ring-fill" cx="24" cy="24" r="20" pathLength="100" transform="rotate(-90 24 24)"
+              stroke={`url(#${ringGradientId})`} style={{ strokeDasharray: `${remaining * 100} 100` }} />
+            <g className="agent-reading__ring-knob-group" style={{ transform: `rotate(${remaining * 360}deg)` }}>
+              <circle className="agent-reading__ring-halo" cx="24" cy="4" r="6" />
+              <circle className="agent-reading__ring-knob" cx="24" cy="4" r="3.4" />
+            </g>
           </svg>
-          <span aria-hidden="true">
+          <span key={`centre-${beat}`} className={beat > 0 ? "is-beat" : undefined} aria-hidden="true">
             <strong>{summary.overdue ? `+${clockText(asOf - summary.deadline)}` : clockText(summary.deadline - asOf)}</strong>
             <small>{summary.overdue ? t("Late") : t("Left")}</small>
           </span>
