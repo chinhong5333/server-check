@@ -22,7 +22,7 @@ export function ThemeToggle() {
   const theme: Theme = preference === "system" ? (systemDark ? "dark" : "light") : preference;
 
   useEffect(() => {
-    applyTheme(theme);
+    applyTheme(theme, true);
   }, [theme]);
 
   useEffect(() => {

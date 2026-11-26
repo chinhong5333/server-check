@@ -4829,3 +4829,10 @@ html:has(dialog[open]) { overflow: hidden; scrollbar-gutter: stable; }
   .agent-health-checks__alert { margin: var(--space-sm) var(--space-sm) 0; padding: var(--space-md); }
   .agent-database-last { margin: var(--space-sm); }
 }
+
+/* Theme switch: the whole page, charts included, cross-fades between the old and new theme (see applyTheme). */
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: var(--dur-long); animation-timing-function: var(--ease-in-out); }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}
