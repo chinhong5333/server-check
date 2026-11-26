@@ -1,10 +1,39 @@
 import { AlertTriangle, CircleX } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import { formatDateTime, serverUptimeText } from "../lib/format";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { formatDateTime, formatTime, serverUptimeText } from "../lib/format";
 import { statusClock } from "../lib/status-clock";
 import { heartbeatDuration, heartbeatSummary, statusNotice, type SummaryAgent } from "./AgentHeartbeatSummary";
 import { StatusBadge } from "./StatusBadge";
 import { t } from "../i18n";
+
+const SEGMENTS = 20;
+
+/** Square-segment meter, 5% per square. Decorative: the tile's text carries the exact value. */
+function SegmentMeter({ fraction }: { fraction: number }) {
+  const filled = Math.round(Math.min(1, Math.max(0, fraction)) * SEGMENTS);
+  return <span className="agent-reading__segments" aria-hidden="true">
+    {Array.from({ length: SEGMENTS }, (_, index) => <i key={index} className={index < filled ? "is-on" : undefined} />)}
+  </span>;
+}
+
+/** Countdown arc on a 48-unit box (radius 20), clockwise from 12 o'clock, plus the knob at its leading end. */
+function ringArc(fraction: number): { path: string; knobX: number; knobY: number } {
+  // A full circle cannot be one SVG arc, so a fresh heartbeat stops just short of 100%.
+  const clamped = Math.min(0.9999, Math.max(0, fraction));
+  const angle = (clamped * 360 - 90) * Math.PI / 180;
+  const knobX = 24 + 20 * Math.cos(angle);
+  const knobY = 24 + 20 * Math.sin(angle);
+  return { path: `M24 4A20 20 0 ${clamped > 0.5 ? 1 : 0} 1 ${knobX.toFixed(2)} ${knobY.toFixed(2)}`, knobX, knobY };
+}
+
+/** Compact clock text for the countdown ring: m:ss, or h:mm:ss from one hour. */
+function clockText(milliseconds: number): string {
+  const total = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = String(total % 60).padStart(2, "0");
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}` : `${minutes}:${seconds}`;
+}
 
 /** One latest-reading tile of the Ver 2 layout: a value with either a utilization meter or a short trend line. */
 export function ReadingTile({ label, value, series, percent, detail, trend }: {
@@ -13,16 +42,18 @@ export function ReadingTile({ label, value, series, percent, detail, trend }: {
 }) {
   const values = (trend ?? []).filter((item): item is number => typeof item === "number" && Number.isFinite(item));
   const low = Math.min(...values);
-  const span = Math.max(...values) - low || 1;
+  const span = Math.max(...values) - low;
+  // Fewer than two readings, or readings that never change, draw a flat line through the middle,
+  // so every trend tile keeps the same shape and position.
+  const points = values.length > 1 && span > 0
+    ? values.map((item, index) => `${(index / (values.length - 1)) * 100},${22 - ((item - low) / span) * 20}`).join(" ")
+    : "0,12 100,12";
   return <article className="agent-reading" data-series={series} aria-label={label}>
     <span className="agent-reading__label">{label}</span>
     <strong className="agent-reading__value numeric">{value}</strong>
-    {/* Decorative: the value above is the accessible reading. */}
-    {percent != null ? <span className="agent-reading__meter" aria-hidden="true">
-      <span style={{ transform: `scaleX(${Math.min(1, Math.max(0, percent / 100))})` }} />
-    </span> : null}
-    {values.length > 1 ? <svg className="agent-reading__spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
-      <polyline points={values.map((item, index) => `${(index / (values.length - 1)) * 100},${22 - ((item - low) / span) * 20}`).join(" ")} />
+    {percent != null ? <SegmentMeter fraction={percent / 100} /> : null}
+    {trend ? <svg className="agent-reading__spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points={points} />
     </svg> : null}
     {detail ? <p className="numeric">{detail}</p> : null}
   </article>;
@@ -42,6 +73,8 @@ export function AgentStatusOverview({ agent, help, readings, notificationsMuted 
   const notice = statusNotice(agent, summary);
   const remaining = summary.deadline === null || summary.overdue ? 0
     : Math.min(1, (summary.deadline - asOf) / (agent.heartbeat_interval_seconds * 1000));
+  const ring = ringArc(remaining);
+  const ringGradientId = `heartbeat-ring-${useId().replace(/[^\w-]/g, "")}`;
   const delivery = notificationsMuted ? t("TG Muted During Maintenance") : notice?.delivery;
   return <section className="agent-overview" aria-label={t("Agent Status Summary")}>
     <span className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
@@ -67,16 +100,38 @@ export function AgentStatusOverview({ agent, help, readings, notificationsMuted 
       <span className="agent-overview__delivery">{delivery}</span>
     </div> : null}
     <div className="agent-overview__readings" role="group" aria-label={t("Latest Readings")}>
-      <article className={`agent-reading${summary.overdue ? " agent-reading--overdue" : ""}`} data-series="heartbeat" aria-label={t("Last Heartbeat Received")}>
+      <article className={`agent-reading agent-reading--ring${summary.overdue ? " agent-reading--overdue" : ""}`} data-series="heartbeat" aria-label={t("Last Heartbeat Received")}>
         <span className="agent-reading__label">{t("Last Heartbeat Received")}</span>
         <strong className="agent-reading__value">{summary.elapsed}</strong>
-        {summary.deadline !== null ? <span className={`agent-heartbeat-summary__countdown${summary.overdue ? " agent-heartbeat-summary__countdown--overdue" : remaining <= 0.25 ? " agent-heartbeat-summary__countdown--low" : ""}`} aria-hidden="true">
-          <span style={{ transform: `scaleX(${remaining})` }} />
-        </span> : null}
         <p title={summary.deadline === null ? undefined : t("Marked Overdue At: {0}", formatDateTime(summary.deadline))}>
           {summary.deadline === null ? t("A deadline starts after the first heartbeat.")
-            : <>{summary.overdue ? t("Overdued") : t("Time Until Marked Overdue")}{" "}<strong role="timer" aria-live="off">{summary.timing}</strong></>}
+            : summary.overdue ? <>{t("Overdued")}{" "}<strong>{summary.timing}</strong></>
+              : <>{t("Marked Overdue At")}{" "}<strong>{formatTime(summary.deadline)}</strong></>}
         </p>
+        {/* Countdown ring: drains toward the overdue point; once overdue it turns red and counts up. */}
+        {summary.deadline !== null ? <span
+          className={`agent-reading__ring${summary.overdue ? " agent-reading__ring--overdue" : remaining <= 0.25 ? " agent-reading__ring--low" : ""}`}
+          role="timer" aria-live="off" aria-label={`${summary.overdue ? t("Overdued") : t("Time Until Marked Overdue")} ${summary.timing}`}>
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <defs>
+              <linearGradient id={ringGradientId} x1="0" y1="0" x2="1" y2="1">
+                <stop className="agent-reading__ring-stop" offset="0" stopOpacity="0.35" />
+                <stop className="agent-reading__ring-stop" offset="1" />
+              </linearGradient>
+            </defs>
+            <circle className="agent-reading__ring-disc" cx="24" cy="24" r="15" />
+            <circle className="agent-reading__ring-track" cx="24" cy="24" r="20" />
+            {summary.overdue ? null : <>
+              <path className="agent-reading__ring-fill" d={ring.path} stroke={`url(#${ringGradientId})`} />
+              <circle className="agent-reading__ring-halo" cx={ring.knobX} cy={ring.knobY} r="6" />
+              <circle className="agent-reading__ring-knob" cx={ring.knobX} cy={ring.knobY} r="3.4" />
+            </>}
+          </svg>
+          <span aria-hidden="true">
+            <strong>{summary.overdue ? `+${clockText(asOf - summary.deadline)}` : clockText(summary.deadline - asOf)}</strong>
+            <small>{summary.overdue ? t("Late") : t("Left")}</small>
+          </span>
+        </span> : null}
       </article>
       {readings}
     </div>

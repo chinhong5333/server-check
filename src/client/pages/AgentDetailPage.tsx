@@ -390,8 +390,6 @@ export function AgentDetailPage() {
         </>} />
         : <AgentHeartbeatSummary agent={agent} fetchedAt={resource.fetchedAt} notificationsMuted={maintenanceActive} help={serverStateHelp} />}
 
-      {v2 ? scriptConfiguration : null}
-
       <ModalDialog
         id="server-state-definitions"
         open={serverStateHelpOpen}
@@ -428,8 +426,10 @@ export function AgentDetailPage() {
       <AgentHealthChecks checks={agent.checks ?? DEFAULT_AGENT_CHECKS} snapshot={agent.service_health ?? null}
         databaseHealth={resource.data.latest_database_health ?? null} lastAliveDatabaseHealth={resource.data.last_alive_database_health ?? null}
         lastMetricsAt={agent.last_metrics_at} lastHeartbeatAt={agent.last_heartbeat_at}
-        intervalSeconds={agent.heartbeat_interval_seconds} telemetryStale={agent.status === "stale"} fetchedAt={resource.fetchedAt} />
+        intervalSeconds={agent.heartbeat_interval_seconds} telemetryStale={agent.status === "stale"} fetchedAt={resource.fetchedAt}
+        healthApiUrl={v2 ? agent.health_api_url : null} />
 
+      {/* Ver 2 shows the Middleware API URL inside its health-check card instead. */}
       {v2 ? null : scriptConfiguration}
 
       {v2 ? (

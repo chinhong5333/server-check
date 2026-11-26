@@ -1,5 +1,7 @@
-import { CircleAlert, CircleCheck, CircleDashed, CircleHelp, CircleSlash, CircleX, Clock3, Link2, Server } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleDashed, CircleHelp, CircleSlash, CircleX, Clock3, ExternalLink, Link2, Server } from "lucide-react";
+import { useId, useState } from "react";
 import type { AgentChecks, AgentHealthSnapshot, DatabaseHealthSnapshot, LastAliveDatabaseHealth } from "../../shared/contracts";
+import { CopyButton } from "./CopyButton";
 import { formatDateTime, formatLatency } from "../lib/format";
 import { statusClock } from "../lib/status-clock";
 import { AgentDatabaseHealth, databaseStatus } from "./AgentDatabaseHealth";
@@ -19,10 +21,33 @@ export function checkPresentation(enabled: boolean, status: string | undefined, 
   return { label: t("Unknown"), tone: "warning", Icon: CircleHelp };
 }
 
-export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, lastAliveDatabaseHealth = null, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale, fetchedAt }: {
+/**
+ * The Middleware API URL inside its card: one line cut with an ellipsis, the full URL in a tooltip on hover or
+ * keyboard focus (Escape hides it), and icon buttons to copy it or open it in a new tab.
+ */
+function MiddlewareEndpoint({ url }: { url: string }) {
+  const tooltipId = useId();
+  const [dismissed, setDismissed] = useState(false);
+  return <div className="agent-endpoint">
+    <span className="agent-endpoint__verb" aria-hidden="true">GET</span>
+    <span className={`agent-endpoint__url${dismissed ? " is-dismissed" : ""}`} tabIndex={0} aria-describedby={tooltipId}
+      onKeyDown={(event) => { if (event.key === "Escape") setDismissed(true); }}
+      onMouseLeave={() => setDismissed(false)} onBlur={() => setDismissed(false)}>
+      <code>{url}</code>
+      <span className="agent-endpoint__tooltip" role="tooltip" id={tooltipId}>{url}</span>
+    </span>
+    <CopyButton value={url} label={t("Copy Middleware API URL")} iconOnly />
+    <a className="icon-button" href={url} target="_blank" rel="noopener noreferrer"
+      aria-label={t("Test Middleware API URL In A New Tab")} title={t("Open In A New Tab")}><ExternalLink aria-hidden="true" /></a>
+  </div>;
+}
+
+export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, lastAliveDatabaseHealth = null, lastMetricsAt, lastHeartbeatAt, intervalSeconds, telemetryStale, fetchedAt, healthApiUrl = null }: {
   checks: AgentChecks; snapshot: AgentHealthSnapshot | null; lastMetricsAt: number | null;
   databaseHealth?: DatabaseHealthSnapshot | null; lastAliveDatabaseHealth?: LastAliveDatabaseHealth | null; lastHeartbeatAt: number | null;
   intervalSeconds: number; telemetryStale: boolean; fetchedAt?: number | null;
+  /** When set, the Middleware API card shows this URL with Copy and Test (Ver 2 layout). */
+  healthApiUrl?: string | null;
 }) {
   const asOf = statusClock(fetchedAt);
   const expired = telemetryStale || lastMetricsAt === null || lastHeartbeatAt === null
@@ -85,6 +110,7 @@ export function AgentHealthChecks({ checks, snapshot, databaseHealth = null, las
               <h3>{title}</h3>
             </div>
             <span className={`status status--${view.tone}`}><view.Icon aria-hidden="true" />{view.label}</span>
+            {key === "middleware_api" && healthApiUrl ? <MiddlewareEndpoint url={healthApiUrl} /> : null}
             {checks[key] && result && status !== "disabled" ? <dl className="agent-health-check__rows">
               {api ? <div><dt>{t("Response")}</dt>
                 <dd className={failed ? "agent-health-check__bad" : undefined}>{`${api.http_status_code === null ? t("No HTTP Response") : `HTTP ${api.http_status_code}`} · ${formatLatency(api.latency_ms)}`}</dd></div> : null}

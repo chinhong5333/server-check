@@ -98,6 +98,12 @@ export function formatDateTime(value: number | null | undefined): string {
   }).format(new Date(value));
 }
 
+/** Clock time only, for deadlines that fall within the same day as the reading. */
+export function formatTime(value: number | null | undefined): string {
+  if (!valid(value)) return t("Never");
+  return new Intl.DateTimeFormat(intlLocale, { timeStyle: "medium" }).format(new Date(value));
+}
+
 export function formatRelativeTime(value: number | null | undefined, now = Date.now()): string {
   if (!valid(value)) return t("Never");
   const seconds = Math.round((value - now) / 1000);

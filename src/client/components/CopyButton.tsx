@@ -2,7 +2,8 @@ import { Check, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { t } from "../i18n";
 
-export function CopyButton({ value, label }: { value: string; label: string }) {
+/** Copies `value`. `iconOnly` drops the visible text for tight rows; the accessible name then carries the state. */
+export function CopyButton({ value, label, iconOnly = false }: { value: string; label: string; iconOnly?: boolean }) {
   const [state, setState] = useState<"idle" | "copied" | "error">("idle");
 
   useEffect(() => {
@@ -20,10 +21,16 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
     }
   };
 
+  const text = state === "copied" ? t("Copied") : state === "error" ? t("Copy Failed") : t("Copy");
+  if (iconOnly) return (
+    <button className="icon-button copy-button--icon" type="button" onClick={copy} aria-label={state === "idle" ? label : text} title={state === "idle" ? label : text}>
+      {state === "copied" ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+    </button>
+  );
   return (
     <button className="button button--secondary copy-button" type="button" onClick={copy} aria-label={state === "idle" ? label : undefined}>
       {state === "copied" ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-      {state === "copied" ? t("Copied") : state === "error" ? t("Copy Failed") : t("Copy")}
+      {text}
     </button>
   );
 }
