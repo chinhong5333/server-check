@@ -515,7 +515,7 @@ export function InstallAgentPage() {
         id="register-agent"
         open={registrationOpen && hasPermission(user, "edit_agent_settings")}
         labelledBy="register-agent-title"
-        dialogClassName="agent-dialog--agent-form"
+        dialogClassName="agent-dialog--agent-form agent-dialog--stacked"
         surfaceClassName="agent-dialog__surface form-surface"
         restoreFocusTo={registrationButtonRef.current}
       >
@@ -555,7 +555,7 @@ export function InstallAgentPage() {
           <>
             {error ? <div className="form-banner form-banner--error" role="alert">{error}</div> : null}
             <form className="form-grid agent-settings-form agent-settings-form--wizard" onSubmit={(event) => void createAgent(event)} noValidate aria-busy={submitting}>
-              <WizardSteps steps={REGISTRATION_STEPS} current={3} label={t("Agent Registration Progress")} />
+              <WizardSteps steps={REGISTRATION_STEPS} current={3} label={t("Agent Registration Progress")} variant="bar" />
               <AgentScriptChecks value={registrationChecks} onChange={setRegistrationChecks} disabled={submitting} />
               {registrationChecks.middleware_api ? <div className="field field--wide">
                 <label htmlFor="registration-health-api-url">{t("Middleware API URL")}</label>
@@ -591,7 +591,7 @@ export function InstallAgentPage() {
         id="edit-agent"
         open={Boolean(editingAgent) && hasPermission(user, "edit_agent_settings")}
         labelledBy="edit-agent-title"
-        dialogClassName="agent-dialog--agent-form"
+        dialogClassName="agent-dialog--agent-form agent-dialog--stacked"
         surfaceClassName="agent-dialog__surface form-surface"
         restoreFocusTo={editTriggerRef.current}
       >

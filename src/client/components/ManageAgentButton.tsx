@@ -45,7 +45,7 @@ export function ManageAgentButton({ agentId, projectId, agentName, onSaved }: {
   return <>
     <button ref={trigger} className="button button--secondary" type="button" aria-haspopup="dialog"
       aria-controls="manage-agent-dialog" onClick={() => { setSettings(null); setError(null); setLoading(true); setOpen(true); }}><Settings aria-hidden="true" />{t("Manage")}</button>
-    <ModalDialog id="manage-agent-dialog" open={open} labelledBy="manage-agent-title" dialogClassName="agent-dialog--agent-form"
+    <ModalDialog id="manage-agent-dialog" open={open} labelledBy="manage-agent-title" dialogClassName="agent-dialog--agent-form agent-dialog--stacked"
       surfaceClassName="agent-dialog__surface form-surface" restoreFocusTo={trigger.current}>
       <div className="section-heading"><h2 id="manage-agent-title">{t("Manage {0}", agentName)}</h2>
         <button data-dialog-initial-focus className="icon-button" type="button" aria-label={t("Close Agent Settings")} disabled={saving} onClick={() => setOpen(false)}><X aria-hidden="true" /></button></div>

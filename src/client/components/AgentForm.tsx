@@ -181,7 +181,7 @@ export function AgentForm({
         aria-busy={submitting}
         aria-describedby={message ? "agent-form-error" : undefined}
       >
-        {wizard ? <WizardSteps steps={wizard.steps} current={wizardStep} label={t("Agent Registration Progress")} /> : serverDetails}
+        {wizard ? <WizardSteps steps={wizard.steps} current={wizardStep} label={t("Agent Registration Progress")} variant="bar" /> : serverDetails}
 
         <div className="agent-settings-tabs field--wide">
           {wizard ? null : <div className="history-tabs__list" role="tablist" aria-label={t("Agent Settings Sections")}>
@@ -189,8 +189,6 @@ export function AgentForm({
               aria-selected={section === key} aria-controls={`agent-settings-panel-${key}`} tabIndex={section === key ? 0 : -1}
               onClick={() => setSection(key)} onKeyDown={(event) => moveSection(event, key)}>
               <Icon aria-hidden="true" /><span className="agent-settings-tab__label">{label}</span><span className="agent-settings-tab__short">{short}</span>
-              {key === "checks" && selectedChecks ? <span className="numeric">
-                {Object.values(selectedChecks).filter(Boolean).length}/3</span> : null}
             </button>)}
           </div>}
           {/* Inactive panels stay laid out (hidden + inert) so the modal height does not jump between sections. */}
@@ -199,7 +197,8 @@ export function AgentForm({
             {selectedChecks && checks ? <div {...panelProps("checks")}>
               <AgentScriptChecks value={selectedChecks} onChange={setSelectedChecks}
                 cannotEnable={checks.middlewareUrlSaved ? [] : ["middleware_api"]}
-                help={t("Changes apply on the next heartbeat.{0} Agents on a script older than 1.5.0 show Needs New Script for checks it does not run.", checks.middlewareUrlSaved ? "" : t(" Middleware API needs a saved URL."))} />
+                cannotEnableReason={t("Needs a saved Middleware API URL. Add one with Rotate And Generate Script.")}
+                help={t("Changes apply on the next heartbeat. Agents on a script older than 1.5.0 show Needs New Script for checks it does not run.")} />
             </div> : null}
             <div {...panelProps("resources")}>
           <fieldset className="form-section">
